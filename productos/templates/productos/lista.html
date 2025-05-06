@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head><title>Productos</title></head>
+<body>
+    <h1>Productos de {{ request.user.empresa }}</h1>
+    <a href="{% url 'nuevo_producto' %}">+ Nuevo producto</a>
+    <table border="1">
+        <tr>
+            <th>Nombre</th><th>Código</th><th>Stock</th><th>Precio</th>
+        </tr>
+        {% for p in productos %}
+        <tr>
+            <td>{{ p.nombre }}</td>
+            <td>{{ p.codigo }}</td>
+            <td>{{ p.stock_actual }}</td>
+            <td>{{ p.precio_venta }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">No hay productos.</td></tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

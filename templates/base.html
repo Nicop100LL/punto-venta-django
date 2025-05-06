@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+
+
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Panel{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen text-gray-800" x-data="{ open: false }">
+
+
+    <div class="flex">
+        <!-- Menú lateral -->
+        <!-- Sidebar normal en desktop -->
+        <aside x-cloak
+            class="w-64 bg-white h-screen shadow-md fixed top-0 left-0 z-30 transform transition-transform duration-300 ease-in-out"
+            :class="open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
+
+            <div class="p-4 text-xl font-bold text-blue-700 border-b border-gray-200">
+                Mi Comercio
+            </div>
+            <nav class="p-4 space-y-2">
+                <a href="{% url 'lista_productos' %}"
+                    class="block py-2 px-4 rounded hover:bg-blue-100 {% if request.path == '/productos/' %}bg-blue-100{% endif %}">Productos</a>
+                <a href="{% url 'lista_ventas' %}"
+                    class="block py-2 px-4 rounded hover:bg-blue-100 {% if request.path == '/ventas/' %}bg-blue-100{% endif %}">Ventas</a>
+                <a href="{% url 'nueva_venta' %}"
+                    class="block py-2 px-4 rounded hover:bg-blue-100 {% if request.path == '/ventas/nueva/' %}bg-blue-100{% endif %}">Nueva
+                    Venta</a>
+                <a href="{% url 'lista_clientes' %}"
+                    class="block py-2 px-4 rounded hover:bg-blue-100 {% if request.path == '/ventas/lista_clientes/' %}bg-blue-100{% endif %}">Clientes</a>
+            </nav>
+        </aside>
+        <!-- Contenido principal -->
+        <div class="flex-1 min-h-screen flex flex-col ml-0 md:ml-64">
+            <!-- Encabezado -->
+            <header class="bg-white shadow p-4 flex justify-between items-center">
+                <!-- Lado izquierdo -->
+                <div class="flex items-center space-x-4">
+                    <!-- Botón hamburguesa -->
+                    <button @click="open = true" class="text-gray-600 hover:text-blue-600 md:hidden">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+
+                    <div class="text-lg font-semibold">
+                        {% block header %}Panel de Administración{% endblock %}
+                    </div>
+                </div>
+
+                <!-- Lado derecho -->
+                <div class="flex items-center space-x-4">
+                    {% if user.is_authenticated %}
+                    <span class="text-gray-600">Usuario: <strong class="text-blue-600">{{ user.username }}</strong></span>
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit"
+                            class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
+                            Cerrar sesión
+                        </button>
+                        <script>
+                            localStorage.removeItem('menuOpen');
+                        </script>
+
+                    </form>
+                    {% else %}
+                    <a href="{% url 'login' %}"
+                        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                        Iniciar sesión
+                    </a>
+                    {% endif %}
+                </div>
+            </header>
+
+            <!-- Contenido -->
+            <main class="p-6 flex-1 bg-gray-50">
+                {% block content %}{% endblock %}
+            </main>
+
+        </div>
+
+    </div>
+    <!-- FONDO OSCURO SOLO PARA MÓVIL -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden" x-show="open" @click="open = false"
+        x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-50" x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-50" x-transition:leave-end="opacity-0" style="display: none;"></div>
+    <script src="//unpkg.com/alpinejs" defer></script>
+
+</body>
+
+
+</html>
+
+<!-- Para imprimir solo la boleta -->
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+
+        .boleta,
+        .boleta * {
+            visibility: visible;
+        }
+
+        .boleta {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 58mm;
+            font-size: 7px;
+            /* <- MÁS CHICA Y CLARA */
+            background: white;
+            height: auto !important;
+            overflow: visible !important;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 4px;
+            /* <- Letra más compacta */
+        }
+
+        th,
+        td {
+            padding: 1px 2px;
+            text-align: left;
+            word-wrap: break-word;
+        }
+
+        th {
+            font-weight: bold;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        h2 {
+            font-size: 12px;
+            text-align: center;
+            margin: 0 0 5px 0;
+        }
+
+        p {
+            margin: 1px 0;
+        }
+    }
+</style>
+
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>

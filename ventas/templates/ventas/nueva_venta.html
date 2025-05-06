@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+
+{% load custom_filters %}
+
+{% block title %}Nueva Venta{% endblock %}
+
+{% block content %}
+<h2 class="text-xl font-bold mb-4">Nueva Venta</h2>
+
+{% if error %}
+<p class="text-red-600 font-semibold mb-2">{{ error }}</p>
+{% endif %}
+
+<form method="post" class="mb-6" id="form-agregar">
+    {% csrf_token %}
+    <div class="mb-4">
+        <label for="id_cliente" class="block text-gray-700 font-bold mb-2">Cliente:</label>
+        <select name="cliente" id="id_cliente" class="w-full border border-gray-300 rounded px-3 py-2">
+            <option value="" {% if not cliente_id %}selected{% endif %}>---------</option>
+            {% for cliente in venta_form.fields.cliente.queryset %}
+            <option value="{{ cliente.id }}" {% if cliente.id|stringformat:"s" == cliente_id|stringformat:"s" %}
+            selected{% endif %}>
+                {{ cliente.nombre }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <div id="saldo-cliente" class="mt-2 text-sm text-gray-700">
+            {% if saldo_cliente is not None %}
+            <p><strong>Saldo actual:</strong> ${{ saldo_cliente|floatformat:2 }}</p>
+            {% endif %}
+        </div>
+
+
+        </select>
+    </div>
+    <div class="mb-4">
+        <label for="tipo_pago" class="block text-sm font-medium text-gray-700">Tipo de pago</label>
+        <select name="tipo_pago" id="tipo_pago" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm">
+            <option value="EF" {% if tipo_pago == 'EF' %}selected{% endif %}>Efectivo</option>
+            <option value="MP" {% if tipo_pago == 'MP' %}selected{% endif %}>QR (Mercado Pago)</option>
+            <option value="DN" {% if tipo_pago == 'DN' %}selected{% endif %}>QR (Cuenta DNI)</option>
+            <option value="TJ" {% if tipo_pago == 'TJ' %}selected{% endif %}>Tarjeta</option>
+            <option value="TR" {% if tipo_pago == 'TR' %}selected{% endif %}>Transferencia</option>
+        </select>        
+    </div>
+    <div class="mb-4">
+        <label for="tipo_comprobante" class="block text-gray-700 font-bold mb-2">Tipo de Comprobante:</label>
+        <select name="tipo_comprobante" id="tipo_comprobante" class="w-full border border-gray-300 rounded px-3 py-2">
+            <option value="ticket" {% if tipo_comprobante|stringformat:"s" == "ticket" %}selected{% endif %}>
+                Consumidor Final (Ticket)
+            </option>
+            <option value="factura_afip" {% if tipo_comprobante|stringformat:"s" == "factura_afip" %}selected{% endif %}>
+                Factura AFIP
+            </option>
+        </select>
+    </div>
+
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+            <label for="codigo" class="block text-sm font-medium text-gray-700">Código:</label>
+            <input type="text" name="codigo" id="codigo" required autofocus
+                class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2">
+        </div>
+
+        <div>
+            <label for="cantidad" class="block text-sm font-medium text-gray-700">Cantidad:</label>
+            <input type="number" name="cantidad" id="cantidad" value="1" min="0.001" step="0.001" required
+                class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2">
+        </div>
+
+        <div>
+            <label for="precio" class="block text-sm font-medium text-gray-700">Precio unitario:</label>
+            <input type="text" id="precio" readonly
+                class="mt-1 w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2">
+        </div>
+    </div>
+
+
+    <button type="submit" name="agregar" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+        Agregar al carrito
+    </button>
+</form>
+
+{% if carrito %}
+<h3 class="text-lg font-semibold mb-2">Carrito</h3>
+<table class="w-full border border-gray-300 mb-4">
+    <thead>
+        <tr class="bg-gray-200 text-left">
+            <th class="p-2">Producto</th>
+            <th class="p-2">Cantidad</th>
+            <th class="p-2">Precio Unitario</th>
+            <th class="p-2">Subtotal</th>
+            <th class="p-2">Acción</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in carrito %}
+        <tr class="border-t border-gray-300">
+            <td class="p-2">{{ item.nombre }}</td>
+            <td class="p-2">{{ item.cantidad }}</td>
+            <td class="p-2">{{ item.precio_unitario|floatformat:0|formato_precio }}</td>
+            <td class="p-2">{{ item.subtotal|floatformat:0|formato_precio }}</td>
+            <td class="p-2">
+                <form method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="eliminar_codigo" value="{{ item.producto_id }}">
+                    <button type="submit" class="text-red-600 hover:underline">Quitar</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="text-right text-lg font-bold mt-2">
+    <p>Total: ${{ total|floatformat:0|formato_precio }}</p>
+</div>
+
+<form method="post" id="form-finalizar">
+    {% csrf_token %}
+    <input type="hidden" name="tipo_comprobante" value="{{ tipo_comprobante }}">
+    <input type="hidden" name="cliente" value="{{ cliente_id|default_if_none:'' }}">
+    <input type="hidden" name="tipo_pago" value="{{ tipo_pago }}">
+
+    <div class="mb-4">
+        <label for="cuenta_corriente" class="inline-flex items-center">
+            <input type="checkbox" name="cuenta_corriente" id="cuenta_corriente" class="form-checkbox text-blue-600" 
+            
+                {% if cuenta_corriente %}checked{% endif %} {% if not cliente_id %}disabled{% endif %}>
+            <span id="texto-cuenta-corriente"
+                class="ml-2 font-semibold {% if not cliente_id %}text-gray-400{% else %}text-gray-700{% endif %}">
+                Cuenta Corriente
+            </span>
+        </label>
+    </div>
+    <button type="submit" name="finalizar" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+        Finalizar Venta
+    </button>
+</form>
+
+
+{% endif %}
+
+<!-- Modal de error -->
+<div id="modal-error" style="display:none;"
+    class="fixed inset-0 flex items-center justify-center z-50 bg-gray-500 bg-opacity-50">
+    <div class="bg-white p-6 rounded-lg shadow-md w-1/3">
+        <h3 class="text-lg font-semibold">Error</h3>
+        <p id="modal-error-message" class="text-red-600"></p>
+        <button onclick="document.getElementById('modal-error').style.display='none'"
+            class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            Cerrar
+        </button>
+    </div>
+</div>
+
+<!-- Audio para beep -->
+<audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
+<!-- Modal para ingreso de kilos -->
+<div id="modalKilos" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 hidden">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+        <h2 class="text-lg font-semibold mb-4">Ingresar cantidad en kilos</h2>
+        <p id="nombreProductoKilo" class="mb-2 text-gray-700"></p>
+        <label for="cantidadKilos" class="block mb-2 text-sm font-medium text-gray-700">Cantidad (kg):</label>
+        <input type="number" step="0.01" min="0.01" id="cantidadKilos"
+            class="w-full border border-gray-300 rounded px-3 py-2 mb-4" />
+        <div class="flex justify-end">
+            <button onclick="cerrarModalKilos()" class="bg-gray-300 px-4 py-2 rounded mr-2">Cancelar</button>
+            <button id="boton-agregar-kilos" onclick="confirmarKilos()"
+                class="bg-blue-600 text-white px-4 py-2 rounded">Agregar</button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    const inputCodigo = document.getElementById('codigo');
+    const inputCantidad = document.getElementById('cantidad');
+    const inputPrecio = document.getElementById('precio');
+    const formAgregar = document.getElementById('form-agregar');
+    const formFinalizar = document.getElementById('form-finalizar');
+    const modalError = document.getElementById('modal-error');
+    const modalErrorMessage = document.getElementById('modal-error-message');
+    const beep = document.getElementById('beep');
+
+    function mostrarError(mensaje) {
+        modalErrorMessage.innerText = mensaje;
+        modalError.style.display = 'flex';
+    }
+
+    function limpiarCampos() {
+        inputCodigo.value = '';
+        inputPrecio.value = '';
+        inputCantidad.value = 1;
+        inputCodigo.focus();
+    }
+
+    function mostrarModalKilos(data) {
+        document.getElementById('nombreProductoKilo').innerText = data.nombre;
+        document.getElementById('cantidadKilos').value = '';
+        document.getElementById('modalKilos').classList.remove('hidden');
+        document.getElementById('cantidadKilos').focus();
+
+        // Guardar el producto actual en memoria
+        window.productoActual = data;
+    }
+
+    function cerrarModalKilos() {
+        document.getElementById('modalKilos').classList.add('hidden');
+    }
+
+    function confirmarKilos() {
+        const cantidad = parseFloat(document.getElementById('cantidadKilos').value);
+        if (!cantidad || cantidad <= 0) {
+            alert("Por favor, ingresa una cantidad válida en kilos.");
+            return;
+        }
+
+        inputCantidad.value = cantidad;
+        cerrarModalKilos();
+
+        const submitButton = document.querySelector('button[name="agregar"]');
+        submitButton.click();
+    }
+
+    function buscarProducto(codigo) {
+        fetch(`/productos/buscar-producto/?codigo=${codigo}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    mostrarError(data.error);
+                    inputPrecio.value = '';
+                } else {
+                    inputPrecio.value = data.precio_venta;
+                    if (beep) beep.play();
+
+                    if (data.tipo_venta === 'kilo') {
+                        mostrarModalKilos(data);
+                    } else {
+                        const submitButton = document.querySelector('button[name="agregar"]');
+                        submitButton.click();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error al buscar producto:', error);
+            });
+    }
+
+    // Detectar Enter en el campo código
+    inputCodigo.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const codigo = inputCodigo.value.trim();
+            if (codigo.length >= 2) {
+                buscarProducto(codigo);
+            }
+        }
+    });
+
+    // Resetear campos al agregar producto
+    formAgregar.addEventListener('submit', function () {
+        setTimeout(() => limpiarCampos(), 100);
+    });
+
+    // Enfocar al inicio
+    inputCodigo.focus();
+</script>
+
+<!-- JavaScript al final del archivo -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const inputKilo = document.getElementById('cantidadKilos');
+        const botonAgregarKilos = document.getElementById('boton-agregar-kilos');  // Aquí cambiamos el ID
+
+        if (inputKilo) {
+            inputKilo.addEventListener('keypress', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();  // Evita el comportamiento por defecto
+                    botonAgregarKilos.click();  // Simula el clic en el botón "Agregar"
+                }
+            });
+        }
+    });
+
+</script>
+
+<!-- JavaScript para activar el checkbox -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const selectCliente = document.getElementById('id_cliente');
+        const checkboxCuentaCorriente = document.getElementById('cuenta_corriente');
+        const textoCuentaCorriente = document.getElementById('texto-cuenta-corriente');
+
+        // Función para actualizar el estado del checkbox
+        function actualizarCuentaCorriente() {
+            if (selectCliente.value) {
+                // Hay cliente seleccionado
+                checkboxCuentaCorriente.disabled = false;
+                textoCuentaCorriente.classList.remove('text-gray-400');
+                textoCuentaCorriente.classList.add('text-gray-700');
+            } else {
+                // No hay cliente
+                checkboxCuentaCorriente.disabled = true;
+                checkboxCuentaCorriente.checked = false; // Por si estaba tildado antes
+                textoCuentaCorriente.classList.remove('text-gray-700');
+                textoCuentaCorriente.classList.add('text-gray-400');
+            }
+        }
+
+        // Cuando cambia el select de cliente, ejecutamos la función
+        selectCliente.addEventListener('change', actualizarCuentaCorriente);
+
+        // También ejecutamos una vez al cargar la página
+        actualizarCuentaCorriente();
+    });
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const clienteSelect = document.getElementById('id_cliente');
+        const saldoDiv = document.getElementById('saldo-cliente');
+
+        clienteSelect.addEventListener('change', function () {
+            const clienteId = this.value;
+            if (clienteId) {
+                fetch(`/ventas/ajax/obtener_saldo/?cliente_id=${clienteId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.saldo !== undefined) {
+                            saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> $${data.saldo.toFixed(2)}</p>`;
+                        } else {
+                            saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> -</p>`;
+                        }
+                    })
+                    .catch(error => {
+                        saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> Error</p>`;
+                        console.error('Error al obtener saldo:', error);
+                    });
+            } else {
+                saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> -</p>`;
+            }
+        });
+    });
+</script>
+
+
+
+{% endblock %}

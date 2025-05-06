@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Factura AFIP{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl bg-white p-6 rounded-xl shadow-lg border border-gray-300 text-sm">
+    <div class="flex justify-between mb-4 border-b pb-2">
+        <div>
+            <p class="text-lg font-bold text-gray-700">Factura Tipo A/B/C</p>
+            <p class="text-gray-600">N° Venta: <strong>{{ venta.id }}</strong></p>
+            <p class="text-gray-600">Fecha: {{ venta.fecha|date:"d/m/Y H:i" }}</p>
+        </div>
+        <div class="text-right">
+            <p class="text-gray-600">Empresa: {{ venta.empresa.nombre }}</p>
+            <p class="text-gray-600">CUIT: {{ venta.empresa.cuit }}</p>
+            <p class="text-gray-600">Condición frente al IVA: {{ venta.empresa.condicion_iva }}</p>
+            <p class="text-gray-600">Dirección: {{ venta.empresa.direccion }}</p>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        {% if venta.cliente.cuit %}
+            <p><span class="font-semibold">CUIT:</span> {{ venta.cliente.cuit }}</p>
+        {% endif %}
+        {% if venta.cliente.condicion_iva %}
+            <p><span class="font-semibold">Condición frente al IVA:</span> {{ venta.cliente.get_condicion_iva_display }}</p>
+        {% endif %}
+        {% if venta.cliente.direccion %}
+            <p><span class="font-semibold">Dirección:</span> {{ venta.cliente.direccion }}</p>
+        {% endif %}
+        <p><span class="font-semibold">Cliente:</span> {{ venta.cliente }}</p>
+        <p><span class="font-semibold">Vendedor:</span> {{ venta.usuario.get_full_name|default:venta.usuario.username }}</p>
+        
+        {% if venta.cuenta_corriente %}
+            <p><span class="font-semibold">Cuenta Corriente:</span> Sí</p>
+        {% endif %}
+    </div>
+
+    <table class="w-full text-xs mb-4">
+        <thead class="border-b border-gray-400 text-left text-gray-700 uppercase tracking-wide">
+            <tr>
+                <th class="py-1">Producto</th>
+                <th class="py-1 text-right">Cant</th>
+                <th class="py-1 text-right">Precio Unit.</th>
+                <th class="py-1 text-right">Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in venta.detalles.all %}
+            <tr class="border-b">
+                <td class="py-1">{{ item.producto.nombre }}</td>
+                <td class="py-1 text-right">{{ item.cantidad }}</td>
+                <td class="py-1 text-right">${{ item.precio_unitario|floatformat:0 }}</td>
+                <td class="py-1 text-right">${{ item.subtotal|floatformat:0 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="text-right space-y-1 border-t pt-3 text-gray-800">
+        <p>Subtotal Neto Gravado: <strong>${{ neto|floatformat:0 }}</strong></p>
+        <p>IVA (21%): <strong>${{ iva|floatformat:0 }}</strong></p>
+        <p class="text-lg font-bold text-gray-900">Total Final: ${{ venta.total|floatformat:0 }}</p>
+    </div>
+</div>
+{% endblock %}
