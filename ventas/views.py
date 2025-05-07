@@ -90,27 +90,62 @@ def nueva_venta(request):
 
         # Acción: Agregar producto al carrito
         if 'agregar' in request.POST:
+         # Obtener el código del producto y la cantidad solicitada desde el formulario
             codigo = request.POST.get('codigo')
-            cantidad = Decimal(request.POST.get('cantidad', '1'))
+            cantidad = Decimal(request.POST.get('cantidad', '1'))  # Si no se proporciona cantidad, se toma como 1
 
             try:
+             # Buscamos el producto por su código y la empresa asociada
                 producto = Producto.objects.get(codigo=codigo, empresa=request.user.empresa)
+
+                # Inicializamos el subtotal en caso de que no haya descuento
                 subtotal = producto.precio_venta * cantidad
+
                 # Verificamos si el producto ya está en el carrito
                 producto_en_carrito = next((item for item in carrito if item['producto_id'] == producto.id), None)
+
+                # Si el producto ya existe en el carrito, actualizamos la cantidad y el subtotal
                 if producto_en_carrito:
-                    # Si ya existe, actualizamos la cantidad y el subtotal
+                    # Actualizamos la cantidad en el carrito
                     producto_en_carrito['cantidad'] += float(cantidad)
+
+                    # Verificamos si el producto tiene un descuento por cantidad
+                    descuento_aplicado = 0  # Si no tiene descuento
+                    if producto.aplica_descuento and producto_en_carrito['cantidad'] >= producto.cantidad_minima_descuento:
+                        # Si aplica descuento por cantidad, calculamos el descuento y el precio unitario
+                        descuento_aplicado = producto.porcentaje_descuento
+                        precio_unitario = producto.precio_venta * (1 - descuento_aplicado / 100)
+                    else:
+                        # Si no aplica descuento, mantenemos el precio unitario original
+                        precio_unitario = producto.precio_venta
+
+                    # Actualizamos el subtotal con el nuevo precio unitario
+                    producto_en_carrito['precio_unitario'] = float(precio_unitario)
                     producto_en_carrito['subtotal'] = producto_en_carrito['cantidad'] * producto_en_carrito['precio_unitario']
+
+                # Si el producto no existe en el carrito, lo agregamos como nuevo ítem
                 else:
-                    # Si no existe, lo agregamos como nuevo ítem
+                    # Si el producto tiene descuento, lo calculamos
+                    descuento_aplicado = 0  # Si no tiene descuento
+                    if producto.aplica_descuento and cantidad >= producto.cantidad_minima_descuento:
+                        # Si aplica descuento por cantidad, calculamos el descuento y el precio unitario
+                        descuento_aplicado = producto.porcentaje_descuento
+                        precio_unitario = producto.precio_venta * (1 - descuento_aplicado / 100)
+                    else:
+                        # Si no aplica descuento, mantenemos el precio unitario original
+                        precio_unitario = producto.precio_venta
+
+                    # Agregamos el producto al carrito con el descuento aplicado
                     carrito.append({
                         'producto_id': producto.id,
                         'nombre': producto.nombre,
-                        'precio_unitario': float(producto.precio_venta),
+                        'precio_unitario': float(precio_unitario),
                         'cantidad': float(cantidad),
-                        'subtotal': float(subtotal),
+                        'subtotal': float(precio_unitario * cantidad),
+                        'descuento': float(descuento_aplicado),  # Guardamos el descuento aplicado
                     })
+
+                # Guardamos el carrito actualizado en la sesión
                 request.session['carrito'] = carrito
                 request.session.modified = True
 

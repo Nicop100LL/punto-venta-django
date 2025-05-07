@@ -36,6 +36,10 @@ def nuevo_producto(request):
         stock_actual = Decimal(request.POST['stock_actual'])
         tipo_venta = request.POST.get('tipo_venta')
 
+        # Nuevos campos de descuento
+        aplica_descuento = request.POST.get('aplica_descuento') == 'True'  # Se asegura de que el valor sea un booleano
+        cantidad_minima_descuento = request.POST.get('cantidad_minima_descuento', 0)
+        porcentaje_descuento = request.POST.get('porcentaje_descuento', 0.00)
 
         # Verifica si el código ya existe para la misma empresa
         if Producto.objects.filter(codigo=codigo, empresa=request.user.empresa).exists():
@@ -51,7 +55,10 @@ def nuevo_producto(request):
             precio_compra=precio_compra,
             stock_actual=stock_actual,
             empresa=request.user.empresa,  # ¡Muy importante!
-            tipo_venta=tipo_venta 
+            tipo_venta=tipo_venta, 
+            aplica_descuento=aplica_descuento,
+            cantidad_minima_descuento=cantidad_minima_descuento,
+            porcentaje_descuento=porcentaje_descuento,
         )
 
         return JsonResponse({'success': True})
@@ -70,6 +77,10 @@ def editar_producto(request, id):
         producto.precio_compra = request.POST.get('precio_compra')  # Si es obligatorio
         categoria_id = request.POST.get('categoria')
         producto.categoria = Categoria.objects.get(id=categoria_id)
+        # Nuevos campos de descuento
+        producto.aplica_descuento = request.POST.get('aplica_descuento') == 'True'
+        producto.cantidad_minima_descuento = request.POST.get('cantidad_minima_descuento', 0)
+        producto.porcentaje_descuento = request.POST.get('porcentaje_descuento', 0.00)
         
         producto.save()  # Guardamos el producto actualizado
         messages.success(request, 'Producto actualizado correctamente.')

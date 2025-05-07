@@ -101,7 +101,14 @@
             <td class="p-2">{{ item.nombre }}</td>
             <td class="p-2">{{ item.cantidad }}</td>
             <td class="p-2">{{ item.precio_unitario|floatformat:0|formato_precio }}</td>
-            <td class="p-2">{{ item.subtotal|floatformat:0|formato_precio }}</td>
+            <td class="p-2">{{ item.subtotal|floatformat:0|formato_precio }}
+                {% if item.descuento > 0 %}
+                <br>
+                <small style="color: green;">
+                    Descuento aplicado: -{{ item.descuento|floatformat:0 }}%
+                </small>
+                     {% endif %}
+            </td>
             <td class="p-2">
                 <form method="post" style="display:inline;">
                     {% csrf_token %}
@@ -112,6 +119,12 @@
         </tr>
         {% endfor %}
     </tbody>
+    <!-- Detalles de Descuentos -->
+<div id="detalles-descuentos" class="mt-4 p-4 bg-yellow-50 border border-yellow-300 rounded hidden">
+    <h2 class="text-lg font-semibold mb-2 text-yellow-800">Descuentos Aplicados</h2>
+    <ul id="lista-descuentos" class="list-disc list-inside text-yellow-800 text-sm"></ul>
+</div>
+
 </table>
 
 <div class="text-right text-lg font-bold mt-2">

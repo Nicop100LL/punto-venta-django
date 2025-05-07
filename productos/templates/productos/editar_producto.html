@@ -1,26 +1,57 @@
 {% extends 'base.html' %}
+{% load custom_filters %}
 {% block content %}
 <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
     <h1 class="text-2xl font-semibold mb-4">Editar Producto</h1>
     <form method="POST">
         {% csrf_token %}
         <div class="space-y-4">
+            <!-- Nombre -->
             <div>
                 <label for="nombre" class="block text-sm font-medium">Nombre del Producto</label>
                 <input type="text" id="nombre" name="nombre" value="{{ producto.nombre }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
             </div>
+            <!-- Código -->
             <div>
                 <label for="codigo" class="block text-sm font-medium">Código</label>
-                <input type="text" id="codigo" name="codigo" value="{{ producto.codigo }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <input type="text" id="codigo" name="codigo" value="{{ producto.codigo|floatformat:0|formato_precio }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
             </div>
+            <!-- Precio venta -->
             <div>
                 <label for="precio_venta" class="block text-sm font-medium">Precio de Venta</label>
-                <input type="number" id="precio_venta" name="precio_venta" value="{{ producto.precio_venta }}" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <input type="number" id="precio_venta" name="precio_venta" value="{{ producto.precio_venta|floatformat:0|formato_precio }}" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
             </div>
+            <!-- Precio compra -->
             <div>
                 <label for="precio_compra" class="block text-sm font-medium">Precio de Compra</label>
-                <input type="number" id="precio_compra" name="precio_compra" value="{{ producto.precio_compra }}" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <input type="number" id="precio_compra" name="precio_compra" value="{{ producto.precio_compra|floatformat:0|formato_precio }}" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
             </div>
+
+            <!-- Aplicar descuento -->
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="aplica_descuento" name="aplica_descuento"
+                    class="rounded border-gray-300 text-blue-600 shadow-sm"
+                    {% if producto.aplica_descuento %}checked{% endif %}>
+                <label for="aplica_descuento" class="text-sm font-medium text-gray-700">Aplicar descuento</label>
+            </div>
+
+            <!-- Campos condicionales de descuento -->
+            <div id="campos-descuento" class="{% if not producto.aplica_descuento %}hidden{% endif %} space-y-4">
+                <div>
+                    <label for="cantidad_minima" class="block text-sm font-medium">Cantidad mínima para descuento</label>
+                    <input type="number" id="cantidad_minima" name="cantidad_minima"
+                        value="{{ producto.cantidad_minima|default_if_none:'' }}" step="1"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                <div>
+                    <label for="porcentaje_descuento" class="block text-sm font-medium">Porcentaje de descuento (%)</label>
+                    <input type="number" id="porcentaje_descuento" name="porcentaje_descuento"
+                        value="{{ producto.porcentaje_descuento|default_if_none:''|floatformat:0|formato_precio }}" step="0.01"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+            </div>
+
+            <!-- Categoría -->
             <div>
                 <label for="categoria" class="block text-sm font-medium">Categoría</label>
                 <select id="categoria" name="categoria" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
@@ -29,12 +60,29 @@
                     {% endfor %}
                 </select>
             </div>
+            <!-- Stock -->
             <div>
                 <label for="stock_actual" class="block text-sm font-medium">Stock Actual</label>
                 <input type="number" id="stock_actual" step="0.01" name="stock_actual" value="{{ producto.stock_actual }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
             </div>
+
+            <!-- Botón -->
             <button type="submit" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md">Guardar Cambios</button>
         </div>
     </form>
 </div>
+
+<!-- Script para mostrar/ocultar -->
+<script>
+    const checkbox = document.getElementById('aplica_descuento');
+    const camposDescuento = document.getElementById('campos-descuento');
+
+    checkbox.addEventListener('change', function () {
+        if (this.checked) {
+            camposDescuento.classList.remove('hidden');
+        } else {
+            camposDescuento.classList.add('hidden');
+        }
+    });
+</script>
 {% endblock %}

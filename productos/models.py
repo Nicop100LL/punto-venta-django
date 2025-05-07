@@ -25,6 +25,12 @@ class Producto(models.Model):
     tipo_venta = models.CharField(max_length=10, choices=TIPO_VENTA_CHOICES, default='unidad')
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
 
+    # Nuevos campos para descuento por cantidad
+    aplica_descuento = models.BooleanField(default=False)
+    cantidad_minima_descuento = models.PositiveIntegerField(null=True, blank=True)
+    porcentaje_descuento = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+
+
     def clean(self):
         # Evita stock negativo
         if self.stock_actual < 0:
