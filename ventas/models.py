@@ -2,6 +2,9 @@ from django.db import models
 from productos.models import Producto
 from usuarios.models import Usuario, Empresa
 from django.utils import timezone
+from django.contrib.auth.models import User
+from django.conf import settings
+
 
 TIPO_COMPROBANTE_CHOICES = [
     ('ticket', 'Consumidor Final (Ticket)'),
@@ -82,3 +85,13 @@ class DetalleVenta(models.Model):
     def __str__(self):
         return f"{self.producto.nombre} x {self.cantidad}"
 
+class PagoCliente(models.Model):
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='pagos')
+    fecha = models.DateTimeField(auto_now_add=True)
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    tipo = models.CharField(max_length=10, choices=[('total', 'Total'), ('parcial', 'Parcial')])
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+
+
+    def __str__(self):
+        return f"{self.cliente.nombre} - {self.tipo} - {self.monto} ({self.fecha})"

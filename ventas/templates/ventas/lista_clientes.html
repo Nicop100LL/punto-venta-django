@@ -7,10 +7,11 @@
 <div x-data="clienteData()" x-ref="mainScope" class="max-w-4xl mx-auto">
 
 
-   <!-- Header con botón para abrir modal -->
-   <div class="flex justify-between items-center mb-4">
+  <!-- Header con botón para abrir modal -->
+  <div class="flex justify-between items-center mb-4">
     <h2 class="text-2xl font-bold">Clientes</h2>
-    <button @click="openModalNuevo = true" class="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700">+ Cliente</button>
+    <button @click="openModalNuevo = true" class="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700">+
+      Cliente</button>
   </div>
 
   <!-- Tabla de clientes -->
@@ -45,6 +46,15 @@
            ">
             Editar
           </button>
+          <button @click="
+           clienteId = {{ cliente.id }};
+           clienteNombre = '{{ cliente.nombre }}';
+           cargarHistorial(clienteId);
+           openModalHistorial = true;
+          " class="text-purple-600 hover:underline ml-2">
+            Historial
+          </button>
+
           <button @click="
           clienteId = {{ cliente.id }};
           clienteNombre = '{{ cliente.nombre }}';
@@ -88,7 +98,8 @@
         </div>
         <div class="flex justify-end mt-4 space-x-2">
           <button type="button" @click="openModalNuevo = false" class="px-4 py-2 border rounded">Cancelar</button>
-          <button type="submit" @click="openModalNuevo = false" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+          <button type="submit" @click="openModalNuevo = false"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
         </div>
       </form>
     </div>
@@ -118,9 +129,7 @@
         </div>
         <div class="flex justify-end mt-4 space-x-2">
           <button type="button" @click="openModal = false" class="px-4 py-2 border rounded">Cancelar</button>
-          <button type="submit"
-            
-            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
 
         </div>
       </form>
@@ -172,6 +181,29 @@
     </div>
   </div>
 
+  <!-- Modal historial de pagos -->
+<div x-show="openModalHistorial" x-cloak x-transition
+class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
+@keydown.escape.window="openModalHistorial = false" style="display: none;">
+<div class="bg-white p-6 rounded shadow-lg w-full max-w-lg">
+  <h3 class="text-xl font-semibold mb-4">Historial de pagos - <span x-text="clienteNombre"></span></h3>
+  <ul class="divide-y max-h-64 overflow-y-auto">
+    <template x-for="(pago, index) in historialPagos" :key="pago.id ?? index">
+      <li class="py-2 flex justify-between">
+        <span x-text="pago.fecha"></span>
+        <span class="font-semibold text-green-700">$<span x-text="parseFloat(pago.monto).toFixed(2)"></span></span>
+      </li>
+    </template>
+    
+    <li x-show="historialPagos.length === 0" class="text-gray-500 text-sm text-center py-2">Sin pagos registrados.</li>
+  </ul>
+  <div class="flex justify-end mt-4">
+    <button @click="openModalHistorial = false" class="px-4 py-2 border rounded">Cerrar</button>
+  </div>
+</div>
+</div>
+
+
   <!-- Script para procesar la modificación del saldo -->
   <script>
     document.getElementById("form-modificar-saldo").addEventListener("submit", function (e) {
@@ -209,25 +241,25 @@
 
 
 
-<!-- Script para procesar la creación del cliente -->
-<script>
-  document.getElementById("form-nuevo-cliente").addEventListener("submit", function (e) {
-    e.preventDefault();
-    const form = e.target;
-    const formData = new FormData(form);
+  <!-- Script para procesar la creación del cliente -->
+  <script>
+    document.getElementById("form-nuevo-cliente").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
 
-    fetch("{% url 'nuevo_cliente' %}", {
-      method: "POST",
-      headers: {
-        'X-CSRFToken': formData.get('csrfmiddlewaretoken')
-      },
-      body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        const tbody = document.getElementById("clientes-body");
-        const nuevaFila = `
+      fetch("{% url 'nuevo_cliente' %}", {
+        method: "POST",
+        headers: {
+          'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        },
+        body: formData
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const tbody = document.getElementById("clientes-body");
+            const nuevaFila = `
           <tr class="border-t" id="cliente-${data.cliente.id}">
             <td class="px-2 py-1">${data.cliente.nombre}</td>
             <td class="px-2 py-1">${data.cliente.cuit}</td>
@@ -238,69 +270,69 @@
               <a href="/clientes/editar/${data.cliente.id}/" class="text-blue-600 hover:underline">Editar</a>
             </td>
           </tr>`;
-        tbody.insertAdjacentHTML("beforeend", nuevaFila);
+            tbody.insertAdjacentHTML("beforeend", nuevaFila);
 
-        form.reset();
+            form.reset();
 
-        // Cerrar el modal correctamente usando x-ref="mainScope"
-        document.querySelector('[x-ref="mainScope"]').__x.$data.openModal = false;
-      } else {
-        alert("Error al guardar el cliente.");
-      }
-    })
-    ;
-  });
-</script>
-
-
-
-<!-- Estilo para ocultar los elementos con x-cloak hasta que Alpine cargue -->
-<style>
-  [x-cloak] {
-    display: none !important;
-  }
-</style>
-
-<!--Script para editar cliente-->
-
-<script>
-  function clienteData() {
-    return {
-      openModal: false,
-      openModalNuevo: false,
-      openModalSaldo: false,
-      clienteId: null,
-      clienteNombre: '',
-      clienteCUIT: '',
-      clienteIVA: 'RI',
-      clienteDireccion: '',
-      clienteSaldo: 0,
-      montoPago: '',
-      pagoTipo: 'total',
-
-      get saldoFormateado() {
-        return Number(this.clienteSaldo).toLocaleString('es-AR', { minimumFractionDigits: 0 });
-      },
-
-      guardarClienteEditado() {
-        const formData = new FormData();
-        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-        formData.append('cliente_id', this.clienteId);
-        formData.append('nombre', this.clienteNombre);
-        formData.append('cuit', this.clienteCUIT);
-        formData.append('condicion_iva', this.clienteIVA);
-        formData.append('direccion', this.clienteDireccion);
-
-        fetch('{% url "editar_cliente" %}', {
-          method: 'POST',
-          body: formData
+            // Cerrar el modal correctamente usando x-ref="mainScope"
+            document.querySelector('[x-ref="mainScope"]').__x.$data.openModal = false;
+          } else {
+            alert("Error al guardar el cliente.");
+          }
         })
+        ;
+    });
+  </script>
+
+
+
+  <!-- Estilo para ocultar los elementos con x-cloak hasta que Alpine cargue -->
+  <style>
+    [x-cloak] {
+      display: none !important;
+    }
+  </style>
+
+  <!--Script para editar cliente-->
+
+  <script>
+    function clienteData() {
+      return {
+        openModal: false,
+        openModalNuevo: false,
+        openModalSaldo: false,
+        openModalHistorial: false,
+        clienteId: null,
+        clienteNombre: '',
+        clienteCUIT: '',
+        clienteIVA: 'RI',
+        clienteDireccion: '',
+        clienteSaldo: 0,
+        montoPago: '',
+        pagoTipo: 'total',
+        historialPagos: [],
+  
+        get saldoFormateado() {
+          return Number(this.clienteSaldo).toLocaleString('es-AR', { minimumFractionDigits: 0 });
+        },
+  
+        guardarClienteEditado() {
+          const formData = new FormData();
+          formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+          formData.append('cliente_id', this.clienteId);
+          formData.append('nombre', this.clienteNombre);
+          formData.append('cuit', this.clienteCUIT);
+          formData.append('condicion_iva', this.clienteIVA);
+          formData.append('direccion', this.clienteDireccion);
+  
+          fetch('{% url "editar_cliente" %}', {
+            method: 'POST',
+            body: formData
+          })
           .then(response => response.json())
           .then(data => {
             if (data.success) {
-              // Cerrar el modal si todo va bien
               this.openModal = false;
-              // Actualizar la fila del cliente en la tabla
               const clienteFila = document.getElementById('cliente-' + data.cliente.id);
               clienteFila.querySelector('.nombre').textContent = data.cliente.nombre;
               clienteFila.querySelector('.cuit').textContent = data.cliente.cuit;
@@ -310,13 +342,30 @@
             } else {
               alert('Error al guardar los cambios.');
             }
-          })
-          ;
-      }
-    };
-  }
-</script>
+          });
+        },
+  
+        async cargarHistorial(clienteId) {
+          try {
+            const response = await fetch(`/ventas/clientes/historial/${clienteId}/`);
+            const data = await response.json();
+  
+            if (data.success) {
+              this.historialPagos = data.pagos;
+              this.openModalHistorial = true;
+            } else {
+              this.historialPagos = [];
+              alert('Error al cargar historial: ' + (data.error || 'Desconocido'));
+            }
+          } catch (e) {
+            console.error(e);
+            alert('Error al obtener el historial');
+          }
+        }
+      };
+    }
+  </script>
+  
 
 
-
-{% endblock %}
+  {% endblock %}

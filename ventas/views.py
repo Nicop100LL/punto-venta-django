@@ -7,7 +7,7 @@ from .forms import VentaForm, DetalleVentaForm
 from django.http import JsonResponse
 from django.http import HttpResponse
 from django.template.loader import get_template
-
+from .models import PagoCliente
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from reportlab.pdfgen import canvas
@@ -435,6 +435,11 @@ def obtener_saldo_cliente(request):
     except Cliente.DoesNotExist:
         return JsonResponse({'error': 'Cliente no encontrado'}, status=404)
     
+from decimal import Decimal
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from .models import Cliente, PagoCliente  # Asegurate de tener este import
+
 @login_required
 def modificar_saldo_cliente(request):
     if request.method == 'POST':
@@ -444,7 +449,10 @@ def modificar_saldo_cliente(request):
         try:
             cliente = Cliente.objects.get(pk=cliente_id)
 
+            monto_pago_realizado = None
+
             if tipo_pago == "total":
+                monto_pago_realizado = cliente.saldo
                 cliente.saldo = 0
 
             elif tipo_pago == "parcial":
@@ -460,11 +468,20 @@ def modificar_saldo_cliente(request):
                     return JsonResponse({"success": False, "error": "El monto supera el saldo del cliente."})
 
                 cliente.saldo -= monto_pago
+                monto_pago_realizado = monto_pago
 
             else:
                 return JsonResponse({"success": False, "error": "Tipo de pago inválido."})
 
             cliente.save()
+
+            # 🔹 Registrar el pago si hubo uno
+            if monto_pago_realizado and monto_pago_realizado > 0:
+                PagoCliente.objects.create(
+                    cliente=cliente,
+                    monto=monto_pago_realizado,
+                    usuario=request.user
+                )
 
             return JsonResponse({
                 "success": True,
@@ -480,3 +497,18 @@ def modificar_saldo_cliente(request):
             return JsonResponse({"success": False, "error": str(e)})
 
     return JsonResponse({"success": False, "error": "Método no permitido."})
+
+@login_required
+def historial_pagos_cliente(request, cliente_id):
+    pagos = PagoCliente.objects.filter(cliente_id=cliente_id).order_by('-fecha')
+
+    data = [
+        {
+            'fecha': pago.fecha.strftime('%Y-%m-%d %H:%M'),
+            'monto': str(pago.monto),
+            'tipo': pago.tipo,
+            'usuario': pago.usuario.username if pago.usuario else 'N/A',
+        }
+        for pago in pagos
+    ]
+    return JsonResponse({'success': True, 'pagos': data})

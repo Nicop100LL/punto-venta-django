@@ -10,7 +10,8 @@ urlpatterns = [
     path('nuevo_cliente/', views.nuevo_cliente, name='nuevo_cliente'),
     
     path('editar_cliente/', views.editar_cliente, name='editar_cliente'),
-
+    path('clientes/historial/<int:cliente_id>/', views.historial_pagos_cliente, name='historial_pagos_cliente'),
+    
 
     path('ajax/obtener_saldo/', views.obtener_saldo_cliente, name='obtener_saldo_cliente'),
     path('modificar-saldo-cliente/', views.modificar_saldo_cliente, name='modificar_saldo_cliente'),
