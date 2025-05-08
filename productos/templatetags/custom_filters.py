@@ -16,3 +16,9 @@ def to_int(value):
         return int(value)
     except (ValueError, TypeError):
         return 0
+    
+@register.filter
+def calcular_descuento(precio_unitario, precio_venta):
+    if precio_venta > 0 and precio_unitario < precio_venta:
+        return round((1 - (precio_unitario / precio_venta)) * 100, 0)
+    return 0

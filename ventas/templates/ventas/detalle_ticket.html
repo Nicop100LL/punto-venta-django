@@ -45,6 +45,15 @@
                 <td>${{ item.precio_unitario|floatformat:0|formato_precio }}</td>
                 <td>${{ item.subtotal|floatformat:0|formato_precio }}</td>
             </tr>
+                        {% if item.producto.precio_venta > item.precio_unitario %}
+            <tr>
+                <td colspan="4" class="text-[9px] text-blue-600 italic pl-2 mt-[-5px] p-0" style="line-height: 0.8;">
+                    Descuento aplicado: -{{ item.precio_unitario|calcular_descuento:item.producto.precio_venta }}%
+                </td>
+            </tr>
+            {% endif %}
+
+
             {% endfor %}
         </tbody>
     </table>

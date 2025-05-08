@@ -14,11 +14,8 @@ class Cliente(models.Model):
     cuit = models.CharField(max_length=20, blank=True, null=True)
     direccion = models.CharField(max_length=200, blank=True, null=True)
     saldo = models.DecimalField(default=0, max_digits=10, decimal_places=2)
-    cuenta_corriente = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0.00
-    )
+    cuenta_corriente = models.BooleanField(default=True)
+
     condicion_iva = models.CharField(max_length=50, choices=[
         ('RI', 'Responsable Inscripto'),
         ('MT', 'Monotributista'),
@@ -69,6 +66,18 @@ class DetalleVenta(models.Model):
 
     def subtotal(self):
         return self.cantidad * self.precio_unitario
+
+    def descuento_aplicado(self):
+        # Suponiendo que la cantidad mínima para el descuento es un atributo del producto
+        if self.cantidad >= self.producto.cantidad_minima_para_descuento:
+            # Calculamos el descuento aplicado
+            descuento = self.producto.descuento  # Supongamos que el descuento es un porcentaje
+            return (self.precio_unitario * descuento / 100) * self.cantidad
+        return 0  # Si no se cumple la cantidad mínima, no hay descuento
+    
+    def subtotal_con_descuento(self):
+        # Calculamos el subtotal considerando el descuento
+        return self.subtotal() - self.descuento_aplicado()
 
     def __str__(self):
         return f"{self.producto.nombre} x {self.cantidad}"

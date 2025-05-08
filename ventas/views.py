@@ -122,6 +122,7 @@ def nueva_venta(request):
                     # Actualizamos el subtotal con el nuevo precio unitario
                     producto_en_carrito['precio_unitario'] = float(precio_unitario)
                     producto_en_carrito['subtotal'] = producto_en_carrito['cantidad'] * producto_en_carrito['precio_unitario']
+                    producto_en_carrito['descuento'] = float(descuento_aplicado)
 
                 # Si el producto no existe en el carrito, lo agregamos como nuevo ítem
                 else:
@@ -379,6 +380,7 @@ def nuevo_cliente(request):
                     'cuit': cliente.cuit or '',
                     'condicion_iva': cliente.get_condicion_iva_display(),
                     'direccion': cliente.direccion or '',
+                    'saldo': float(cliente.saldo or 0),
                 }
             })
         else:
@@ -386,17 +388,43 @@ def nuevo_cliente(request):
             return JsonResponse({'success': False, 'errors': form.errors}, status=400)
     return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
+from django.http import JsonResponse
+from .models import Cliente
+ 
 @login_required
-def editar_cliente(request, cliente_id):
-    cliente = get_object_or_404(Cliente, id=cliente_id, empresa=request.user.empresa)
+def editar_cliente(request):
     if request.method == 'POST':
-        form = ClienteForm(request.POST, instance=cliente)
-        if form.is_valid():
-            form.save()
-            return redirect('lista_clientes')
-    else:
-        form = ClienteForm(instance=cliente)
-    return render(request, 'ventas/form_cliente.html', {'form': form, 'titulo': 'Editar Cliente'})
+        try:
+            cliente_id = request.POST.get('cliente_id')
+            if not cliente_id:
+                return JsonResponse({'success': False, 'error': 'ID de cliente no proporcionado'}, status=400)
+
+            cliente = Cliente.objects.get(id=cliente_id)
+
+            cliente.nombre = request.POST.get('nombre', '')
+            cliente.cuit = request.POST.get('cuit', '')
+            cliente.condicion_iva = request.POST.get('condicion_iva', '')
+            cliente.direccion = request.POST.get('direccion', '')
+            cliente.save()
+
+            return JsonResponse({
+                'success': True,
+                'cliente': {
+                    'id': cliente.id,
+                    'nombre': cliente.nombre,
+                    'cuit': cliente.cuit,
+                    'get_condicion_iva_display': cliente.get_condicion_iva_display(),
+                    'direccion': cliente.direccion,
+                    'saldo': cliente.saldo
+                }
+            })
+
+        except Cliente.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Cliente no encontrado'}, status=404)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
 @login_required
 def obtener_saldo_cliente(request):

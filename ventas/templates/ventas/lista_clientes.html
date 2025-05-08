@@ -4,26 +4,13 @@
 {% block title %}Clientes{% endblock %}
 
 {% block content %}
-<div x-data="{ 
-  openModal: false, 
-  openModalSaldo: false, 
-  clienteId: null, 
-  clienteNombre: '', 
-  clienteSaldo: 0, 
-  montoPago: '', 
-  pagoTipo: 'total',
-get saldoFormateado() {
-  return Number(this.clienteSaldo).toLocaleString('es-AR', { minimumFractionDigits: 0 });
-}
-
-}" x-ref="mainScope" class="max-w-4xl mx-auto">
+<div x-data="clienteData()" x-ref="mainScope" class="max-w-4xl mx-auto">
 
 
-  <!-- Header con botón para abrir modal -->
-  <div class="flex justify-between items-center mb-4">
+   <!-- Header con botón para abrir modal -->
+   <div class="flex justify-between items-center mb-4">
     <h2 class="text-2xl font-bold">Clientes</h2>
-    <button @click="openModal = true" class="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700">+
-      Cliente</button>
+    <button @click="openModalNuevo = true" class="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700">+ Cliente</button>
   </div>
 
   <!-- Tabla de clientes -->
@@ -41,15 +28,24 @@ get saldoFormateado() {
     <tbody id="clientes-body">
       {% for cliente in clientes %}
       <tr class="border-t" id="cliente-{{ cliente.id }}">
-        <td class="px-2 py-1">{{ cliente.nombre }}</td>
-        <td class="px-2 py-1">{{ cliente.cuit }}</td>
-        <td class="px-2 py-1">{{ cliente.get_condicion_iva_display }}</td>
-        <td class="px-2 py-1">{{ cliente.direccion }}</td>
+        <td class="px-2 py-1 nombre">{{ cliente.nombre }}</td>
+        <td class="px-2 py-1 cuit">{{ cliente.cuit }}</td>
+        <td class="px-2 py-1 iva">{{ cliente.get_condicion_iva_display }}</td>
+        <td class="px-2 py-1 direccion">{{ cliente.direccion }}</td>
         <td class="px-2 py-1 saldo">{{ cliente.saldo|floatformat:0|formato_precio }}</td>
+
         <td class="px-2 py-1">
-          <a href="{% url 'editar_cliente' cliente.id %}" class="text-blue-600 hover:underline">Editar</a>
-          <button
-          @click="
+          <button class="text-blue-600 hover:underline" @click="
+          clienteId = {{ cliente.id }};
+          clienteNombre = '{{ cliente.nombre }}';
+          clienteCUIT = '{{ cliente.cuit }}';
+          clienteIVA = '{{ cliente.condicion_iva }}';
+          clienteDireccion = '{{ cliente.direccion }}';
+          openModal = true;
+           ">
+            Editar
+          </button>
+          <button @click="
           clienteId = {{ cliente.id }};
           clienteNombre = '{{ cliente.nombre }}';
           clienteSaldo = parseFloat(document.querySelector('#cliente-{{ cliente.id }} .saldo').textContent.replace('$','')) || 0;
@@ -58,8 +54,7 @@ get saldoFormateado() {
           // 👉 Forzamos mostrar el formato actualizado antes de abrir el modal
           document.getElementById('saldo-visible').textContent = clienteSaldo.toLocaleString('es-AR', { minimumFractionDigits: 0 });
 
-          openModalSaldo = true"        
-            class="text-green-600 hover:underline ml-2">
+          openModalSaldo = true" class="text-green-600 hover:underline ml-2">
             Modificar saldo
           </button>
 
@@ -71,7 +66,7 @@ get saldoFormateado() {
   </table>
 
   <!-- Modal (ligado al mismo x-data) -->
-  <div x-show="openModal" x-cloak x-transition
+  <div x-show="openModalNuevo" x-cloak x-transition
     class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
     @keydown.escape.window="openModal = false" style="display: none;">
     <div class="bg-white p-6 rounded shadow-lg w-full max-w-md">
@@ -86,14 +81,55 @@ get saldoFormateado() {
             <option value="CF">Consumidor Final</option>
           </select>
           <input type="text" name="direccion" placeholder="Dirección" class="w-full border p-2 rounded">
+          <input type="hidden" name="saldo" value="0">
+          <input type="hidden" name="cuenta_corriente" value="True">
+
+
         </div>
         <div class="flex justify-end mt-4 space-x-2">
-          <button type="button" @click="openModal = false" class="px-4 py-2 border rounded">Cancelar</button>
-          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+          <button type="button" @click="openModalNuevo = false" class="px-4 py-2 border rounded">Cancelar</button>
+          <button type="submit" @click="openModalNuevo = false" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
         </div>
       </form>
     </div>
   </div>
+
+
+  <!-- Modal editar cliente -->
+  <div x-show="openModal" x-cloak x-transition
+    class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
+    @keydown.escape.window="openModal = false" style="display: none;">
+    <div class="bg-white p-6 rounded shadow-lg w-full max-w-md">
+      <form @submit.prevent="guardarClienteEditado">
+        {% csrf_token %}
+        <input type="hidden" name="cliente_id" :value="clienteId" x-bind:value="clienteId">
+
+        <div class="space-y-3">
+          <input type="text" name="nombre" x-model="clienteNombre" placeholder="Nombre"
+            class="w-full border p-2 rounded" required>
+          <input type="text" name="cuit" x-model="clienteCUIT" placeholder="CUIT" class="w-full border p-2 rounded">
+          <select name="condicion_iva" x-model="clienteIVA" class="w-full border p-2 rounded">
+            <option value="RI">Responsable Inscripto</option>
+            <option value="MT">Monotributista</option>
+            <option value="CF">Consumidor Final</option>
+          </select>
+          <input type="text" name="direccion" x-model="clienteDireccion" placeholder="Dirección"
+            class="w-full border p-2 rounded">
+        </div>
+        <div class="flex justify-end mt-4 space-x-2">
+          <button type="button" @click="openModal = false" class="px-4 py-2 border rounded">Cancelar</button>
+          <button type="submit"
+            
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+
+
   <!-- Modal para modificar saldo -->
   <div x-show="openModalSaldo" x-cloak x-transition
     class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
@@ -129,7 +165,8 @@ get saldoFormateado() {
         </div>
         <div class="flex justify-end mt-4 space-x-2">
           <button type="button" @click="openModalSaldo = false" class="px-4 py-2 border rounded">Cancelar</button>
-          <button type="submit" @click="openModalSaldo = false" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+          <button type="submit" @click="openModalSaldo = false"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
         </div>
       </form>
     </div>
@@ -156,11 +193,11 @@ get saldoFormateado() {
             saldoCell.textContent = "$" + data.cliente.saldo.toFixed(2);
 
             // Accedé a Alpine y actualizá clienteSaldo
-           const scope = document.querySelector('[x-ref="mainScope"]').__x.$data;
-           scope.clienteSaldo = data.cliente.saldo;
+            const scope = document.querySelector('[x-ref="mainScope"]').__x.$data;
+            scope.clienteSaldo = data.cliente.saldo;
 
             // Cerrar el modal
-           scope.openModalSaldo = false;
+            scope.openModalSaldo = false;
 
 
           } else {
@@ -169,7 +206,7 @@ get saldoFormateado() {
         });
     });
   </script>
-</div>
+
 
 
 <!-- Script para procesar la creación del cliente -->
@@ -181,37 +218,41 @@ get saldoFormateado() {
 
     fetch("{% url 'nuevo_cliente' %}", {
       method: "POST",
-      headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
+      headers: {
+        'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+      },
       body: formData
     })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          const tbody = document.getElementById("clientes-body");
-          const nuevaFila = `
-        <tr class="border-t" id="cliente-{{ cliente.id }}">
-          <td class="px-2 py-1">${data.cliente.nombre}</td>
-          <td class="px-2 py-1">${data.cliente.cuit}</td>
-          <td class="px-2 py-1">${data.cliente.condicion_iva}</td>
-          <td class="px-2 py-1">${data.cliente.direccion}</td>
-          <td class="px-2 py-1">${data.cliente.saldo}</td>
-          <td class="px-2 py-1">
-            <a href="/clientes/editar/${data.cliente.id}/" class="text-blue-600 hover:underline">Editar</a>
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        const tbody = document.getElementById("clientes-body");
+        const nuevaFila = `
+          <tr class="border-t" id="cliente-${data.cliente.id}">
+            <td class="px-2 py-1">${data.cliente.nombre}</td>
+            <td class="px-2 py-1">${data.cliente.cuit}</td>
+            <td class="px-2 py-1">${data.cliente.condicion_iva}</td>
+            <td class="px-2 py-1">${data.cliente.direccion}</td>
+            <td class="px-2 py-1 saldo">$${parseFloat(data.cliente.saldo).toFixed(2)}</td>
+            <td class="px-2 py-1">
+              <a href="/clientes/editar/${data.cliente.id}/" class="text-blue-600 hover:underline">Editar</a>
             </td>
-        </tr>`;
-          tbody.insertAdjacentHTML("beforeend", nuevaFila);
+          </tr>`;
+        tbody.insertAdjacentHTML("beforeend", nuevaFila);
 
-          form.reset();
+        form.reset();
 
-          // ✅ Cierra el modal accediendo por x-ref
-          document.querySelector('[x-ref="modalScope"]').__x.$data.openModal = false;
-        } else {
-          alert("Error al guardar el cliente.");
-        }
-      });
+        // Cerrar el modal correctamente usando x-ref="mainScope"
+        document.querySelector('[x-ref="mainScope"]').__x.$data.openModal = false;
+      } else {
+        alert("Error al guardar el cliente.");
+      }
+    })
+    ;
   });
 </script>
-</div>
+
+
 
 <!-- Estilo para ocultar los elementos con x-cloak hasta que Alpine cargue -->
 <style>
@@ -219,4 +260,63 @@ get saldoFormateado() {
     display: none !important;
   }
 </style>
+
+<!--Script para editar cliente-->
+
+<script>
+  function clienteData() {
+    return {
+      openModal: false,
+      openModalNuevo: false,
+      openModalSaldo: false,
+      clienteId: null,
+      clienteNombre: '',
+      clienteCUIT: '',
+      clienteIVA: 'RI',
+      clienteDireccion: '',
+      clienteSaldo: 0,
+      montoPago: '',
+      pagoTipo: 'total',
+
+      get saldoFormateado() {
+        return Number(this.clienteSaldo).toLocaleString('es-AR', { minimumFractionDigits: 0 });
+      },
+
+      guardarClienteEditado() {
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        formData.append('cliente_id', this.clienteId);
+        formData.append('nombre', this.clienteNombre);
+        formData.append('cuit', this.clienteCUIT);
+        formData.append('condicion_iva', this.clienteIVA);
+        formData.append('direccion', this.clienteDireccion);
+
+        fetch('{% url "editar_cliente" %}', {
+          method: 'POST',
+          body: formData
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              // Cerrar el modal si todo va bien
+              this.openModal = false;
+              // Actualizar la fila del cliente en la tabla
+              const clienteFila = document.getElementById('cliente-' + data.cliente.id);
+              clienteFila.querySelector('.nombre').textContent = data.cliente.nombre;
+              clienteFila.querySelector('.cuit').textContent = data.cliente.cuit;
+              clienteFila.querySelector('.iva').textContent = data.cliente.get_condicion_iva_display;
+              clienteFila.querySelector('.direccion').textContent = data.cliente.direccion;
+              clienteFila.querySelector('.saldo').textContent = "$" + data.cliente.saldo.toFixed(2);
+            } else {
+              alert('Error al guardar los cambios.');
+            }
+          })
+          ;
+      }
+    };
+  }
+</script>
+
+
+
 {% endblock %}
