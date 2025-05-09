@@ -512,3 +512,13 @@ def historial_pagos_cliente(request, cliente_id):
         for pago in pagos
     ]
     return JsonResponse({'success': True, 'pagos': data})
+
+@login_required
+def eliminar_cliente(request):
+    cliente_id = request.POST.get('cliente_id')
+    try:
+        cliente = Cliente.objects.get(id=cliente_id)
+        cliente.delete()
+        return JsonResponse({'success': True})
+    except Cliente.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Cliente no encontrado'})

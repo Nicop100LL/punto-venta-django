@@ -30,7 +30,7 @@
     <!-- Lista de productos -->
     <table class="w-full text-xs">
         <thead>
-            <tr class="border-b border-black text-left">
+            <tr class="border-b border-black text-[11px] text-left">
                 <th>Prod.</th>
                 <th>Cant</th>
                 <th>P.Unit</th>
@@ -39,7 +39,7 @@
         </thead>
         <tbody>
             {% for item in venta.detalles.all %}
-            <tr>
+            <tr class="text-[10px]">
                 <td>{{ item.producto.nombre|slice:":10" }}</td>
                 <td>{{ item.cantidad }}</td>
                 <td>${{ item.precio_unitario|floatformat:0|formato_precio }}</td>

@@ -127,11 +127,23 @@
           <input type="text" name="direccion" x-model="clienteDireccion" placeholder="Dirección"
             class="w-full border p-2 rounded">
         </div>
-        <div class="flex justify-end mt-4 space-x-2">
-          <button type="button" @click="openModal = false" class="px-4 py-2 border rounded">Cancelar</button>
-          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
-
+        <div class="flex justify-between mt-4">
+          <!-- Botón Eliminar alineado a la izquierda -->
+          <div>
+            <button type="button"
+              @click="confirmarEliminacion = true"
+              class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+              Eliminar
+            </button>
+          </div>
+        
+          <!-- Botones Cancelar y Guardar alineados a la derecha -->
+          <div class="space-x-2">
+            <button type="button" @click="openModal = false" class="px-4 py-2 border rounded">Cancelar</button>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+          </div>
         </div>
+        
       </form>
     </div>
   </div>
@@ -182,26 +194,44 @@
   </div>
 
   <!-- Modal historial de pagos -->
-<div x-show="openModalHistorial" x-cloak x-transition
-class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
-@keydown.escape.window="openModalHistorial = false" style="display: none;">
-<div class="bg-white p-6 rounded shadow-lg w-full max-w-lg">
-  <h3 class="text-xl font-semibold mb-4">Historial de pagos - <span x-text="clienteNombre"></span></h3>
-  <ul class="divide-y max-h-64 overflow-y-auto">
-    <template x-for="(pago, index) in historialPagos" :key="pago.id ?? index">
-      <li class="py-2 flex justify-between">
-        <span x-text="pago.fecha"></span>
-        <span class="font-semibold text-green-700">$<span x-text="parseFloat(pago.monto).toFixed(2)"></span></span>
-      </li>
-    </template>
-    
-    <li x-show="historialPagos.length === 0" class="text-gray-500 text-sm text-center py-2">Sin pagos registrados.</li>
-  </ul>
-  <div class="flex justify-end mt-4">
-    <button @click="openModalHistorial = false" class="px-4 py-2 border rounded">Cerrar</button>
+  <div x-show="openModalHistorial" x-cloak x-transition
+    class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
+    @keydown.escape.window="openModalHistorial = false" style="display: none;">
+    <div class="bg-white p-6 rounded shadow-lg w-full max-w-lg">
+      <h3 class="text-xl font-semibold mb-4">Historial de pagos - <span x-text="clienteNombre"></span></h3>
+      <ul class="divide-y max-h-64 overflow-y-auto">
+        <template x-for="(pago, index) in historialPagos" :key="pago.id ?? index">
+          <li class="py-2 flex justify-between">
+            <span x-text="pago.fecha"></span>
+            <span class="font-semibold text-green-700">$<span x-text="parseFloat(pago.monto).toFixed(2)"></span></span>
+          </li>
+        </template>
+
+        <li x-show="historialPagos.length === 0" class="text-gray-500 text-sm text-center py-2">Sin pagos registrados.
+        </li>
+      </ul>
+      <div class="flex justify-end mt-4">
+        <button @click="openModalHistorial = false" class="px-4 py-2 border rounded">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmación de eliminación -->
+<div x-show="confirmarEliminacion" x-cloak x-transition
+class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
+@keydown.escape.window="confirmarEliminacion = false" style="display: none;">
+<div class="bg-white p-6 rounded shadow-lg w-full max-w-sm">
+  <h3 class="text-lg font-semibold mb-4 text-red-700">¿Eliminar cliente?</h3>
+  <p class="text-sm text-gray-700 mb-6">
+    Esta acción no se puede deshacer. ¿Estás seguro de que querés eliminar al cliente <strong x-text="clienteNombre"></strong>?
+  </p>
+  <div class="flex justify-end space-x-2">
+    <button @click="confirmarEliminacion = false" class="px-4 py-2 border rounded">Cancelar</button>
+    <button @click="eliminarCliente" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Eliminar</button>
   </div>
 </div>
 </div>
+
 
 
   <!-- Script para procesar la modificación del saldo -->
@@ -299,6 +329,7 @@ class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-5
     function clienteData() {
       return {
         openModal: false,
+        confirmarEliminacion: false,
         openModalNuevo: false,
         openModalSaldo: false,
         openModalHistorial: false,
@@ -311,11 +342,11 @@ class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-5
         montoPago: '',
         pagoTipo: 'total',
         historialPagos: [],
-  
+
         get saldoFormateado() {
           return Number(this.clienteSaldo).toLocaleString('es-AR', { minimumFractionDigits: 0 });
         },
-  
+
         guardarClienteEditado() {
           const formData = new FormData();
           formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
@@ -324,32 +355,32 @@ class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-5
           formData.append('cuit', this.clienteCUIT);
           formData.append('condicion_iva', this.clienteIVA);
           formData.append('direccion', this.clienteDireccion);
-  
+
           fetch('{% url "editar_cliente" %}', {
             method: 'POST',
             body: formData
           })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              this.openModal = false;
-              const clienteFila = document.getElementById('cliente-' + data.cliente.id);
-              clienteFila.querySelector('.nombre').textContent = data.cliente.nombre;
-              clienteFila.querySelector('.cuit').textContent = data.cliente.cuit;
-              clienteFila.querySelector('.iva').textContent = data.cliente.get_condicion_iva_display;
-              clienteFila.querySelector('.direccion').textContent = data.cliente.direccion;
-              clienteFila.querySelector('.saldo').textContent = "$" + data.cliente.saldo.toFixed(2);
-            } else {
-              alert('Error al guardar los cambios.');
-            }
-          });
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                this.openModal = false;
+                const clienteFila = document.getElementById('cliente-' + data.cliente.id);
+                clienteFila.querySelector('.nombre').textContent = data.cliente.nombre;
+                clienteFila.querySelector('.cuit').textContent = data.cliente.cuit;
+                clienteFila.querySelector('.iva').textContent = data.cliente.get_condicion_iva_display;
+                clienteFila.querySelector('.direccion').textContent = data.cliente.direccion;
+                clienteFila.querySelector('.saldo').textContent = "$" + data.cliente.saldo.toFixed(2);
+              } else {
+                alert('Error al guardar los cambios.');
+              }
+            });
         },
-  
+
         async cargarHistorial(clienteId) {
           try {
             const response = await fetch(`/ventas/clientes/historial/${clienteId}/`);
             const data = await response.json();
-  
+
             if (data.success) {
               this.historialPagos = data.pagos;
               this.openModalHistorial = true;
@@ -361,11 +392,41 @@ class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-5
             console.error(e);
             alert('Error al obtener el historial');
           }
+        },
+
+        eliminarCliente() {
+  const formData = new FormData();
+  formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+  formData.append('cliente_id', this.clienteId);
+
+  fetch('{% url "eliminar_cliente" %}', {
+    method: 'POST',
+    body: formData
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        this.openModal = false;  // Cierra el modal de edición
+        this.confirmarEliminacion = false;  // Cierra el modal de confirmación
+        const clienteFila = document.getElementById('cliente-' + this.clienteId);
+        if (clienteFila) {
+          clienteFila.remove();  // Elimina la fila del cliente de la vista
         }
+      } else {
+        alert('No se pudo eliminar el cliente.');
+      }
+    })
+    .catch(error => {
+      console.error('Error al eliminar el cliente:', error);
+      alert('Ocurrió un error al eliminar el cliente.');
+    });
+}
+
+
       };
     }
   </script>
-  
+
 
 
   {% endblock %}
