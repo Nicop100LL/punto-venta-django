@@ -14,7 +14,7 @@ urlpatterns = [
     path('productos/', include('productos.urls')),
     path('registration/login/', login_view, name='login'),
     path('ventas/editar_cliente/', views.editar_cliente, name='editar_cliente'),
-    path('', lambda request: HttpResponse("Bienvenido, estás logueado!"), name='home'),
+    path('', views.nueva_venta, name='nueva_venta'),
     path('ventas/', include('ventas.urls')),
 
 ]

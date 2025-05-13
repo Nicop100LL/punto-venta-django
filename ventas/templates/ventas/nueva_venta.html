@@ -118,6 +118,25 @@
             </td>
         </tr>
         {% endfor %}
+
+        <script>
+            // Guardar scroll antes de recargar la página (por ejemplo, al enviar un form)
+            document.querySelectorAll('form').forEach(form => {
+              form.addEventListener('submit', () => {
+                localStorage.setItem('scrollY', window.scrollY);
+              });
+            });
+          
+            // Restaurar scroll si hay uno guardado
+            window.addEventListener('load', () => {
+              const scrollY = localStorage.getItem('scrollY');
+              if (scrollY !== null) {
+                window.scrollTo(0, parseInt(scrollY));
+                localStorage.removeItem('scrollY');
+              }
+            });
+          </script>
+          
     </tbody>
     <!-- Detalles de Descuentos -->
 <div id="detalles-descuentos" class="mt-4 p-4 bg-yellow-50 border border-yellow-300 rounded hidden">
@@ -148,6 +167,73 @@
             </span>
         </label>
     </div>
+    <div class="mb-2" x-data="{
+        open: false,
+        entregado: '',
+        vuelto: 0,
+        total: {{ total|floatformat:0 }},
+        mostrarInfo: false,
+        aceptar() {
+            const monto = parseFloat(this.entregado);
+            if (isNaN(monto) || monto < this.total) {
+                alert('Ingrese un monto válido que sea mayor o igual al total.');
+                return;
+            }
+            this.vuelto = monto - this.total;
+            this.open = false;
+            this.mostrarInfo = true;
+        }
+    }"
+    @keydown.window.prevent.f2=
+    "open = true;
+    $nextTick(() => $refs.inputEntregado.focus());">
+        <!-- Botón invisible para que el usuario sepa -->
+        <button type="button" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" @click="
+        open = true;
+        $nextTick(() => $refs.inputEntregado.focus());
+    ">Ingresar Dinero (F2)</button>
+    
+        <!-- Modal -->
+        <div x-show="open" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-4 rounded shadow w-96">
+                <h2 class="text-lg font-bold mb-4">Dinero Entregado</h2>
+                <label class="block mb-2">Cliente entrega:</label>
+                <input
+                x-ref="inputEntregado"
+                type="number"
+                x-model="entregado"
+                step="0.01"
+                class="w-full border px-2 py-1 mb-4"
+                @keydown.enter.prevent="aceptar()" 
+                @input="vuelto = parseFloat(entregado || 0) - total"
+                @input="vuelto = parseFloat(entregado || 0) - total" />
+                <div class="mb-4">
+                    <strong>Total: </strong> $<span x-text="total.toFixed(0)"></span><br>
+                    <strong>Vuelto: </strong> $<span x-text="vuelto.toFixed(0)"></span>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" @click="open = false" class="bg-gray-300 px-3 py-1 rounded">Cancelar</button>
+                    <button type="button" @click="aceptar()" class="bg-green-500 text-white px-3 py-1 rounded">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    
+        <!-- Mostrar info debajo del botón Finalizar Venta -->
+        <template x-if="mostrarInfo">
+            <div class="mt-4 p-3 rounded-lg border border-green-300 bg-green-50 text-green-800 text-sm shadow-sm">
+                <div class="flex justify-between">
+                    <span class="font-semibold">Entrega:</span>
+                    <span>$<span x-text="parseFloat(entregado).toFixed(0)"></span></span>
+                </div>
+                <div class="flex justify-between mt-1">
+                    <span class="font-semibold">Vuelto:</span>
+                    <span>$<span x-text="vuelto.toFixed(0)"></span></span>
+                </div>
+            </div>
+            
+        </template>
+    </div>
+    
     <button type="submit" name="finalizar" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
         Finalizar Venta
     </button>
