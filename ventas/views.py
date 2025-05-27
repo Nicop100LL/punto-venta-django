@@ -12,12 +12,13 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+from django.utils.timezone import now
 from reportlab.lib.units import cm
 from .models import Venta
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.utils.http import urlencode
-
+from django.db.models import Sum, Count, Avg
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -39,6 +40,7 @@ from django.shortcuts import render, get_object_or_404
 from .models import Venta
 from .forms import ClienteForm
 
+import math
 
 from decimal import Decimal
 from urllib.parse import urlencode
@@ -301,10 +303,14 @@ def detalle_venta(request, venta_id):
         iva = None
         template = 'ventas/detalle_ticket.html'
 
+        # ✅ Contar productos: al menos 1 por línea, más si la cantidad entera >1
+    total_productos = sum(max(1, int(item.cantidad)) for item in venta.detalles.all())
+
     return render(request, template, {
         'venta': venta,
         'neto': neto,
         'iva': iva,
+        'total_productos': total_productos,
     })
 
 @login_required
@@ -522,3 +528,33 @@ def eliminar_cliente(request):
         return JsonResponse({'success': True})
     except Cliente.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Cliente no encontrado'})
+
+
+@login_required
+def estadisticas_ventas(request):
+    hoy = now().date()
+    inicio_mes = hoy.replace(day=1)
+
+    ventas_mes = Venta.objects.filter(
+        fecha__date__gte=inicio_mes,
+        fecha__date__lte=hoy,
+        empresa=request.user.empresa
+    )
+
+    total_ventas = ventas_mes.aggregate(total=Sum('total'))['total'] or 0
+    cantidad_ventas = ventas_mes.count()
+    ticket_promedio = ventas_mes.aggregate(avg=Avg('total'))['avg'] or 0
+
+    # Agrupamos por día
+    ventas_por_dia = (
+        ventas_mes.extra({'dia': "DATE(fecha)"}).values('dia')
+        .annotate(total=Sum('total'))
+        .order_by('dia')
+    )
+
+    return render(request, 'ventas/estadisticas.html', {
+        'total_ventas': total_ventas,
+        'cantidad_ventas': cantidad_ventas,
+        'ticket_promedio': ticket_promedio,
+        'ventas_por_dia': ventas_por_dia,
+    })

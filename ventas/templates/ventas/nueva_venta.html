@@ -61,7 +61,7 @@
         <div>
             <label for="codigo" class="block text-sm font-medium text-gray-700">Código:</label>
             <input type="text" name="codigo" id="codigo" required autofocus
-                class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2">
+                class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2">                
         </div>
 
         <div>
@@ -77,10 +77,20 @@
         </div>
     </div>
 
+    <div class="mt-4 flex justify-between items-center gap-x-4">
+        <button type="submit" name="agregar" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            Agregar al carrito
+        </button>
+       <button
+            type="button"
+            id="btn-f9"
+            class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700"
+            title="Abrir búsqueda (F9)"
+                    >
+            Buscar Producto (F9)
+        </button>
+    </div>
 
-    <button type="submit" name="agregar" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-        Agregar al carrito
-    </button>
 </form>
 
 {% if carrito %}
@@ -182,8 +192,12 @@
             this.vuelto = monto - this.total;
             this.open = false;
             this.mostrarInfo = true;
-        }
+        },
+        cerrarModal() {
+        this.open = false;
+     }
     }"
+    @keydown.window.escape="cerrarModal()" 
     @keydown.window.prevent.f2=
     "open = true;
     $nextTick(() => $refs.inputEntregado.focus());">
@@ -233,10 +247,16 @@
             
         </template>
     </div>
-    
-    <button type="submit" name="finalizar" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
-        Finalizar Venta
-    </button>
+    <div x-data>
+        <button 
+        x-ref="btnFinalizar"
+        type="submit" 
+        name="finalizar" 
+        class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+        @keydown.window.prevent.f4="$refs.btnFinalizar.click()">
+            Finalizar Venta (F4)
+        </button>
+    </div>
 </form>
 
 
@@ -274,8 +294,55 @@
     </div>
 </div>
 
+<!-- Modal escanear código con F9 -->
+<div id="modal-scan" style="display:none;" 
+     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-96">
+        <h2 class="text-xl font-semibold mb-6 text-center text-gray-800">📷 Escanear Código (F9)</h2>
+        
+        <input type="text" id="input-scan" autofocus
+               class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+               placeholder="Escanea o ingresa el código" />
+        
+        <div id="detalle-producto" class="mb-4 hidden">
+            <p class="text-gray-800 text-base mb-1">
+                <span class="font-semibold text-gray-600">Producto:</span>
+                <span id="producto-nombre" class="font-bold text-blue-700"></span>
+            </p>
+            <p class="text-gray-800 text-base mb-1">
+                <span class="font-semibold text-gray-600">Precio:</span>
+                <span id="producto-precio" class="text-2xl font-extrabold text-green-600"></span>
+            </p>
+            <p id="producto-descuento" class="text-green-500 font-medium mt-2"></p>
+        </div>
+
+        <div class="flex justify-end space-x-2 mt-4">
+            <button id="btn-agregar"
+                    class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition">
+                Agregar (Enter)
+            </button>
+            <button id="btn-cancelar"
+                    class="bg-gray-300 px-5 py-2 rounded-lg hover:bg-gray-400 transition">
+                Cancelar (Esc)
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+
 
 <script>
+// == SCRIPT UNIFICADO PARA FUNCIONALIDADES DE VENTA == //
+
+// Esperamos a que cargue todo el DOM
+
+
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    // == VARIABLES GENERALES == //
     const inputCodigo = document.getElementById('codigo');
     const inputCantidad = document.getElementById('cantidad');
     const inputPrecio = document.getElementById('precio');
@@ -284,6 +351,32 @@
     const modalError = document.getElementById('modal-error');
     const modalErrorMessage = document.getElementById('modal-error-message');
     const beep = document.getElementById('beep');
+
+    // Modal para productos por kilo
+    const modalKilos = document.getElementById('modalKilos');
+    const nombreProductoKilo = document.getElementById('nombreProductoKilo');
+    const cantidadKilos = document.getElementById('cantidadKilos');
+    const botonAgregarKilos = document.getElementById('boton-agregar-kilos');
+
+    // Modal de escaneo F9
+    const modalScan = document.getElementById('modal-scan');
+    const inputScan = document.getElementById('input-scan');
+    const detalleProducto = document.getElementById('detalle-producto');
+    const productoNombre = document.getElementById('producto-nombre');
+    const productoPrecio = document.getElementById('producto-precio');
+    const productoDescuento = document.getElementById('producto-descuento');
+    const btnAgregar = document.getElementById('btn-agregar');
+    const btnCancelar = document.getElementById('btn-cancelar');
+
+    // Cliente y saldo
+    const selectCliente = document.getElementById('id_cliente');
+    const checkboxCuentaCorriente = document.getElementById('cuenta_corriente');
+    const textoCuentaCorriente = document.getElementById('texto-cuenta-corriente');
+    const saldoDiv = document.getElementById('saldo-cliente');
+
+    let productoActual = null;
+
+    // == FUNCIONES GENERALES == //
 
     function mostrarError(mensaje) {
         modalErrorMessage.innerText = mensaje;
@@ -297,33 +390,44 @@
         inputCodigo.focus();
     }
 
-    function mostrarModalKilos(data) {
-        document.getElementById('nombreProductoKilo').innerText = data.nombre;
-        document.getElementById('cantidadKilos').value = '';
-        document.getElementById('modalKilos').classList.remove('hidden');
-        document.getElementById('cantidadKilos').focus();
+    function limpiarCamposAgregar() {
+        inputCodigo.value = '';
+        inputCantidad.value = 1;
+        inputPrecio.value = '';
+    }
 
-        // Guardar el producto actual en memoria
-        window.productoActual = data;
+    // == PRODUCTO POR KILOS == //
+
+    function mostrarModalKilos(data) {
+        nombreProductoKilo.innerText = data.nombre;
+        cantidadKilos.value = '';
+        modalKilos.classList.remove('hidden');
+        cantidadKilos.focus();
+        productoActual = data;
     }
 
     function cerrarModalKilos() {
-        document.getElementById('modalKilos').classList.add('hidden');
+        modalKilos.classList.add('hidden');
+        limpiarCamposAgregar();
+        inputCodigo.focus();
     }
 
     function confirmarKilos() {
-        const cantidad = parseFloat(document.getElementById('cantidadKilos').value);
+        const cantidad = parseFloat(cantidadKilos.value);
         if (!cantidad || cantidad <= 0) {
             alert("Por favor, ingresa una cantidad válida en kilos.");
             return;
         }
 
-        inputCantidad.value = cantidad;
-        cerrarModalKilos();
+        inputCantidad.value = cantidad.toFixed(3);
+        inputPrecio.value = parseFloat(productoActual.precio_venta).toFixed(2);
+        inputCodigo.value = productoActual.codigo;
 
-        const submitButton = document.querySelector('button[name="agregar"]');
-        submitButton.click();
+        document.querySelector('button[name="agregar"]').click();
+        cerrarModalKilos();
     }
+
+    // == PRODUCTO POR CÓDIGO == //
 
     function buscarProducto(codigo) {
         fetch(`/productos/buscar-producto/?codigo=${codigo}`)
@@ -339,8 +443,7 @@
                     if (data.tipo_venta === 'kilo') {
                         mostrarModalKilos(data);
                     } else {
-                        const submitButton = document.querySelector('button[name="agregar"]');
-                        submitButton.click();
+                        document.querySelector('button[name="agregar"]').click();
                     }
                 }
             })
@@ -349,102 +452,173 @@
             });
     }
 
-    // Detectar Enter en el campo código
+    // == ESCANEO CON F9 == //
+
+    function abrirModalScan() {
+        modalScan.style.display = 'flex';
+        detalleProducto.classList.add('hidden');
+        inputScan.value = '';
+        productoActual = null;
+        inputScan.focus();
+    }
+
+    // Evento para botón Buscar Producto (F9)
+    document.getElementById('btn-f9').addEventListener('click', abrirModalScan);
+
+    function cerrarModalScan() {
+    modalScan.style.display = 'none';
+    limpiarCamposAgregar();
+
+        setTimeout(() => {
+            const modalKilos = document.getElementById('modalKilos');
+            // Si el modal kilos está oculto, ponemos foco en input código principal
+            if (modalKilos.classList.contains('hidden')) {
+                document.getElementById('codigo').focus();
+            }
+            // Si modal kilos está visible, NO hacemos nada para no interferir con su foco
+        }, 100);  // 100ms debería ser suficiente para que modal kilos se abra si debe hacerlo
+    }
+
+
+
+    function buscarProductoScan(codigo) {
+        fetch(`/productos/buscar-producto/?codigo=${codigo}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    alert(data.message || 'Producto no encontrado.');
+                    detalleProducto.classList.add('hidden');
+                    productoActual = null;
+                    return;
+                }
+
+                productoActual = data;
+                productoNombre.textContent = data.nombre;
+                productoPrecio.textContent = parseFloat(data.precio_venta).toFixed(2);
+                productoDescuento.style.display = 'none';
+                detalleProducto.classList.remove('hidden');
+            })
+            .catch(() => {
+                alert('Error al buscar producto.');
+                detalleProducto.classList.add('hidden');
+                productoActual = null;
+            });
+    }
+
+    function agregarAlCarritoDesdeScan() {
+        if (!productoActual) {
+            alert('No hay producto para agregar.');
+            return;
+        }
+
+        if (productoActual.tipo_venta === 'kilo') {
+            cerrarModalScan();
+            mostrarModalKilos(productoActual);
+            return;
+        }
+
+        inputCodigo.value = productoActual.codigo;
+        inputCantidad.value = 1;
+        inputPrecio.value = parseFloat(productoActual.precio_venta).toFixed(2);
+
+        document.querySelector('button[name="agregar"]').click();
+        cerrarModalScan();
+    }
+
+    // == CLIENTES Y SALDOS == //
+
+    function actualizarCuentaCorriente() {
+        if (selectCliente.value) {
+            checkboxCuentaCorriente.disabled = false;
+            textoCuentaCorriente.classList.remove('text-gray-400');
+            textoCuentaCorriente.classList.add('text-gray-700');
+        } else {
+            checkboxCuentaCorriente.disabled = true;
+            checkboxCuentaCorriente.checked = false;
+            textoCuentaCorriente.classList.remove('text-gray-700');
+            textoCuentaCorriente.classList.add('text-gray-400');
+        }
+    }
+
+    function obtenerSaldoCliente(clienteId) {
+        fetch(`/ventas/ajax/obtener_saldo/?cliente_id=${clienteId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.saldo !== undefined) {
+                    saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> $${data.saldo.toFixed(2)}</p>`;
+                } else {
+                    saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> -</p>`;
+                }
+            })
+            .catch(() => {
+                saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> Error</p>`;
+            });
+    }
+
+    // == EVENTOS == //
+
     inputCodigo.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             const codigo = inputCodigo.value.trim();
-            if (codigo.length >= 2) {
-                buscarProducto(codigo);
-            }
+            if (codigo.length >= 2) buscarProducto(codigo);
         }
     });
 
-    // Resetear campos al agregar producto
-    formAgregar.addEventListener('submit', function () {
+    formAgregar.addEventListener('submit', () => {
         setTimeout(() => limpiarCampos(), 100);
     });
 
-    // Enfocar al inicio
-    inputCodigo.focus();
-</script>
-
-<!-- JavaScript al final del archivo -->
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const inputKilo = document.getElementById('cantidadKilos');
-        const botonAgregarKilos = document.getElementById('boton-agregar-kilos');  // Aquí cambiamos el ID
-
-        if (inputKilo) {
-            inputKilo.addEventListener('keypress', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();  // Evita el comportamiento por defecto
-                    botonAgregarKilos.click();  // Simula el clic en el botón "Agregar"
-                }
-            });
+    cantidadKilos.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            confirmarKilos();
         }
     });
 
-</script>
-
-<!-- JavaScript para activar el checkbox -->
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const selectCliente = document.getElementById('id_cliente');
-        const checkboxCuentaCorriente = document.getElementById('cuenta_corriente');
-        const textoCuentaCorriente = document.getElementById('texto-cuenta-corriente');
-
-        // Función para actualizar el estado del checkbox
-        function actualizarCuentaCorriente() {
-            if (selectCliente.value) {
-                // Hay cliente seleccionado
-                checkboxCuentaCorriente.disabled = false;
-                textoCuentaCorriente.classList.remove('text-gray-400');
-                textoCuentaCorriente.classList.add('text-gray-700');
+    inputScan.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (!productoActual && inputScan.value.trim().length >= 2) {
+                buscarProductoScan(inputScan.value.trim());
             } else {
-                // No hay cliente
-                checkboxCuentaCorriente.disabled = true;
-                checkboxCuentaCorriente.checked = false; // Por si estaba tildado antes
-                textoCuentaCorriente.classList.remove('text-gray-700');
-                textoCuentaCorriente.classList.add('text-gray-400');
+                agregarAlCarritoDesdeScan();
             }
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cerrarModalScan();
         }
+    });
 
-        // Cuando cambia el select de cliente, ejecutamos la función
-        selectCliente.addEventListener('change', actualizarCuentaCorriente);
+    btnCancelar.addEventListener('click', cerrarModalScan);
+    btnAgregar.addEventListener('click', agregarAlCarritoDesdeScan);
 
-        // También ejecutamos una vez al cargar la página
+    selectCliente.addEventListener('change', () => {
         actualizarCuentaCorriente();
+        const clienteId = selectCliente.value;
+        if (clienteId) obtenerSaldoCliente(clienteId);
+        else saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> -</p>`;
     });
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'F9') {
+            e.preventDefault();
+            abrirModalScan();
+        }
+        if (e.key === 'Escape' && !modalKilos.classList.contains('hidden')) {
+            e.preventDefault();
+            cerrarModalKilos();
+        }
+    });
+
+    // Inicialización al cargar
+    inputCodigo.focus();
+    actualizarCuentaCorriente();
+});
+
 </script>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const clienteSelect = document.getElementById('id_cliente');
-        const saldoDiv = document.getElementById('saldo-cliente');
 
-        clienteSelect.addEventListener('change', function () {
-            const clienteId = this.value;
-            if (clienteId) {
-                fetch(`/ventas/ajax/obtener_saldo/?cliente_id=${clienteId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.saldo !== undefined) {
-                            saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> $${data.saldo.toFixed(2)}</p>`;
-                        } else {
-                            saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> -</p>`;
-                        }
-                    })
-                    .catch(error => {
-                        saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> Error</p>`;
-                        console.error('Error al obtener saldo:', error);
-                    });
-            } else {
-                saldoDiv.innerHTML = `<p><strong>Saldo actual del cliente:</strong> -</p>`;
-            }
-        });
-    });
-</script>
 
 
 

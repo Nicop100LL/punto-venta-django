@@ -63,6 +63,7 @@
     <!-- Totales -->
     <p><strong>Subtotal:</strong> ${{ venta.subtotal|default:venta.total|floatformat:0|formato_precio }}</p>
     <p><strong>Desc:</strong> ${{ venta.descuento|default:0|floatformat:0|formato_precio }}</p>
+    <p><strong>Total de productos:</strong> {{ total_productos|floatformat:0|formato_precio }}</p>
     <hr class="my-2 border-dashed">
     <p class="text-lg mt-1 font-bold"><strong>Total:</strong> ${{ venta.total|floatformat:0|formato_precio }}</strong>
     </p>

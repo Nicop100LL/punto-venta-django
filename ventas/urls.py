@@ -11,7 +11,7 @@ urlpatterns = [
     path('clientes/eliminar/', views.eliminar_cliente, name='eliminar_cliente'),
     path('editar_cliente/', views.editar_cliente, name='editar_cliente'),
     path('clientes/historial/<int:cliente_id>/', views.historial_pagos_cliente, name='historial_pagos_cliente'),
-    
+    path('estadisticas/', views.estadisticas_ventas, name='estadisticas_ventas'),
 
     path('ajax/obtener_saldo/', views.obtener_saldo_cliente, name='obtener_saldo_cliente'),
     path('modificar-saldo-cliente/', views.modificar_saldo_cliente, name='modificar_saldo_cliente'),
