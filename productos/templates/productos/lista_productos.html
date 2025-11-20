@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load custom_filters %}
 
-
 {% block content %}
 <div class="flex min-h-screen bg-gray-100">
   <!-- Contenido principal -->
@@ -17,7 +16,6 @@
         </button>
       </div>
     </div>
-
 
     <!-- Buscador -->
     <div class="mb-4">
@@ -62,6 +60,10 @@
 <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
   <div class="bg-white p-6 rounded w-full max-w-md" style="max-height: 90%; overflow-y: auto;">
     <h2 class="text-xl font-bold mb-4">Agregar Nuevo Producto</h2>
+
+    <!-- ALERTA CORREGIDA (FUERA DE BOTONES) -->
+    <div id="producto-alerta" class="hidden mb-4 px-4 py-2 rounded text-sm"></div>
+
     <form id="form-nuevo-producto" method="POST" action="{% url 'nuevo_producto' %}">
       {% csrf_token %}
       <div class="mb-2">
@@ -86,6 +88,7 @@
           </button>
         </div>
       </div>
+
       <div class="mb-4">
         <label for="precio_compra" class="block text-sm font-medium text-gray-700">
           Precio de compra
@@ -98,6 +101,7 @@
         <label class="block">Precio</label>
         <input type="number" step="0.01" name="precio_venta" class="w-full border px-3 py-2 rounded" required />
       </div>
+
       <div class="mb-4">
         <label class="block">Tipo de venta</label>
         <select name="tipo_venta" class="w-full border px-3 py-2 rounded" required>
@@ -105,45 +109,44 @@
           <option value="kilo">Por kilo</option>
         </select>
       </div>
+
       <div class="mb-4">
         <label class="block">Stock</label>
         <input type="number" name="stock_actual" step="0.01" class="w-full border px-3 py-2 rounded" required />
       </div>
-      <!-- Nuevo campo para aplicar descuento -->
+
+      <!-- DESCUENTO -->
       <div class="flex items-center gap-2">
         <input type="checkbox" id="aplica_descuento" name="aplica_descuento" value="True"
           class="rounded border-gray-300 text-blue-600 shadow-sm">
         <label for="aplica_descuento" class="text-sm font-medium text-gray-700">Aplicar descuento</label>
       </div>
+
       <div id="descuento-campos" class="space-y-4 hidden">
-
         <div>
-          <label for="cantidad_minima_descuento" class="block text-sm font-medium text-gray-700">Cantidad mínima para
-            descuento</label>
-          <input type="number" id="cantidad_minima_descuento" name="cantidad_minima_descuento" min="0"
-          class="w-full border px-3 py-2 rounded">
+          <label class="block text-sm font-medium text-gray-700">Cantidad mínima para descuento</label>
+          <input type="number" name="cantidad_minima_descuento" min="0" class="w-full border px-3 py-2 rounded">
         </div>
-  
-        <div >
-          <label for="porcentaje_descuento" class="block text-sm font-medium text-gray-700">Porcentaje de descuento</label>
-          <input type="number" id="porcentaje_descuento" name="porcentaje_descuento" step="0.01" min="0" max="100"
-          class="w-full border px-3 py-2 rounded">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Porcentaje de descuento</label>
+          <input type="number" name="porcentaje_descuento" step="0.01" min="0" max="100" class="w-full border px-3 py-2 rounded">
         </div>
       </div>
 
-      <div class="flex justify-end gap-2">
+      <div class="flex justify-end gap-2 mt-4">
         <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-300 rounded">Cancelar</button>
-        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Guardar</button>
-        <div id="producto-alerta" class="mb-4 hidden px-4 py-2 rounded text-sm"></div>
+        <button id="btn-guardar-producto" type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Guardar</button>
       </div>
+
     </form>
   </div>
 </div>
-<!-- Modal para agregar categoría -->
+
+<!-- Modal Categoría -->
 <div id="modalCategoria" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
   <div class="bg-white p-6 rounded w-full max-w-sm">
     <h2 class="text-xl font-bold mb-4">Agregar Categoría</h2>
-    <!-- Mensaje de alerta -->
+
     <div id="categoria-alerta" class="mb-4 hidden px-4 py-2 rounded text-sm"></div>
 
     <form id="form-nueva-categoria" method="POST" action="{% url 'nueva_categoria' %}">
@@ -154,255 +157,185 @@
       </div>
       <div class="flex justify-end gap-2">
         <button type="button" onclick="closeCategoriaModal()" class="px-4 py-2 bg-gray-300 rounded">Cancelar</button>
-        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Guardar</button>
+        <button id="btn-guardar-categoria" type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Guardar</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Toast de mensaje -->
+<!-- Toast -->
 <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
-
+<!-- Scripts -->
 <script>
-  function openCategoriaModal() {
-    document.getElementById('modalCategoria').classList.remove('hidden');
-  }
-  function closeCategoriaModal() {
-    document.getElementById('modalCategoria').classList.add('hidden');
-  }
-</script>
-
-
-<script>
-  function openModal() {
-    document.getElementById('modal').classList.remove('hidden');
-  }
-  function closeModal() {
-    document.getElementById('modal').classList.add('hidden');
-  }
+  function openModal() { document.getElementById('modal').classList.remove('hidden'); }
+  function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+  function openCategoriaModal() { document.getElementById('modalCategoria').classList.remove('hidden'); }
+  function closeCategoriaModal() { document.getElementById('modalCategoria').classList.add('hidden'); }
 
   document.getElementById('buscador').addEventListener('input', function () {
     const query = this.value.toLowerCase();
-    const productos = document.querySelectorAll('.bg-white');
-    productos.forEach(p => {
-      const texto = p.textContent.toLowerCase();
-      p.style.display = texto.includes(query) ? '' : 'none';
+    document.querySelectorAll('.bg-white').forEach(p => {
+      p.style.display = p.textContent.toLowerCase().includes(query) ? '' : 'none';
     });
   });
 </script>
 
+<!-- AJAX Categorías -->
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('form-nueva-categoria');
     const inputNombre = document.getElementById('nombre-categoria');
-    const btnGuardar = document.getElementById('btn-guardar-categoria'); // Agregar un ID a tu botón de guardar
+    const btnGuardar = document.getElementById('btn-guardar-categoria');
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
 
-      // Deshabilitar el botón para evitar múltiples envíos
       btnGuardar.disabled = true;
-
-      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-      const nombre = inputNombre.value;
 
       fetch("{% url 'nueva_categoria' %}", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'X-CSRFToken': csrfToken
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
         },
-        body: new URLSearchParams({ nombre: nombre })
+        body: new URLSearchParams({
+          nombre: inputNombre.value,
+          descripcion: ""   
+        })
       })
-        .then(response => response.json())
+        .then(r => r.json())
         .then(data => {
           if (data.success) {
             closeCategoriaModal();
             const select = document.querySelector('select[name="categoria"]');
-            const nuevaOpcion = document.createElement('option');
-            nuevaOpcion.value = data.id;
-            nuevaOpcion.textContent = data.nombre;
-            nuevaOpcion.selected = true;
-            select.appendChild(nuevaOpcion);
+            const nuevaOpcion = new Option(data.nombre, data.id, true, true);
+            select.add(nuevaOpcion);
             inputNombre.value = '';
             showToast("✅ Categoría agregada exitosamente");
           } else {
             showToast("⚠️ " + data.message, 'error');
           }
         })
-        .catch(error => {
-          console.error('Error:', error);
-          showToast("🚫 Error al crear la categoría", 'error');
-        })
-        .finally(() => {
-          // Volver a habilitar el botón después de la respuesta
-          btnGuardar.disabled = false;
-        });
-    });
-  });
-
-
-  // Función para mostrar toasts
-  function showToast(mensaje, tipo = 'success') {
-    const toastContainer = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-
-    toast.className = `max-w-xs w-full px-4 py-3 rounded shadow transition-opacity duration-500 opacity-0 ${tipo === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-      }`;
-    toast.innerHTML = mensaje;
-
-    toastContainer.appendChild(toast);
-
-    requestAnimationFrame(() => {
-      toast.classList.remove('opacity-0');
-    });
-
-    setTimeout(() => {
-      toast.classList.add('opacity-0');
-      setTimeout(() => {
-        toast.remove();
-      }, 500);
-    }, 3000);
-  }
-</script>
-
-
-<!-- JavaScript para manejar el envío del formulario sin recargar -->
-<script>
-  document.getElementById('form-nueva-categoria').addEventListener('submit', function (e) {
-    e.preventDefault(); // evita el envío normal
-
-    const nombre = document.getElementById('nombre-categoria').value;
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-    fetch("{% url 'nueva_categoria' %}", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'X-CSRFToken': csrfToken
-      },
-      body: new URLSearchParams({ nombre: nombre })
-    })
-      .then(response => response.json())
-      .then(data => {
-        const alerta = document.getElementById('categoria-alerta');
-        if (data.success) {
-          // Cerrar modal y actualizar el select con la nueva categoría
-          closeCategoriaModal();
-          const select = document.querySelector('select[name="categoria"]');
-          const nuevaOpcion = document.createElement('option');
-          nuevaOpcion.value = data.id;
-          nuevaOpcion.textContent = data.nombre;
-          nuevaOpcion.selected = true;
-          select.appendChild(nuevaOpcion);
-
-          document.getElementById('nombre-categoria').value = '';
-          alerta.classList.add('hidden');
-        } else {
-          alerta.textContent = data.message;
-          alerta.classList.remove('hidden');
-          alerta.classList.add('bg-red-100', 'text-red-800');
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-      });
-  });
-</script>
-
-<!-- JavaScript para mostrar los toasts -->
-<script>
-  function showToast(mensaje, tipo = 'success') {
-    const toastContainer = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-
-    toast.className = `max-w-xs w-full px-4 py-3 rounded shadow transition-opacity duration-500 opacity-0 ${tipo === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-      }`;
-    toast.innerHTML = mensaje;
-
-    toastContainer.appendChild(toast);
-
-    // Fade in
-    requestAnimationFrame(() => {
-      toast.classList.remove('opacity-0');
-    });
-
-    // Auto eliminar después de 3 segundos
-    setTimeout(() => {
-      toast.classList.add('opacity-0');
-      setTimeout(() => {
-        toast.remove();
-      }, 500); // coincide con la duración de la transición
-    }, 3000);
-  }
-</script>
-
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const form = document.getElementById('form-nuevo-producto');
-    const alerta = document.getElementById('producto-alerta');
-
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-
-      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-      const formData = new FormData(form);
-
-      fetch(form.action, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': csrfToken,
-          'X-Requested-With': 'XMLHttpRequest' // 👈 Esto es lo que Django necesita
-        },
-        body: formData
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            closeModal();
-            showToast("✅ Producto agregado: " + data.nombre);
-            setTimeout(() => {
-              location.reload(); // 👈 Luego recargamos la página
-            }, 300); // ⏱️ Esperamos 300 milisegundos para que el modal se cierre con estilo
-            form.reset();
-          } else {
-            alerta.textContent = data.message;
-            alerta.classList.remove('hidden');
-            alerta.classList.add('bg-red-100', 'text-red-700', 'border', 'border-red-400');
-          }
-        })
-        .catch(error => {
-          console.error("Error al enviar el formulario:", error);
-        });
+        .finally(() => btnGuardar.disabled = false);
     });
   });
 </script>
 
- <!-- JavaScript para mostrar ocultar los campos descuento -->
+<!-- AJAX Producto -->
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const checkbox = document.getElementById('aplica_descuento');
-    const descuentoCampos = document.getElementById('descuento-campos');
-    const cantidadInput = document.getElementById('cantidad_minima_descuento');
-    const porcentajeInput = document.getElementById('porcentaje_descuento');
+/*
+  Script para agregar producto vía AJAX sin recargar la página
+  -----------------------------------------------------------
+  - Intercepta el envío del formulario.
+  - Envía los datos al backend con X-Requested-With.
+  - Si el checkbox de descuento NO está marcado, elimina esos campos.
+  - Inserta el producto en el DOM (en la categoría correcta) inmediatamente.
+  - Muestra toast y cierra el modal.
+  - Maneja errores y vuelve a habilitar el botón de guardar.
+*/
+document.addEventListener('DOMContentLoaded', function () {
+  const form = document.getElementById("form-nuevo-producto");
+  const alerta = document.getElementById("producto-alerta");
+  const btnGuardar = form.querySelector('button[type="submit"]');
 
-    function toggleDescuentoFields() {
-      const activo = checkbox.checked;
-      descuentoCampos.classList.toggle('hidden', !activo);
-      cantidadInput.disabled = !activo;
-      porcentajeInput.disabled = !activo;
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    btnGuardar.disabled = true;
+
+    const formData = new FormData(form);
+
+    // Si NO aplica descuento, eliminamos esos campos
+    if (!document.getElementById("aplica_descuento").checked) {
+      formData.delete("cantidad_minima_descuento");
+      formData.delete("porcentaje_descuento");
     }
 
-    // Inicializar al cargar
-    toggleDescuentoFields();
+    fetch(form.action, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body: formData
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          closeModal(); // Cierra el modal
+          showToast("✅ Producto agregado correctamente"); // Toast de éxito
 
-    // Cambiar al marcar/desmarcar
-    checkbox.addEventListener('change', toggleDescuentoFields);
+          // Inserta el producto en la categoría correspondiente
+          insertarProductoEnCategoria(data.producto);
+
+          // Limpiar formulario y ocultar alerta
+          form.reset();
+          alerta.classList.add('hidden');
+        } else {
+          alerta.textContent = data.message || "Error al crear producto";
+          alerta.classList.remove("hidden");
+          alerta.classList.add("bg-red-100", "text-red-700", "border", "border-red-400");
+        }
+      })
+      .catch(err => {
+        console.error("ERROR:", err);
+        showToast("❌ Error al enviar el formulario", "error");
+      })
+      .finally(() => btnGuardar.disabled = false);
   });
+
+  /********** FUNCIONES AUXILIARES **********/
+
+  // Inserta una "card" del producto en el grid de su categoría
+  function insertarProductoEnCategoria(p) {
+    const h2s = Array.from(document.querySelectorAll('h2'));
+    const categoriaTitulo = h2s.find(el => el.textContent.trim() === p.categoria);
+    if (!categoriaTitulo) return;
+
+    const grid = categoriaTitulo.nextElementSibling;
+    if (!grid || !grid.classList.contains('grid')) return;
+
+    const card = document.createElement('div');
+    card.className = 'bg-white p-4 rounded shadow producto-card';
+    card.innerHTML = `
+      <h3 class="text-lg font-semibold">${escapeHtml(p.nombre)}</h3>
+      <p class="text-sm text-gray-500">Código: ${escapeHtml(p.codigo)}</p>
+      <p>Stock: ${p.tipo_venta === "unidad" ? Math.round(p.stock_actual) : Number(p.stock_actual).toFixed(2)}</p>
+      <p>Precio: $${Number(p.precio_venta)}</p>
+      <div class="flex justify-between mt-2">
+        <a href="/productos/editar/${p.id}/" class="text-blue-600 hover:underline">Editar</a>
+        <a href="/productos/eliminar/${p.id}/" class="text-red-600 hover:underline">Eliminar</a>
+      </div>
+    `;
+    grid.appendChild(card); // appendChild para que aparezca al final
+  }
+
+  // Función para escapar HTML y evitar inyección
+  function escapeHtml(text) {
+    if (text === null || text === undefined) return "";
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+});
 </script>
 
+<!-- Descuentos -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const check = document.getElementById("aplica_descuento");
+    const campos = document.getElementById("descuento-campos");
 
+    function toggle() {
+      campos.classList.toggle("hidden", !check.checked);
+    }
 
+    check.addEventListener("change", toggle);
+    toggle();
+  });
+</script>
 
 {% endblock %}

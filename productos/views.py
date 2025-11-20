@@ -36,17 +36,23 @@ def nuevo_producto(request):
         stock_actual = Decimal(request.POST['stock_actual'])
         tipo_venta = request.POST.get('tipo_venta')
 
-        # Nuevos campos de descuento
-        aplica_descuento = request.POST.get('aplica_descuento') == 'True'  # Se asegura de que el valor sea un booleano
-        cantidad_minima_descuento = request.POST.get('cantidad_minima_descuento', 0)
-        porcentaje_descuento = request.POST.get('porcentaje_descuento', 0.00)
+        # Campos de descuento
+        aplica_descuento = request.POST.get('aplica_descuento') == 'True'
 
-        # Verifica si el código ya existe para la misma empresa
+        if aplica_descuento:
+            cantidad_minima_descuento = request.POST.get('cantidad_minima_descuento')
+            porcentaje_descuento = request.POST.get('porcentaje_descuento')
+        else:
+            cantidad_minima_descuento = None
+            porcentaje_descuento = None
+
+        # Código único por empresa
         if Producto.objects.filter(codigo=codigo, empresa=request.user.empresa).exists():
             return JsonResponse({'success': False, 'message': 'El código de producto ya existe para esta empresa.'})
 
         # Crear producto
         categoria = get_object_or_404(Categoria, id=categoria_id, empresa=request.user.empresa)
+        
         producto = Producto.objects.create(
             nombre=nombre,
             codigo=codigo,
@@ -54,14 +60,26 @@ def nuevo_producto(request):
             precio_venta=precio_venta,
             precio_compra=precio_compra,
             stock_actual=stock_actual,
-            empresa=request.user.empresa,  # ¡Muy importante!
-            tipo_venta=tipo_venta, 
+            empresa=request.user.empresa,
+            tipo_venta=tipo_venta,
             aplica_descuento=aplica_descuento,
             cantidad_minima_descuento=cantidad_minima_descuento,
             porcentaje_descuento=porcentaje_descuento,
         )
 
-        return JsonResponse({'success': True})
+        return JsonResponse({
+        'success': True,
+        'producto': {
+        'id': producto.id,
+        'nombre': producto.nombre,
+        'codigo': producto.codigo,
+        'categoria': producto.categoria.nombre,
+        'precio_venta': str(producto.precio_venta),
+        'stock_actual': float(producto.stock_actual),
+        'tipo_venta': producto.tipo_venta,
+    }
+})
+
 
     return JsonResponse({'success': False, 'message': 'Método no permitido o no es una solicitud AJAX.'})
 
