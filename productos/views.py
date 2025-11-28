@@ -1,19 +1,29 @@
 from collections import defaultdict
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.shortcuts import get_object_or_404, render, redirect
-from productos.models import Producto, Categoria
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.views.decorators.http import require_POST
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
-from django.http import JsonResponse
-from .models import Categoria
-from django.db import IntegrityError
-from .models import Categoria
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_exempt
+
+from .models import Producto, Categoria
+
+
+def parse_decimal(value):
+    """
+    Convierte una cadena a Decimal, reemplazando comas por puntos y eliminando comillas raras.
+    Si viene vacía o inválida, devuelve 0.
+    """
+    if not value:
+        return Decimal('0')
+    value = str(value).replace(',', '.').replace('“', '').replace('”', '').strip()
+    try:
+        return Decimal(value)
+    except InvalidOperation:
+        return Decimal('0')
+
 
 @login_required
 def lista_productos(request):
@@ -27,34 +37,29 @@ def lista_productos(request):
 
 @login_required
 def nuevo_producto(request):
-
-    # Detectar AJAX correctamente (sin depender de mayúsculas/minúsculas)
     if request.method == 'POST' and request.headers.get('X-Requested-With', '').lower() == 'xmlhttprequest':
-
         nombre = request.POST.get('nombre')
         codigo = request.POST.get('codigo')
         categoria_id = request.POST.get('categoria')
-        precio_venta = request.POST.get('precio_venta')
-        precio_compra = request.POST.get('precio_compra', None)
-        stock_actual = Decimal(request.POST['stock_actual'])
         tipo_venta = request.POST.get('tipo_venta')
 
-        # Campos de descuento
-        aplica_descuento = request.POST.get('aplica_descuento') == 'True'
+        precio_venta = parse_decimal(request.POST.get('precio_venta'))
+        precio_compra = parse_decimal(request.POST.get('precio_compra', 0))
+        stock_actual = parse_decimal(request.POST.get('stock_actual'))
 
+        aplica_descuento = request.POST.get('aplica_descuento') == 'True'
         if aplica_descuento:
             cantidad_minima_descuento = request.POST.get('cantidad_minima_descuento')
-            porcentaje_descuento = request.POST.get('porcentaje_descuento')
+            porcentaje_descuento = parse_decimal(request.POST.get('porcentaje_descuento'))
         else:
             cantidad_minima_descuento = None
             porcentaje_descuento = None
 
-        # Código único por empresa
         if Producto.objects.filter(codigo=codigo, empresa=request.user.empresa).exists():
             return JsonResponse({'success': False, 'message': 'El código de producto ya existe para esta empresa.'})
 
         categoria = get_object_or_404(Categoria, id=categoria_id, empresa=request.user.empresa)
-        
+
         producto = Producto.objects.create(
             nombre=nombre,
             codigo=codigo,
@@ -65,7 +70,7 @@ def nuevo_producto(request):
             empresa=request.user.empresa,
             tipo_venta=tipo_venta,
             aplica_descuento=aplica_descuento,
-            cantidad_minima_descuento=cantidad_minima_descuento,
+            cantidad_minima_descuento=int(cantidad_minima_descuento) if cantidad_minima_descuento else 0,
             porcentaje_descuento=porcentaje_descuento,
         )
 
@@ -77,43 +82,47 @@ def nuevo_producto(request):
                 'codigo': producto.codigo,
                 'categoria': producto.categoria.nombre,
                 'categoria_id': producto.categoria.id,
-                'precio_venta': str(producto.precio_venta),
+                'precio_venta': float(producto.precio_venta),
                 'stock_actual': float(producto.stock_actual),
                 'tipo_venta': producto.tipo_venta,
             }
         })
 
-    # Si NO es AJAX o no es POST
     return JsonResponse({'success': False, 'message': 'Método no permitido o no es una solicitud AJAX.'})
 
 
 @login_required
 def editar_producto(request, id):
     producto = get_object_or_404(Producto, id=id, empresa=request.user.empresa)
-    if request.method == 'POST':
-        # Actualizamos los campos del producto
-        producto.nombre = request.POST.get('nombre')
-        producto.codigo = request.POST.get('codigo')
-        producto.precio_venta = request.POST.get('precio_venta')
-        producto.stock_actual = request.POST.get('stock_actual')
-        producto.precio_compra = request.POST.get('precio_compra')  # Si es obligatorio
-        categoria_id = request.POST.get('categoria')
-        producto.categoria = Categoria.objects.get(id=categoria_id)
-        # Nuevos campos de descuento
-        producto.aplica_descuento = request.POST.get('aplica_descuento') == 'True'
-        producto.cantidad_minima_descuento = request.POST.get('cantidad_minima_descuento', 0)
-        producto.porcentaje_descuento = request.POST.get('porcentaje_descuento', 0.00)
-        
-        producto.save()  # Guardamos el producto actualizado
-        messages.success(request, 'Producto actualizado correctamente.')
-        return redirect('lista_productos')  # Redirigimos a la lista de productos
 
-    # En caso de que sea un GET, pre-cargamos el producto y las categorías
+    if request.method == 'POST':
+        producto.nombre = request.POST.get('nombre', producto.nombre)
+        producto.codigo = request.POST.get('codigo', producto.codigo)
+
+        producto.precio_venta = parse_decimal(request.POST.get('precio_venta'))
+        producto.precio_compra = parse_decimal(request.POST.get('precio_compra'))
+        stock_nuevo = parse_decimal(request.POST.get('stock_actual'))
+        producto.stock_actual = max(stock_nuevo, Decimal('0'))  # Evitar negativo
+
+        categoria_id = request.POST.get('categoria')
+        if categoria_id:
+            producto.categoria = Categoria.objects.get(id=categoria_id)
+
+        producto.aplica_descuento = request.POST.get('aplica_descuento') == 'True'
+        cantidad_minima_descuento = request.POST.get('cantidad_minima_descuento')
+        producto.cantidad_minima_descuento = int(cantidad_minima_descuento) if cantidad_minima_descuento else 0
+        producto.porcentaje_descuento = parse_decimal(request.POST.get('porcentaje_descuento'))
+
+        producto.save()
+        messages.success(request, 'Producto actualizado correctamente.')
+        return redirect('lista_productos')
+
     categorias = Categoria.objects.filter(empresa=request.user.empresa)
     return render(request, 'productos/editar_producto.html', {
         'producto': producto,
         'categorias': categorias,
     })
+
 
 @login_required
 def eliminar_producto(request, id):
@@ -126,8 +135,6 @@ def eliminar_producto(request, id):
 @login_required
 def exportar_productos_pdf(request):
     productos = Producto.objects.filter(empresa=request.user.empresa).order_by('categoria__nombre')
-
-    # Agrupar productos por categoría
     productos_por_categoria = defaultdict(list)
     for prod in productos:
         productos_por_categoria[prod.categoria.nombre].append(prod)
@@ -139,13 +146,11 @@ def exportar_productos_pdf(request):
     width, height = A4
     y = height - 50
 
-    # Título principal
     p.setFont("Helvetica-Bold", 16)
     p.drawString(50, y, f"Lista de Productos - {request.user.empresa.nombre}")
     y -= 40
 
     for categoria, productos_categoria in productos_por_categoria.items():
-        # Comprobar si hay espacio suficiente
         if y < 80:
             p.showPage()
             y = height - 50
@@ -153,50 +158,44 @@ def exportar_productos_pdf(request):
             p.drawString(50, y, f"Lista de Productos - {request.user.empresa.nombre}")
             y -= 40
 
-        # Mostrar el nombre de la categoría en negrita (sin "Categoría:")
         p.setFont("Helvetica-Bold", 14)
         p.drawString(50, y, categoria)
         y -= 25
 
-        # Encabezados
         p.setFont("Helvetica-Bold", 12)
         p.drawString(70, y, "Código")
         p.drawString(170, y, "Nombre")
         p.drawString(400, y, "Precio")
         y -= 20
 
-        # Listar productos de la categoría
         p.setFont("Helvetica", 10)
         for prod in productos_categoria:
             if y < 50:
                 p.showPage()
                 y = height - 50
-
                 p.setFont("Helvetica-Bold", 14)
                 p.drawString(50, y, categoria)
                 y -= 25
-
                 p.setFont("Helvetica-Bold", 12)
                 p.drawString(70, y, "Código")
                 p.drawString(170, y, "Nombre")
                 p.drawString(400, y, "Precio")
                 y -= 20
-
                 p.setFont("Helvetica", 10)
 
             p.drawString(70, y, str(prod.codigo))
             p.drawString(170, y, prod.nombre)
             p.drawString(400, y, f"${prod.precio_venta}")
-            # Línea horizontal bajo el producto
             p.line(50, y - 2, width - 50, y - 2)
             y -= 18
 
-        y -= 15  # Espacio entre categorías
+        y -= 15
 
     p.showPage()
     p.save()
-
     return response
+
+
 @login_required
 @require_POST
 def nueva_categoria(request):
@@ -204,7 +203,7 @@ def nueva_categoria(request):
     empresa = request.user.empresa
     if Categoria.objects.filter(nombre__iexact=nombre, empresa=empresa).exists():
         return JsonResponse({'success': False, 'message': 'La categoría ya existe.'})
-    
+
     cat = Categoria.objects.create(nombre=nombre, empresa=empresa)
     return JsonResponse({'success': True, 'id': cat.id, 'nombre': cat.nombre})
 
@@ -213,13 +212,12 @@ def nueva_categoria(request):
 def buscar_producto_por_codigo(request):
     codigo = request.GET.get('codigo')
     empresa = request.user.empresa
-
     try:
         producto = Producto.objects.get(codigo=codigo, empresa=empresa)
         return JsonResponse({
             'success': True,
             'nombre': producto.nombre,
-            'precio_venta': float(producto.precio_venta),  # Convertido para evitar error de JSON
+            'precio_venta': float(producto.precio_venta),
             'stock_actual': float(producto.stock_actual),
             'tipo_venta': producto.tipo_venta,
             'codigo': producto.codigo,

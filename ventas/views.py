@@ -180,9 +180,16 @@ def nueva_venta(request):
             return redirect('nueva_venta')
 
         # Acción: Finalizar y guardar la venta
+        # Acción: Finalizar y guardar la venta
         elif 'finalizar' in request.POST:
             venta_form = VentaForm(request.POST)
-            cuenta_corriente_activada = cuenta_corriente
+
+            # Determinar si es cuenta corriente: primero POST, si no, sesión
+            cuenta_corriente_activada = request.POST.get('cuenta_corriente')
+            if cuenta_corriente_activada is None:
+                cuenta_corriente_activada = request.session.get('cuenta_corriente', False)
+            else:
+                cuenta_corriente_activada = cuenta_corriente_activada == 'on'
 
             if venta_form.is_valid() and carrito:
                 venta = venta_form.save(commit=False)
@@ -193,15 +200,51 @@ def nueva_venta(request):
                 venta.cuenta_corriente = cuenta_corriente_activada
                 venta.tipo_pago = tipo_pago
 
-                if request.session.get('cliente_id') not in (None, '', 'None'):
-                    venta.cliente_id = int(request.session['cliente_id'])
+                # Asignar cliente correctamente desde sesión
+                cliente_id_sesion = request.session.get('cliente_id')
+                if cliente_id_sesion not in (None, '', 'None'):
+                    try:
+                        cliente = Cliente.objects.get(id=int(cliente_id_sesion))
+                        venta.cliente = cliente
+                    except Cliente.DoesNotExist:
+                        cliente = None
+                        venta.cliente = None
+                else:
+                    cliente = None
 
+                # Asignar número correlativo por empresa
+                ultima_venta = Venta.objects.filter(empresa=request.user.empresa).order_by('-numero_empresa').first()
+                venta.numero_empresa = (ultima_venta.numero_empresa + 1) if ultima_venta else 1
+
+                # Verificar cliente y cuenta corriente antes de guardar
+                cliente_id_sesion = request.session.get('cliente_id')
+                cuenta_corriente_activada = request.session.get('cuenta_corriente', False)
+
+                if cliente_id_sesion not in (None, '', 'None'):
+                    try:
+                        cliente = Cliente.objects.get(id=int(cliente_id_sesion))
+                        venta.cliente = cliente
+                        # Si está activada cuenta corriente, actualizar saldo
+                        if cuenta_corriente_activada:
+                            cliente.saldo += venta.total
+                            cliente.save()
+                        venta.cuenta_corriente = cuenta_corriente_activada
+                    except Cliente.DoesNotExist:
+                        cliente = None
+                        venta.cliente = None
+                        venta.cuenta_corriente = False
+                else:
+                    venta.cuenta_corriente = False
+                    cliente = None
+
+
+                # Guardamos la venta
                 venta.save()
 
-                # Si se usa cuenta corriente, actualizamos saldo
-                if cuenta_corriente_activada and venta.cliente:
-                    venta.cliente.saldo += venta.total
-                    venta.cliente.save()
+                # Si se usa cuenta corriente y hay cliente asignado, actualizamos saldo
+                if cuenta_corriente_activada and cliente:
+                    cliente.saldo += venta.total
+                    cliente.save()
 
                 # Guardamos el detalle de venta
                 for item in carrito:
@@ -324,7 +367,7 @@ def venta_pdf(request, venta_id):
     y = height - 2 * cm
 
     p.setFont("Helvetica-Bold", 16)
-    p.drawString(2 * cm, y, f"Factura de Venta #{venta.id}")
+    p.drawString(2 * cm, y, f"Factura de Venta #{venta.numero_empresa}")
     y -= 1.5 * cm
 
     p.setFont("Helvetica", 12)
