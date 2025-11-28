@@ -1,0 +1,12 @@
+# Base de datos local
+db.sqlite3
+
+# Configuraciones locales (evita sobreescribir settings del VPS)
+comercio/settings.py
+
+# Archivos compilados de Python
+*.pyc
+__pycache__/
+
+# Entornos virtuales
+venv/
