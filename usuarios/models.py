@@ -1,36 +1,26 @@
-from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
-from .models import Usuario, Empresa
-from ventas.models import Cliente
-from .forms import UsuarioCreationForm, UsuarioChangeForm
+from django.contrib.auth.models import AbstractUser
+from django.db import models
 
-class UsuarioAdmin(UserAdmin):
-    add_form = UsuarioCreationForm
-    form = UsuarioChangeForm
-    model = Usuario
+class Empresa(models.Model):
+    nombre = models.CharField(max_length=100)
+    cuit = models.CharField(max_length=13, blank=True, null=True)
+    direccion = models.CharField(max_length=200, blank=True, null=True)
+    condicion_iva = models.CharField(max_length=100, blank=True, null=True)
 
-    list_display = ('username', 'email', 'empresa', 'is_staff', 'is_active')
-    list_filter = ('is_staff', 'is_active', 'empresa')
+    def __str__(self):
+        return self.nombre
 
-    fieldsets = (
-        (None, {'fields': ('username', 'email', 'password', 'empresa')}),
-        ('Permisos', {'fields': ('is_staff', 'is_active', 'is_superuser', 'groups', 'user_permissions')}),
-    )
+class Usuario(AbstractUser):
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, null=True, blank=True)
 
-    add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('username', 'email', 'password1', 'password2', 'empresa', 'is_staff', 'is_active'),
-        }),
-    )
+    def is_superuser_or_staff(self):
+        return self.is_superuser or self.is_staff
 
-    search_fields = ('username', 'email')
-    ordering = ('username',)
+class Cliente(models.Model):
+    nombre = models.CharField(max_length=255)
+    cuit = models.CharField(max_length=20, blank=True, null=True)
+    condicion_iva = models.CharField(max_length=50, blank=True, null=True)
 
-admin.site.register(Usuario, UsuarioAdmin)
-admin.site.register(Empresa)
+    def __str__(self):
+        return self.nombre
 
-@admin.register(Cliente)
-class ClienteAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'cuit', 'condicion_iva')
-    search_fields = ('nombre', 'cuit')
