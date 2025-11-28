@@ -1,4 +1,3 @@
-# usuarios/forms.py
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm, AuthenticationForm
 from .models import Usuario
@@ -13,7 +12,7 @@ class UsuarioCreationForm(UserCreationForm):
 class UsuarioChangeForm(UserChangeForm):
     class Meta:
         model = Usuario
-        fields = ('username', 'email', 'empresa')
+        fields = ('username', 'email', 'empresa', 'is_active', 'is_staff', 'is_superuser')
         field_classes = {"username": UsernameField}
 
 class CustomAuthenticationForm(AuthenticationForm):

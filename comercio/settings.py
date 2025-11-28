@@ -81,10 +81,15 @@ WSGI_APPLICATION = 'comercio.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'punto_venta',
+        'USER': 'punto_user',
+        'PASSWORD': 'TuPasswordFuerteAca',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
+
 
 
 # Password validation

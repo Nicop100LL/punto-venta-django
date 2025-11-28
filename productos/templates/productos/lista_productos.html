@@ -26,7 +26,7 @@
     {% for categoria in categorias %}
     <div class="mb-6">
       <h2 class="text-xl font-semibold mb-2">{{ categoria.nombre }}</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div id="productos-categoria-{{ categoria.id }}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for p in productos %}
         {% if p.categoria == categoria %}
         <div class="bg-white p-4 rounded shadow">
@@ -72,7 +72,7 @@
       </div>
       <div class="mb-2">
         <label class="block">Código</label>
-        <input type="text" name="codigo" class="w-full border px-3 py-2 rounded" required />
+        <input  name="codigo" class="w-full border px-3 py-2 rounded" required />
       </div>
       <div class="mb-2">
         <label class="block">Categoría</label>
@@ -224,16 +224,6 @@
 
 <!-- AJAX Producto -->
 <script>
-/*
-  Script para agregar producto vía AJAX sin recargar la página
-  -----------------------------------------------------------
-  - Intercepta el envío del formulario.
-  - Envía los datos al backend con X-Requested-With.
-  - Si el checkbox de descuento NO está marcado, elimina esos campos.
-  - Inserta el producto en el DOM (en la categoría correcta) inmediatamente.
-  - Muestra toast y cierra el modal.
-  - Maneja errores y vuelve a habilitar el botón de guardar.
-*/
 document.addEventListener('DOMContentLoaded', function () {
   const form = document.getElementById("form-nuevo-producto");
   const alerta = document.getElementById("producto-alerta");
@@ -245,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const formData = new FormData(form);
 
-    // Si NO aplica descuento, eliminamos esos campos
+    // Si NO aplica descuento, eliminar campos vacíos
     if (!document.getElementById("aplica_descuento").checked) {
       formData.delete("cantidad_minima_descuento");
       formData.delete("porcentaje_descuento");
@@ -259,60 +249,50 @@ document.addEventListener('DOMContentLoaded', function () {
       },
       body: formData
     })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          closeModal(); // Cierra el modal
-          showToast("✅ Producto agregado correctamente"); // Toast de éxito
+    .then(res => res.json())
+    .then(data => {
+      console.log("DEBUG: respuesta nuevo_producto:", data);
 
-          // Inserta el producto en la categoría correspondiente
-          insertarProductoEnCategoria(data.producto);
+      if (data.success) {
+        closeModal();
+        showToast("✅ Producto agregado correctamente");
+        form.reset();
+        alerta.classList.add('hidden');
 
-          // Limpiar formulario y ocultar alerta
-          form.reset();
-          alerta.classList.add('hidden');
-        } else {
-          alerta.textContent = data.message || "Error al crear producto";
-          alerta.classList.remove("hidden");
-          alerta.classList.add("bg-red-100", "text-red-700", "border", "border-red-400");
+        // Insertar producto en su categoría por ID
+        const grid = document.getElementById(`productos-categoria-${data.producto.categoria_id}`);
+        if (grid) {
+          const card = document.createElement("div");
+          card.className = "bg-white p-4 rounded shadow producto-card";
+          card.innerHTML = `
+            <h3 class="text-lg font-semibold">${escapeHtml(data.producto.nombre)}</h3>
+            <p class="text-sm text-gray-500">Código: ${escapeHtml(data.producto.codigo)}</p>
+            <p>Stock: ${data.producto.tipo_venta === "unidad" ? Math.round(data.producto.stock_actual) : Number(data.producto.stock_actual).toFixed(2)}</p>
+            <p>Precio: $${Number(data.producto.precio_venta)}</p>
+            <div class="flex justify-between mt-2">
+              <a href="/productos/editar/${data.producto.id}/" class="text-blue-600 hover:underline">Editar</a>
+              <a href="/productos/eliminar/${data.producto.id}/" class="text-red-600 hover:underline">Eliminar</a>
+            </div>
+          `;
+          grid.appendChild(card);
         }
-      })
-      .catch(err => {
-        console.error("ERROR:", err);
-        showToast("❌ Error al enviar el formulario", "error");
-      })
-      .finally(() => btnGuardar.disabled = false);
+
+      } else {
+        alerta.textContent = data.message || "Error al crear producto";
+        alerta.classList.remove("hidden");
+        alerta.classList.add("bg-red-100", "text-red-700", "border", "border-red-400");
+      }
+    })
+    .catch(err => {
+      console.error("ERROR:", err);
+      showToast("❌ Error al enviar el formulario", "error");
+    })
+    .finally(() => btnGuardar.disabled = false);
   });
 
-  /********** FUNCIONES AUXILIARES **********/
-
-  // Inserta una "card" del producto en el grid de su categoría
-  function insertarProductoEnCategoria(p) {
-    const h2s = Array.from(document.querySelectorAll('h2'));
-    const categoriaTitulo = h2s.find(el => el.textContent.trim() === p.categoria);
-    if (!categoriaTitulo) return;
-
-    const grid = categoriaTitulo.nextElementSibling;
-    if (!grid || !grid.classList.contains('grid')) return;
-
-    const card = document.createElement('div');
-    card.className = 'bg-white p-4 rounded shadow producto-card';
-    card.innerHTML = `
-      <h3 class="text-lg font-semibold">${escapeHtml(p.nombre)}</h3>
-      <p class="text-sm text-gray-500">Código: ${escapeHtml(p.codigo)}</p>
-      <p>Stock: ${p.tipo_venta === "unidad" ? Math.round(p.stock_actual) : Number(p.stock_actual).toFixed(2)}</p>
-      <p>Precio: $${Number(p.precio_venta)}</p>
-      <div class="flex justify-between mt-2">
-        <a href="/productos/editar/${p.id}/" class="text-blue-600 hover:underline">Editar</a>
-        <a href="/productos/eliminar/${p.id}/" class="text-red-600 hover:underline">Eliminar</a>
-      </div>
-    `;
-    grid.appendChild(card); // appendChild para que aparezca al final
-  }
-
-  // Función para escapar HTML y evitar inyección
+  // Función para escapar HTML
   function escapeHtml(text) {
-    if (text === null || text === undefined) return "";
+    if (!text) return "";
     return String(text)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -337,5 +317,47 @@ document.addEventListener('DOMContentLoaded', function () {
     toggle();
   });
 </script>
+
+<!-- --- Revert: sólo bloquear ENTER en input codigo (NO tocar el handler AJAX) --- -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const modal = document.getElementById('modal');
+  if (!modal) return;
+
+  const form = modal.querySelector('#form-nuevo-producto');
+  if (!form) return;
+
+  const codigoInput = form.querySelector('input[name="codigo"]');
+
+  if (codigoInput) {
+    // Evitar que ENTER dispare submit desde ese input
+    codigoInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+      }
+    });
+
+    // Limpiar en paste
+    codigoInput.addEventListener('paste', function (e) {
+      const pasted = (e.clipboardData || window.clipboardData).getData('text');
+      const clean = pasted.replace(/[\r\n]+/g, '').trim();
+      e.preventDefault();
+      const start = codigoInput.selectionStart || 0;
+      const end = codigoInput.selectionEnd || 0;
+      const value = codigoInput.value;
+      codigoInput.value = value.slice(0, start) + clean + value.slice(end);
+      const pos = start + clean.length;
+      codigoInput.setSelectionRange(pos, pos);
+    });
+
+    // Trim al blur
+    codigoInput.addEventListener('blur', function () {
+      codigoInput.value = codigoInput.value.replace(/[\r\n]+/g, '').trim();
+    });
+  }
+});
+</script>
+<!-- --- fin revert --- -->
+
 
 {% endblock %}

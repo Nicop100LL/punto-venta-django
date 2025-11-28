@@ -27,7 +27,10 @@ def lista_productos(request):
 
 @login_required
 def nuevo_producto(request):
-    if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
+
+    # Detectar AJAX correctamente (sin depender de mayúsculas/minúsculas)
+    if request.method == 'POST' and request.headers.get('X-Requested-With', '').lower() == 'xmlhttprequest':
+
         nombre = request.POST.get('nombre')
         codigo = request.POST.get('codigo')
         categoria_id = request.POST.get('categoria')
@@ -50,7 +53,6 @@ def nuevo_producto(request):
         if Producto.objects.filter(codigo=codigo, empresa=request.user.empresa).exists():
             return JsonResponse({'success': False, 'message': 'El código de producto ya existe para esta empresa.'})
 
-        # Crear producto
         categoria = get_object_or_404(Categoria, id=categoria_id, empresa=request.user.empresa)
         
         producto = Producto.objects.create(
@@ -68,20 +70,22 @@ def nuevo_producto(request):
         )
 
         return JsonResponse({
-        'success': True,
-        'producto': {
-        'id': producto.id,
-        'nombre': producto.nombre,
-        'codigo': producto.codigo,
-        'categoria': producto.categoria.nombre,
-        'precio_venta': str(producto.precio_venta),
-        'stock_actual': float(producto.stock_actual),
-        'tipo_venta': producto.tipo_venta,
-    }
-})
+            'success': True,
+            'producto': {
+                'id': producto.id,
+                'nombre': producto.nombre,
+                'codigo': producto.codigo,
+                'categoria': producto.categoria.nombre,
+                'categoria_id': producto.categoria.id,
+                'precio_venta': str(producto.precio_venta),
+                'stock_actual': float(producto.stock_actual),
+                'tipo_venta': producto.tipo_venta,
+            }
+        })
 
-
+    # Si NO es AJAX o no es POST
     return JsonResponse({'success': False, 'message': 'Método no permitido o no es una solicitud AJAX.'})
+
 
 @login_required
 def editar_producto(request, id):

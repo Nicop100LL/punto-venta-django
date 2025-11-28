@@ -17,7 +17,7 @@ class Producto(models.Model):
     ]
 
     nombre = models.CharField(max_length=100)
-    codigo = models.CharField(max_length=50, unique=True)
+    codigo = models.CharField(max_length=50)
     categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE)
     precio_venta = models.DecimalField(max_digits=10, decimal_places=3)
     precio_compra = models.DecimalField(max_digits=10, decimal_places=3, default=0)
@@ -29,6 +29,10 @@ class Producto(models.Model):
     aplica_descuento = models.BooleanField(default=False)
     cantidad_minima_descuento = models.PositiveIntegerField(null=True, blank=True)
     porcentaje_descuento = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('codigo', 'empresa')
+
 
 
     def clean(self):
