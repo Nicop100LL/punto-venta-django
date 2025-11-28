@@ -76,19 +76,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'comercio.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
+# Database para desarrollo local
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'punto_venta',
-        'USER': 'punto_user',
-        'PASSWORD': 'TuPasswordFuerteAca',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
 
 
 

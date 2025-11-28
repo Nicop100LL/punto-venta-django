@@ -44,6 +44,9 @@ class Venta(models.Model):
         default='ticket'
     )
 
+    # 🔥 NUEVO: número correlativo por empresa
+    numero_empresa = models.PositiveIntegerField(default=1)
+
     TIPO_PAGO_CHOICES = [
         ('EF', 'Efectivo'),
         ('MP', 'QR (Mercado Pago)'),
