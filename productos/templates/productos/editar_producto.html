@@ -9,22 +9,22 @@
             <!-- Nombre -->
             <div>
                 <label for="nombre" class="block text-sm font-medium">Nombre del Producto</label>
-                <input type="text" id="nombre" name="nombre" value="{{ producto.nombre }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <input type="text" id="nombre" name="nombre" value="{{ producto.nombre }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
             </div>
             <!-- Código -->
             <div>
                 <label for="codigo" class="block text-sm font-medium">Código</label>
-                <input type="text" id="codigo" name="codigo" value="{{ producto.codigo|floatformat:0|formato_precio }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <input type="text" id="codigo" name="codigo" value="{{ producto.codigo|floatformat:0|formato_precio }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
             </div>
             <!-- Precio venta -->
             <div>
                 <label for="precio_venta" class="block text-sm font-medium">Precio de Venta</label>
-                <input type="number" id="precio_venta" name="precio_venta" value="{{ producto.precio_venta|floatformat:0|formato_precio }}" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <input type="number" id="precio_venta" name="precio_venta" value="{{ producto.precio_venta|floatformat:0|formato_precio }}" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
             </div>
             <!-- Precio compra -->
             <div>
                 <label for="precio_compra" class="block text-sm font-medium">Precio de Compra</label>
-                <input type="number" id="precio_compra" name="precio_compra" value="{{ producto.precio_compra|floatformat:0|formato_precio }}" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <input type="number" id="precio_compra" name="precio_compra" value="{{ producto.precio_compra|floatformat:0|formato_precio }}" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
             </div>
 
             <!-- Aplicar descuento -->
@@ -63,7 +63,7 @@
             <!-- Stock -->
             <div>
                 <label for="stock_actual" class="block text-sm font-medium">Stock Actual</label>
-                <input type="number" id="stock_actual" step="0.01" name="stock_actual" value="{{ producto.stock_actual }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <input type="number" id="stock_actual" step="0.01" name="stock_actual" value="{{ producto.stock_actual }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
             </div>
 
             <!-- Botón -->
