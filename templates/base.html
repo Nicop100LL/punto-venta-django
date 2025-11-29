@@ -102,10 +102,13 @@
 
 <!-- Para imprimir solo la boleta -->
 <style>
-   @media print {
+@media print {
+
+    /* Ocultar todo excepto la boleta */
     body * {
         visibility: hidden;
     }
+
     @page {
         size: auto;
         margin: 0;
@@ -115,15 +118,22 @@
         visibility: visible;
     }
 
+    /* ✔ FIX PRINCIPAL: eliminar padding/margins sobrantes */
     .boleta {
         position: absolute;
         left: 0;
         top: 0;
-        width: 240px !important; /* --> ancho real imprimible */
+        width: 240px !important;
         background: white;
         font-size: 14px !important;
+
+        padding: 0 !important;  /* ← IMPORTANTE */
+        margin: 0 !important;   /* ← IMPORTANTE */
+        height: auto !important; /* ← IMPORTANTE (corta al contenido) */
+        overflow: visible !important; /* ← evita espacio extra */
     }
 
+    /* Tablas del ticket */
     table {
         width: 100%;
         border-collapse: collapse;
@@ -131,14 +141,15 @@
     }
 
     th, td {
-        padding: 1px 0;
+        padding: 1px 0 !important;
     }
 
+    /* Ocultar botones */
     .no-print {
         display: none !important;
     }
 }
-
 </style>
+
 
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
