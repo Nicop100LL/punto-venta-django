@@ -354,6 +354,7 @@ def detalle_venta(request, venta_id):
         'neto': neto,
         'iva': iva,
         'total_productos': total_productos,
+        'empresa': request.user.empresa,
     })
 
 @login_required

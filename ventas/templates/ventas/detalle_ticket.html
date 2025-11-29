@@ -6,8 +6,12 @@
 {% block content %}
 <!-- Contenedor tipo ticket -->
 <div class="boleta mx-auto p-2 bg-white shadow text-[10px]" style="width: 240px; font-family: Arial, sans-serif;">
-    
+
     <!-- Encabezado de la venta -->
+     <h1 class="text-center font-bold text-lg">
+    {{ empresa.nombre }}
+    </h1>
+
     <h2 class="text-center font-bold text-base mb-2">Venta #{{ venta.numero_empresa }}</h2>
 
     <!-- Información general -->
