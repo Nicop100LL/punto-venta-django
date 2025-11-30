@@ -131,70 +131,102 @@ def eliminar_producto(request, id):
     messages.success(request, 'Producto eliminado correctamente.')
     return redirect('lista_productos')
 
-
 @login_required
 def exportar_productos_pdf(request):
+
+    # --- Formatear precio ---
+    def formatear_precio(valor):
+        valor_int = int(valor)
+        return "${:,}".format(valor_int).replace(",", ".")
+
     productos = Producto.objects.filter(empresa=request.user.empresa).order_by('categoria__nombre')
     productos_por_categoria = defaultdict(list)
+
     for prod in productos:
         productos_por_categoria[prod.categoria.nombre].append(prod)
 
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="productos.pdf"'
+    response['Content-Disposition'] = 'attachment; filename=\"productos.pdf\"'
 
     p = canvas.Canvas(response, pagesize=A4)
     width, height = A4
     y = height - 50
 
+    # Coordenada fija para alinear precios
+    X_PRECIO = 500
+
+    # --- Título principal ---
     p.setFont("Helvetica-Bold", 16)
-    p.drawString(50, y, f"Lista de Productos - {request.user.empresa.nombre}")
+    p.drawString(50, y, f"📄 Lista de Productos - {request.user.empresa.nombre}")
     y -= 40
 
+    # -----------------------------------
+    # RECORRER CATEGORÍAS
+    # -----------------------------------
     for categoria, productos_categoria in productos_por_categoria.items():
-        if y < 80:
+
+        # Salto de página si no hay espacio
+        if y < 100:
             p.showPage()
             y = height - 50
             p.setFont("Helvetica-Bold", 16)
-            p.drawString(50, y, f"Lista de Productos - {request.user.empresa.nombre}")
+            p.drawString(50, y, f"📄 Lista de Productos - {request.user.empresa.nombre}")
             y -= 40
 
+        # Nombre categoría
         p.setFont("Helvetica-Bold", 14)
-        p.drawString(50, y, categoria)
+        p.drawString(50, y, f"▶ {categoria}")
         y -= 25
 
+        # Encabezados de tabla
         p.setFont("Helvetica-Bold", 12)
         p.drawString(70, y, "Código")
         p.drawString(170, y, "Nombre")
-        p.drawString(400, y, "Precio")
+        p.drawRightString(X_PRECIO, y, "Precio")  # Alineado con los valores
         y -= 20
 
         p.setFont("Helvetica", 10)
+
+        # -----------------------------------
+        # PRODUCTOS DENTRO DE LA CATEGORÍA
+        # -----------------------------------
         for prod in productos_categoria:
-            if y < 50:
+
+            # Si no hay espacio, salto de página
+            if y < 60:
                 p.showPage()
                 y = height - 50
+
+                # Reimprimir encabezado de la categoría
                 p.setFont("Helvetica-Bold", 14)
-                p.drawString(50, y, categoria)
+                p.drawString(50, y, f"▶ {categoria}")
                 y -= 25
+
                 p.setFont("Helvetica-Bold", 12)
                 p.drawString(70, y, "Código")
                 p.drawString(170, y, "Nombre")
-                p.drawString(400, y, "Precio")
+                p.drawRightString(X_PRECIO, y, "Precio")
                 y -= 20
+
                 p.setFont("Helvetica", 10)
 
+            # Datos de producto
             p.drawString(70, y, str(prod.codigo))
             p.drawString(170, y, prod.nombre)
-            p.drawString(400, y, f"${prod.precio_venta}")
+            p.drawRightString(X_PRECIO, y, formatear_precio(prod.precio_venta))
+
+            # Línea separadora
             p.line(50, y - 2, width - 50, y - 2)
+
             y -= 18
 
         y -= 15
 
+    # Cerrar PDF
     p.showPage()
     p.save()
-    return response
 
+    return response
 
 @login_required
 @require_POST
