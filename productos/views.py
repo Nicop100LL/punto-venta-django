@@ -47,7 +47,7 @@ def nuevo_producto(request):
         precio_compra = parse_decimal(request.POST.get('precio_compra', 0))
         stock_actual = parse_decimal(request.POST.get('stock_actual'))
 
-        aplica_descuento = request.POST.get('aplica_descuento') == 'True'
+        aplica_descuento = 'aplica_descuento' in request.POST
         if aplica_descuento:
             cantidad_minima_descuento = request.POST.get('cantidad_minima_descuento')
             porcentaje_descuento = parse_decimal(request.POST.get('porcentaje_descuento'))
@@ -91,6 +91,35 @@ def nuevo_producto(request):
     return JsonResponse({'success': False, 'message': 'Método no permitido o no es una solicitud AJAX.'})
 
 
+from decimal import Decimal, InvalidOperation
+from django.shortcuts import get_object_or_404, render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+
+# Si ya tenés parse_decimal y querés seguir usándolo, puedes usarlo en lugar
+# de Decimal(...) después de limpiar la cadena. Aquí uso Decimal directamente.
+
+def _clean_number_string(s):
+    """
+    Limpia una cadena numérica en formato human-readable:
+    - "1.700" -> "1700"
+    - "12.450,75" -> "12450.75"
+    - "4,5" -> "4.5"
+    Devuelve string listo para Decimal(...) o None si s es vacío.
+    """
+    if s is None:
+        return None
+    s = str(s).strip()
+    if s == '':
+        return None
+    # Eliminar espacios
+    s = s.replace(' ', '')
+    # Quitar puntos (separador de miles)
+    s = s.replace('.', '')
+    # Reemplazar coma decimal por punto
+    s = s.replace(',', '.')
+    return s
+
 @login_required
 def editar_producto(request, id):
     producto = get_object_or_404(Producto, id=id, empresa=request.user.empresa)
@@ -98,20 +127,73 @@ def editar_producto(request, id):
     if request.method == 'POST':
         producto.nombre = request.POST.get('nombre', producto.nombre)
         producto.codigo = request.POST.get('codigo', producto.codigo)
+        # --- VALIDACIÓN DE CÓDIGO DUPLICADO ---
+        codigo_post = request.POST.get('codigo', '').strip()
+        if Producto.objects.filter(
+                empresa=request.user.empresa,
+                codigo=codigo_post
+            ).exclude(id=producto.id).exists():
+            
+            messages.error(request, "Ya existe un producto con ese código.")
+            categorias = Categoria.objects.filter(empresa=request.user.empresa)
+            return render(request, 'productos/editar_producto.html', {
+                'producto': producto,
+                'categorias': categorias,
+            })
 
-        producto.precio_venta = parse_decimal(request.POST.get('precio_venta'))
-        producto.precio_compra = parse_decimal(request.POST.get('precio_compra'))
-        stock_nuevo = parse_decimal(request.POST.get('stock_actual'))
-        producto.stock_actual = max(stock_nuevo, Decimal('0'))  # Evitar negativo
+
+        # --- PRECIOS Y STOCK: limpiamos antes de convertir ---
+        raw_precio_venta = request.POST.get('precio_venta')
+        raw_precio_compra = request.POST.get('precio_compra')
+        raw_stock = request.POST.get('stock_actual')
+
+        precio_venta_str = _clean_number_string(raw_precio_venta)
+        precio_compra_str = _clean_number_string(raw_precio_compra)
+        stock_str = _clean_number_string(raw_stock)
+
+        try:
+            if precio_venta_str is not None:
+                producto.precio_venta = Decimal(precio_venta_str)
+            # si no viene, mantenemos el valor anterior
+
+            if precio_compra_str is not None:
+                producto.precio_compra = Decimal(precio_compra_str)
+
+            if stock_str is not None:
+                stock_nuevo = Decimal(stock_str)
+                producto.stock_actual = max(stock_nuevo, Decimal('0'))
+        except (InvalidOperation, ValueError):
+            messages.error(request, 'Formato de número inválido. Revisa precios y stock.')
+            categorias = Categoria.objects.filter(empresa=request.user.empresa)
+            return render(request, 'productos/editar_producto.html', {
+                'producto': producto,
+                'categorias': categorias,
+            })
 
         categoria_id = request.POST.get('categoria')
         if categoria_id:
-            producto.categoria = Categoria.objects.get(id=categoria_id)
+            producto.categoria = Categoria.objects.get(id=categoria_id, empresa=request.user.empresa)
 
-        producto.aplica_descuento = request.POST.get('aplica_descuento') == 'True'
-        cantidad_minima_descuento = request.POST.get('cantidad_minima_descuento')
-        producto.cantidad_minima_descuento = int(cantidad_minima_descuento) if cantidad_minima_descuento else 0
-        producto.porcentaje_descuento = parse_decimal(request.POST.get('porcentaje_descuento'))
+        producto.aplica_descuento = 'aplica_descuento' in request.POST
+
+        if producto.aplica_descuento:
+            # cantidad minima y porcentaje también pueden venir formateados
+            raw_cant_min = request.POST.get('cantidad_minima_descuento')
+            cant_min_str = _clean_number_string(raw_cant_min)
+            try:
+                producto.cantidad_minima_descuento = int(Decimal(cant_min_str)) if cant_min_str is not None else 0
+            except (InvalidOperation, ValueError, TypeError):
+                producto.cantidad_minima_descuento = 0
+
+            raw_porcentaje = request.POST.get('porcentaje_descuento')
+            porcentaje_str = _clean_number_string(raw_porcentaje)
+            try:
+                producto.porcentaje_descuento = Decimal(porcentaje_str) if porcentaje_str is not None else None
+            except (InvalidOperation, ValueError, TypeError):
+                producto.porcentaje_descuento = None
+        else:
+            producto.cantidad_minima_descuento = 0
+            producto.porcentaje_descuento = None
 
         producto.save()
         messages.success(request, 'Producto actualizado correctamente.')
@@ -122,7 +204,6 @@ def editar_producto(request, id):
         'producto': producto,
         'categorias': categorias,
     })
-
 
 @login_required
 def eliminar_producto(request, id):

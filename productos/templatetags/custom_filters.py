@@ -1,5 +1,4 @@
 from django import template
-from django.utils.formats import number_format
 
 register = template.Library()
 
@@ -7,8 +6,28 @@ register = template.Library()
 def formato_precio(value):
     if value is None:
         return ''
-    # Convierte el número en un formato con punto como separador de miles y coma como decimales
-    return number_format(value, force_grouping=True).replace(',', '.')
+
+    try:
+        value = float(value)
+    except:
+        return value
+
+    # Si el número es entero -> se formatea sin decimales
+    if value.is_integer():
+        return f"{int(value):,}".replace(",", ".")
+
+    # Si tiene decimales -> mantenerlos
+    valor_str = f"{value}"
+    entero, decimal = valor_str.split(".")
+
+    # Formatear miles
+    entero = f"{int(entero):,}".replace(",", ".")
+
+    # Quitar ceros extra al final de los decimales (opcional)
+    decimal = decimal.rstrip("0")
+
+    return f"{entero},{decimal}"
+
 
 @register.filter
 def to_int(value):
@@ -16,7 +35,8 @@ def to_int(value):
         return int(value)
     except (ValueError, TypeError):
         return 0
-    
+
+
 @register.filter
 def calcular_descuento(precio_unitario, precio_venta):
     if precio_venta > 0 and precio_unitario < precio_venta:
