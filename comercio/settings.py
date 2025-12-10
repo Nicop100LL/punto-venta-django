@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'usuarios',  # ← nuestra app
     'productos',
+    'reportes',
+    'django.contrib.humanize',
     'ventas',
 
 ]

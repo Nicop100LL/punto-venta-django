@@ -36,6 +36,12 @@
                     Venta</a>
                 <a href="{% url 'lista_clientes' %}"
                     class="block py-2 px-4 rounded hover:bg-blue-100 {% if request.path == '/ventas/lista_clientes/' %}bg-blue-100{% endif %}">Clientes</a>
+                <a href="{% url 'dashboard' %}" class="px-3 py-2 hover:bg-gray-200 rounded">📊 Dashboard</a>
+
+                <a href="{% url 'reporte_diario' %}"
+                    class="block py-2 px-4 rounded hover:bg-blue-100 {% if request.path == '/reportes/diario/' %}bg-blue-100{% endif %}">
+                    Reportes</a>
+    
             </nav>
         </aside>
         <!-- Contenido principal -->

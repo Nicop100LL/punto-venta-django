@@ -4,6 +4,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from usuarios.views import login_view
 from ventas import views
+from reportes.views import dashboard
 
 
 
@@ -16,5 +17,8 @@ urlpatterns = [
     path('ventas/editar_cliente/', views.editar_cliente, name='editar_cliente'),
     path('', views.nueva_venta, name='nueva_venta'),
     path('ventas/', include('ventas.urls')),
+    path('reportes/', include('reportes.urls')),
+    path('dashboard/', dashboard, name='dashboard'),
+
 
 ]

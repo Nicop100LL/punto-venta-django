@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load custom_filters %}
+
+{% block content %}
+
+<div class="bg-white shadow rounded-xl p-6">
+
+    <!-- TITULO -->
+    <div class="flex items-center justify-between mb-4">
+        <h1 class="text-2xl font-bold">Reporte Diario</h1>
+        <div>
+            <button onclick="window.print()"
+                    class="bg-gray-700 text-white px-3 py-1 rounded mr-2">Imprimir</button>
+        </div>
+    </div>
+
+    <!-- FILTRO: fecha + producto -->
+    <form method="GET" class="mb-6 flex flex-wrap items-center gap-3">
+        <label class="text-sm">Fecha:</label>
+        <input type="date" name="fecha" value="{{ fecha }}" class="border rounded px-2 py-1">
+
+        <label>Producto:</label>
+        <select name="producto" class="border rounded px-2 py-1">
+            <option value="">Todos</option>
+            {% for item in productos %}
+            <option value="{{ item.producto__id }}"
+                {% if producto_filtrado == item.producto__id|stringformat:"s" %} selected {% endif %}>
+                {{ item.producto__nombre }}
+            </option>
+            {% endfor %}
+        </select>
+
+
+        <button type="submit" class="bg-blue-600 text-white px-4 py-1 rounded">
+            Filtrar
+        </button>
+    </form>
+
+    <!-- CONTENIDO PRINCIPAL: tabla grande y panel lateral -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Columna principal: tabla de productos -->
+        <div class="lg:col-span-2">
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-sm">
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th class="border px-2 py-2 text-left">
+                                <a href="?fecha={{ fecha }}&orden=producto">Producto</a>
+                            </th>
+                            <th class="border px-2 py-2 text-right">
+                                <a href="?fecha={{ fecha }}&orden=cantidad">Cantidad</a>
+                            </th>
+                            <th class="border px-2 py-2 text-right">
+                                <a href="?fecha={{ fecha }}&orden=total">Monto Total</a>
+                            </th>
+                            <th class="border px-2 py-2 text-right">%</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for item in ventas %}
+                        <tr class="{% if forloop.first %}bg-yellow-50{% endif %}">
+                            <td class="border px-2 py-2">{{ item.producto__nombre }}</td>
+                            <td class="border px-2 py-2 text-right">{{ item.cantidad }}</td>
+                            <td class="border px-2 py-2 text-right">${{ item.total|floatformat:0|formato_precio }}</td>
+                            <td class="border px-2 py-2 text-right">{{ item.porcentaje|floatformat:1 }}%</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-6 text-gray-500">
+                                No hay ventas para el día seleccionado.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+
+                    <tfoot class="bg-gray-100 font-bold">
+                        <tr>
+                            <td class="border px-2 py-2">TOTAL</td>
+                            <td class="border px-2 py-2 text-right">{{ total_productos }}</td>
+                            <td class="border px-2 py-2 text-right">${{ total_ventas|floatformat:0|formato_precio}}</td>
+                            <td class="border px-2 py-2 text-right">100%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+           
+        </div>
+
+        <!-- Columna lateral: KPIs y Totales por método de pago -->
+        <aside class="space-y-6">
+            <div class="p-4 bg-gray-50 rounded border">
+                <p class="text-sm text-gray-600">TOTAL VENDIDO</p>
+                <p class="text-2xl font-bold">${{ total_ventas|floatformat:0|formato_precio }}</p>
+            </div>
+
+            <div class="p-4 bg-gray-50 rounded border">
+                <p class="text-sm text-gray-600">TICKET PROMEDIO</p>
+                <p class="text-2xl font-bold">${{ ticket_promedio|floatformat:0|formato_precio}}</p>
+            </div>
+
+            <div class="p-4 bg-gray-50 rounded border">
+                <p class="text-sm text-gray-600">CANTIDAD DE TICKETS</p>
+                <p class="text-2xl font-bold">{{ cantidad_tickets }}</p>
+            </div>
+
+            <div class="p-4 bg-white rounded border">
+                <h3 class="font-semibold mb-2">Totales por tipo de pago</h3>
+                <table class="w-full text-sm">
+                    <tbody>
+                        {% for pago in totales_pago %}
+                        <tr>
+                            <td class="py-1">{{ pago.tipo_pago }}</td>
+                            <td class="py-1 text-right">${{ pago.total|floatformat:0|formato_precio}}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-center py-2 text-gray-500">No hay pagos</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </aside>
+
+    </div> <!-- grid -->
+
+</div> <!-- card -->
+
+{% endblock %}

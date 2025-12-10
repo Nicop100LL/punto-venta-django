@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+ <!-- TOP 5 (debajo de la tabla principal, en pantallas pequeñas aparece bajo la tabla) -->
+            <h2 class="text-xl font-bold mt-6 mb-2">Top 5 productos más vendidos</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-sm">
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th class="border px-2 py-2 text-left">Producto</th>
+                            <th class="border px-2 py-2 text-right">Cantidad</th>
+                            <th class="border px-2 py-2 text-right">%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in top5 %}
+                        <tr>
+                            <td class="border px-2 py-2">{{ item.producto__nombre }}</td>
+                            <td class="border px-2 py-2 text-right">{{ item.cantidad }}</td>
+                            <td class="border px-2 py-2 text-right">{{ item.porcentaje|floatformat:1 }}%</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center py-4 text-gray-500">No hay datos suficientes.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+{% endblock %}
