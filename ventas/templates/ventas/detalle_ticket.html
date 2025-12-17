@@ -88,10 +88,21 @@
     </div>
 
 </div>
+
+
 <style>
+@page {
+    size: 80mm auto;
+    margin: 0;
+}
+
+body {
+    margin: 0;
+}
+
 .boleta {
-    width: 80mm;
-    padding: 3mm 2mm;
+    width: 72mm;              /* CLAVE para 80(72.1) */
+    padding: 2mm;
     box-sizing: border-box;
     font-family: Arial, sans-serif;
 }
@@ -102,26 +113,23 @@ table {
 }
 
 @media print {
-    body {
-        margin: 5mm;
-    }
 
-    body * {
-        visibility: hidden;
-    }
+    /* ❌ NO ocultar todo el body */
+    /* body * { visibility: hidden; }  ← ELIMINADO */
 
-    .boleta, .boleta * {
-        visibility: visible;
-    }
-
-    .boleta {
-        page-break-inside: avoid;
-    }
-
-    .no-print {
+    /* ocultar SOLO lo que no se imprime */
+    .no-print,
+    header,
+    aside,
+    nav {
         display: none !important;
     }
+
+    body {
+        background: white;
+    }
 }
+
 </style>
 
 
