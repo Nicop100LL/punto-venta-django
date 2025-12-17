@@ -27,7 +27,7 @@ from urllib.parse import urlencode
 from .forms import VentaForm, DetalleVentaForm
 from productos.models import Producto
 from .models import DetalleVenta
-
+from django.contrib.auth import get_user_model
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
@@ -53,7 +53,17 @@ from .forms import VentaForm, DetalleVentaForm
 
 @login_required
 def nueva_venta(request):
-    # Inicializamos el carrito si no existe en la sesión
+    """
+    Vista principal de ventas:
+    - Maneja carrito por sesión
+    - Permite agregar/eliminar productos
+    - Guarda cliente en sesión
+    - Finaliza venta y actualiza saldo si es cuenta corriente
+    """
+
+    # =========================
+    # INICIALIZACIÓN DE SESIÓN
+    # =========================
     if 'carrito' not in request.session:
         request.session['carrito'] = []
 
@@ -61,192 +71,139 @@ def nueva_venta(request):
     tipo_comprobante = request.session.get('tipo_comprobante', 'ticket')
     tipo_pago = request.session.get('tipo_pago', 'EF')
     cliente_id = request.session.get('cliente_id')
+    cuenta_corriente = request.session.get('cuenta_corriente', False)
 
-    # Validamos y convertimos cliente_id a int si es posible
-    if cliente_id and cliente_id != 'Ninguno':
-        try:
-            cliente_id_int = int(cliente_id)
-        except (TypeError, ValueError):
-            cliente_id_int = None
-    else:
+    # Convertimos cliente_id a int si es válido
+    try:
+        cliente_id_int = int(cliente_id) if cliente_id not in (None, '', 'None') else None
+    except (TypeError, ValueError):
         cliente_id_int = None
 
-    # Si se envía el formulario por POST
+    # =========================
+    # POST
+    # =========================
     if request.method == 'POST':
+
+        # -------------------------
+        # GUARDAR CLIENTE EN SESIÓN
+        # -------------------------
+        cliente_post = request.POST.get('cliente')
+        request.session['cliente_id'] = cliente_post if cliente_post not in (None, '', 'None') else None
+
+        # -------------------------
+        # GUARDAR CONFIGURACIÓN
+        # -------------------------
         tipo_pago = request.POST.get('tipo_pago', 'EF')
         tipo_comprobante = request.POST.get('tipo_comprobante', 'ticket')
         cuenta_corriente = request.POST.get('cuenta_corriente') == 'on'
-        cliente_id = request.POST.get('cliente')
 
-        # Guardamos en sesión los datos seleccionados
         request.session['tipo_pago'] = tipo_pago
         request.session['tipo_comprobante'] = tipo_comprobante
         request.session['cuenta_corriente'] = cuenta_corriente
-        request.session['cliente_id'] = cliente_id if cliente_id not in (None, '', 'None') else None
 
-        # Intentamos convertir el cliente_id a int
-        try:
-            cliente_id_int = int(request.session['cliente_id'])
-        except (TypeError, ValueError):
-            cliente_id_int = None
-
-        # Acción: Agregar producto al carrito
+        # =========================
+        # AGREGAR PRODUCTO
+        # =========================
         if 'agregar' in request.POST:
-         # Obtener el código del producto y la cantidad solicitada desde el formulario
             codigo = request.POST.get('codigo')
-            cantidad = Decimal(request.POST.get('cantidad', '1'))  # Si no se proporciona cantidad, se toma como 1
+            cantidad = Decimal(request.POST.get('cantidad', '1'))
 
             try:
-             # Buscamos el producto por su código y la empresa asociada
-                producto = Producto.objects.get(codigo=codigo, empresa=request.user.empresa)
+                producto = Producto.objects.get(
+                    codigo=codigo,
+                    empresa=request.user.empresa
+                )
 
-                # Inicializamos el subtotal en caso de que no haya descuento
-                subtotal = producto.precio_venta * cantidad
+                item = next(
+                    (i for i in carrito if i['producto_id'] == producto.id),
+                    None
+                )
 
-                # Verificamos si el producto ya está en el carrito
-                producto_en_carrito = next((item for item in carrito if item['producto_id'] == producto.id), None)
+                # Calculamos precio con descuento
+                def calcular_precio(cant):
+                    if producto.aplica_descuento and cant >= producto.cantidad_minima_descuento:
+                        return producto.precio_venta * (1 - producto.porcentaje_descuento / 100), producto.porcentaje_descuento
+                    return producto.precio_venta, 0
 
-                # Si el producto ya existe en el carrito, actualizamos la cantidad y el subtotal
-                if producto_en_carrito:
-                    # Actualizamos la cantidad en el carrito
-                    producto_en_carrito['cantidad'] += float(cantidad)
-
-                    # Verificamos si el producto tiene un descuento por cantidad
-                    descuento_aplicado = 0  # Si no tiene descuento
-                    if producto.aplica_descuento and producto_en_carrito['cantidad'] >= producto.cantidad_minima_descuento:
-                        # Si aplica descuento por cantidad, calculamos el descuento y el precio unitario
-                        descuento_aplicado = producto.porcentaje_descuento
-                        precio_unitario = producto.precio_venta * (1 - descuento_aplicado / 100)
-                    else:
-                        # Si no aplica descuento, mantenemos el precio unitario original
-                        precio_unitario = producto.precio_venta
-
-                    # Actualizamos el subtotal con el nuevo precio unitario
-                    producto_en_carrito['precio_unitario'] = float(precio_unitario)
-                    producto_en_carrito['subtotal'] = producto_en_carrito['cantidad'] * producto_en_carrito['precio_unitario']
-                    producto_en_carrito['descuento'] = float(descuento_aplicado)
-
-                # Si el producto no existe en el carrito, lo agregamos como nuevo ítem
+                if item:
+                    item['cantidad'] += float(cantidad)
+                    precio, descuento = calcular_precio(item['cantidad'])
+                    item['precio_unitario'] = float(precio)
+                    item['subtotal'] = item['cantidad'] * item['precio_unitario']
+                    item['descuento'] = float(descuento)
                 else:
-                    # Si el producto tiene descuento, lo calculamos
-                    descuento_aplicado = 0  # Si no tiene descuento
-                    if producto.aplica_descuento and cantidad >= producto.cantidad_minima_descuento:
-                        # Si aplica descuento por cantidad, calculamos el descuento y el precio unitario
-                        descuento_aplicado = producto.porcentaje_descuento
-                        precio_unitario = producto.precio_venta * (1 - descuento_aplicado / 100)
-                    else:
-                        # Si no aplica descuento, mantenemos el precio unitario original
-                        precio_unitario = producto.precio_venta
-
-                    # Agregamos el producto al carrito con el descuento aplicado
+                    precio, descuento = calcular_precio(cantidad)
                     carrito.append({
                         'producto_id': producto.id,
                         'nombre': producto.nombre,
-                        'precio_unitario': float(precio_unitario),
+                        'precio_unitario': float(precio),
                         'cantidad': float(cantidad),
-                        'subtotal': float(precio_unitario * cantidad),
-                        'descuento': float(descuento_aplicado),  # Guardamos el descuento aplicado
+                        'subtotal': float(precio * cantidad),
+                        'descuento': float(descuento),
                     })
 
-                # Guardamos el carrito actualizado en la sesión
                 request.session['carrito'] = carrito
                 request.session.modified = True
+                return redirect('nueva_venta')
 
             except Producto.DoesNotExist:
-                # Si el producto no se encuentra, mostramos mensaje de error
-                total = sum(float(item['subtotal']) for item in carrito)
-                venta_form = VentaForm(initial={'cliente': cliente_id_int})  # ← CORREGIDO
-                return render(request, 'ventas/nueva_venta.html', {
-                    'venta_form': venta_form,
-                    'detalle_form': DetalleVentaForm(),
-                    'carrito': carrito,
-                    'total': total,
-                    'cliente_id': cliente_id_int,
-                    'saldo_cliente': None,
-                    'tipo_comprobante': tipo_comprobante,
-                    'cuenta_corriente': cuenta_corriente,
-                    'tipo_pago': tipo_pago,
-                    'error': "Producto no encontrado",
-                })
+                pass  # se maneja abajo en render
 
-            return redirect('nueva_venta')
-
-        # Acción: Eliminar producto del carrito
+        # =========================
+        # ELIMINAR PRODUCTO
+        # =========================
         elif 'eliminar_codigo' in request.POST:
             producto_id = int(request.POST.get('eliminar_codigo'))
-            carrito = [item for item in carrito if item['producto_id'] != producto_id]
-            request.session['carrito'] = carrito
+            request.session['carrito'] = [
+                i for i in carrito if i['producto_id'] != producto_id
+            ]
             request.session.modified = True
             return redirect('nueva_venta')
 
-        # Acción: Finalizar y guardar la venta
-        # Acción: Finalizar y guardar la venta
+        # =========================
+        # FINALIZAR VENTA
+        # =========================
         elif 'finalizar' in request.POST:
-            venta_form = VentaForm(request.POST)
 
-            # Determinar si es cuenta corriente: primero POST, si no, sesión
-            cuenta_corriente_activada = request.POST.get('cuenta_corriente')
-            if cuenta_corriente_activada is None:
-                cuenta_corriente_activada = request.session.get('cuenta_corriente', False)
-            else:
-                cuenta_corriente_activada = cuenta_corriente_activada == 'on'
+            venta_form = VentaForm(request.POST)
+            venta_form.fields['cliente'].queryset = Cliente.objects.filter(
+                empresa=request.user.empresa
+            )
 
             if venta_form.is_valid() and carrito:
                 venta = venta_form.save(commit=False)
                 venta.usuario = request.user
                 venta.empresa = request.user.empresa
-                venta.total = sum(Decimal(str(item['subtotal'])) for item in carrito)
+                venta.total = sum(Decimal(str(i['subtotal'])) for i in carrito)
                 venta.tipo_comprobante = tipo_comprobante
-                venta.cuenta_corriente = cuenta_corriente_activada
                 venta.tipo_pago = tipo_pago
+                venta.cuenta_corriente = cuenta_corriente
 
-                # Asignar cliente correctamente desde sesión
-                cliente_id_sesion = request.session.get('cliente_id')
-                if cliente_id_sesion not in (None, '', 'None'):
+                # Asignar cliente desde sesión
+                cliente = None
+                if request.session.get('cliente_id'):
                     try:
-                        cliente = Cliente.objects.get(id=int(cliente_id_sesion))
+                        cliente = Cliente.objects.get(
+                            id=int(request.session['cliente_id'])
+                        )
                         venta.cliente = cliente
                     except Cliente.DoesNotExist:
-                        cliente = None
                         venta.cliente = None
-                else:
-                    cliente = None
 
-                # Asignar número correlativo por empresa
-                ultima_venta = Venta.objects.filter(empresa=request.user.empresa).order_by('-numero_empresa').first()
-                venta.numero_empresa = (ultima_venta.numero_empresa + 1) if ultima_venta else 1
+                # Numeración por empresa
+                ultima = Venta.objects.filter(
+                    empresa=request.user.empresa
+                ).order_by('-numero_empresa').first()
+                venta.numero_empresa = (ultima.numero_empresa + 1) if ultima else 1
 
-                # Verificar cliente y cuenta corriente antes de guardar
-                cliente_id_sesion = request.session.get('cliente_id')
-                cuenta_corriente_activada = request.session.get('cuenta_corriente', False)
-
-                if cliente_id_sesion not in (None, '', 'None'):
-                    try:
-                        cliente = Cliente.objects.get(id=int(cliente_id_sesion))
-                        venta.cliente = cliente
-                        # Si está activada cuenta corriente, actualizar saldo
-                        if cuenta_corriente_activada:
-                            cliente.saldo += venta.total
-                            cliente.save()
-                        venta.cuenta_corriente = cuenta_corriente_activada
-                    except Cliente.DoesNotExist:
-                        cliente = None
-                        venta.cliente = None
-                        venta.cuenta_corriente = False
-                else:
-                    venta.cuenta_corriente = False
-                    cliente = None
-
-
-                # Guardamos la venta
                 venta.save()
 
-                # Si se usa cuenta corriente y hay cliente asignado, actualizamos saldo
-                if cuenta_corriente_activada and cliente:
+                # 🔥 SALDO: UNA SOLA VEZ
+                if cuenta_corriente and cliente:
                     cliente.saldo += venta.total
                     cliente.save()
 
-                # Guardamos el detalle de venta
+                # Detalle y stock
                 for item in carrito:
                     producto = Producto.objects.get(id=item['producto_id'])
                     DetalleVenta.objects.create(
@@ -258,35 +215,17 @@ def nueva_venta(request):
                     producto.stock_actual -= Decimal(str(item['cantidad']))
                     producto.save()
 
-                # Limpiamos la sesión
-                request.session['carrito'] = []
-                request.session.pop('tipo_comprobante', None)
-                request.session.pop('cliente_id', None)
-                request.session.pop('tipo_pago', None)
-                request.session.pop('cuenta_corriente', None)
-                request.session.modified = True
+                # Limpiar sesión
+                for key in ('carrito', 'cliente_id', 'tipo_pago', 'tipo_comprobante', 'cuenta_corriente'):
+                    request.session.pop(key, None)
 
-                query_string = urlencode({'tipo': tipo_comprobante})
-                url = reverse('detalle_venta', args=[venta.id])
-                return redirect(f"{url}?{query_string}")
+                return redirect(
+                    f"{reverse('detalle_venta', args=[venta.id])}?tipo={tipo_comprobante}"
+                )
 
-            else:
-                # Si hay errores en el formulario
-                print("Formulario no válido:", venta_form.errors)
-                return render(request, 'ventas/nueva_venta.html', {
-                    'venta_form': venta_form,
-                    'detalle_form': DetalleVentaForm(),
-                    'carrito': carrito,
-                    'total': sum(float(item['subtotal']) for item in carrito),
-                    'tipo_comprobante': tipo_comprobante,
-                    'cliente_id': cliente_id_int,
-                    'cuenta_corriente': cuenta_corriente_activada,
-                    'saldo_cliente': None,
-                    'tipo_pago': tipo_pago,
-                    'error': 'El formulario tiene errores.',
-                })
-
-    # Si es GET u otra cosa, preparamos los datos iniciales
+    # =========================
+    # GET
+    # =========================
     cliente = None
     saldo_cliente = None
 
@@ -295,21 +234,26 @@ def nueva_venta(request):
             cliente = Cliente.objects.get(id=cliente_id_int)
             saldo_cliente = cliente.saldo
         except Cliente.DoesNotExist:
-            saldo_cliente = None
+            pass
+
+    venta_form = VentaForm(initial={'cliente': cliente_id_int})
+    venta_form.fields['cliente'].queryset = Cliente.objects.filter(
+        empresa=request.user.empresa
+    )
 
     return render(request, 'ventas/nueva_venta.html', {
-        'venta_form': VentaForm(initial={'cliente': cliente_id_int}),
+        'venta_form': venta_form,
         'detalle_form': DetalleVentaForm(),
         'carrito': carrito,
-        'total': sum(float(item['subtotal']) for item in carrito),
+        'total': sum(float(i['subtotal']) for i in carrito),
         'tipo_comprobante': tipo_comprobante,
         'cliente_id': cliente_id_int,
-        'cuenta_corriente': request.session.get('cuenta_corriente', False),
+        'cuenta_corriente': cuenta_corriente,
         'saldo_cliente': saldo_cliente,
         'tipo_pago': tipo_pago,
     })
 
-from django.contrib.auth import get_user_model
+
 
 @login_required
 def lista_ventas(request):

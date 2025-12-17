@@ -13,6 +13,8 @@
 
 <form method="post" class="mb-6" id="form-agregar">
     {% csrf_token %}
+     <!-- Guardar el cliente actual -->
+    <input type="hidden" name="cliente" value="{{ cliente_id|default_if_none:'' }}">
     <div class="mb-4">
         <label for="id_cliente" class="block text-gray-700 font-bold mb-2">Cliente:</label>
         <select name="cliente" id="id_cliente" class="w-full border border-gray-300 rounded px-3 py-2">
@@ -27,7 +29,7 @@
 
         <div id="saldo-cliente" class="mt-2 text-sm text-gray-700">
             {% if saldo_cliente is not None %}
-            <p><strong>Saldo actual:</strong> ${{ saldo_cliente|floatformat:2 }}</p>
+            <p><strong>Saldo actual:</strong> ${{ saldo_cliente|floatformat:0|formato_precio }}</p>
             {% endif %}
         </div>
 
@@ -163,7 +165,7 @@
 <form method="post" id="form-finalizar">
     {% csrf_token %}
     <input type="hidden" name="tipo_comprobante" value="{{ tipo_comprobante }}">
-    <input type="hidden" name="cliente" value="{{ cliente_id|default_if_none:'' }}">
+    <input type="hidden" name="cliente" id="cliente-hidden-finalizar">
     <input type="hidden" name="tipo_pago" value="{{ tipo_pago }}">
 
     <div class="mb-4">
@@ -341,6 +343,17 @@
 
 
 document.addEventListener('DOMContentLoaded', function () {
+    const selectCliente = document.getElementById('id_cliente');
+    const clienteHiddenFinalizar = document.getElementById('cliente-hidden-finalizar');
+
+    // sincronizar al cargar
+    clienteHiddenFinalizar.value = selectCliente.value;
+
+    // sincronizar cada vez que cambia el cliente
+    selectCliente.addEventListener('change', () => {
+        clienteHiddenFinalizar.value = selectCliente.value;
+    });
+
 
     // == VARIABLES GENERALES == //
     const inputCodigo = document.getElementById('codigo');
@@ -369,7 +382,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnCancelar = document.getElementById('btn-cancelar');
 
     // Cliente y saldo
-    const selectCliente = document.getElementById('id_cliente');
+    
     const checkboxCuentaCorriente = document.getElementById('cuenta_corriente');
     const textoCuentaCorriente = document.getElementById('texto-cuenta-corriente');
     const saldoDiv = document.getElementById('saldo-cliente');

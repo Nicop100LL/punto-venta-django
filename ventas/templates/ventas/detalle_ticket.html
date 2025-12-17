@@ -5,7 +5,7 @@
 
 {% block content %}
 <!-- Contenedor tipo ticket -->
-<div class="boleta mx-auto bg-white shadow text-[10px]" style="width: 240px; font-family: Arial, sans-serif;">
+<div class="boleta mx-auto bg-white shadow text-[10px]">
 
     <!-- Encabezado de la venta -->
      <h1 class="text-center font-bold text-lg">
@@ -32,41 +32,48 @@
     <hr class="my-2 border-dashed">
 
     <!-- Lista de productos -->
-    <table class="w-full text-xs">
+   <table class="w-full text-xs">
         <thead>
             <tr class="border-b border-black text-[11px] text-left">
-                <th>Prod.</th>
-                <th>Cant</th>
-                <th>P.Unit</th>
-                <th>Subt</th>
+                <th class="w-[120px]">Prod.</th>
+                <th class="w-[25px] text-center">Cant</th>
+                <th class="w-[45px] text-right">P.Unit</th>
+                <th class="w-[50px] text-right">Subt</th>
             </tr>
         </thead>
         <tbody>
             {% for item in venta.detalles.all %}
-            <tr class="text-[10px]">
-                <td>{{ item.producto.nombre|slice:":10" }}</td>
-                <td>{{ item.cantidad }}</td>
-                <td>${{ item.precio_unitario|floatformat:0|formato_precio }}</td>
-                <td>${{ item.subtotal|floatformat:0|formato_precio }}</td>
+            <tr class="text-[10px] align-top">
+                <td class="max-w-[120px] break-words whitespace-normal leading-tight">
+                    {{ item.producto.nombre }}
+                </td>
+                <td class="text-center">{{ item.cantidad }}</td>
+                <td class="text-right">
+                    ${{ item.precio_unitario|floatformat:0|formato_precio }}
+                </td>
+                <td class="text-right">
+                    ${{ item.subtotal|floatformat:0|formato_precio }}
+                </td>
             </tr>
-                        {% if item.producto.precio_venta > item.precio_unitario %}
+
+            {% if item.producto.precio_venta > item.precio_unitario %}
             <tr>
-                <td colspan="4" class="text-[9px] text-blue-600 italic pl-2 mt-[-5px] p-0" style="line-height: 0.8;">
-                    Descuento aplicado: -{{ item.precio_unitario|calcular_descuento:item.producto.precio_venta }}%
+                <td colspan="4"
+                    class="text-[9px] text-blue-600 italic pl-2 leading-tight">
+                    Descuento aplicado:
+                    -{{ item.precio_unitario|calcular_descuento:item.producto.precio_venta }}%
                 </td>
             </tr>
             {% endif %}
-
-
             {% endfor %}
         </tbody>
     </table>
+
 
     <hr class="my-2 border-dashed">
 
     <!-- Totales -->
     <p><strong>Subtotal:</strong> ${{ venta.subtotal|default:venta.total|floatformat:0|formato_precio }}</p>
-    <p><strong>Desc:</strong> ${{ venta.descuento|default:0|floatformat:0|formato_precio }}</p>
     <p><strong>Total de productos:</strong> {{ total_productos|floatformat:0|formato_precio }}</p>
     <hr class="my-2 border-dashed">
     <p class="text-lg mt-1 font-bold"><strong>Total:</strong> ${{ venta.total|floatformat:0|formato_precio }}</strong>
@@ -81,4 +88,42 @@
     </div>
 
 </div>
+<style>
+.boleta {
+    width: 80mm;
+    padding: 3mm 2mm;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+@media print {
+    body {
+        margin: 5mm;
+    }
+
+    body * {
+        visibility: hidden;
+    }
+
+    .boleta, .boleta * {
+        visibility: visible;
+    }
+
+    .boleta {
+        page-break-inside: avoid;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+}
+</style>
+
+
+
 {% endblock %}

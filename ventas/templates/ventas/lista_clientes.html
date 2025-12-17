@@ -55,18 +55,33 @@
             Historial
           </button>
 
-          <button @click="
-          clienteId = {{ cliente.id }};
-          clienteNombre = '{{ cliente.nombre }}';
-          clienteSaldo = parseFloat(document.querySelector('#cliente-{{ cliente.id }} .saldo').textContent.replace('$','')) || 0;
-          montoPago = clienteSaldo.toFixed(2);
-          pagoTipo = 'total';
-          // 👉 Forzamos mostrar el formato actualizado antes de abrir el modal
-          document.getElementById('saldo-visible').textContent = clienteSaldo.toLocaleString('es-AR', { minimumFractionDigits: 0 });
+          <button
+              @click="
+                clienteId = {{ cliente.id }};
+                clienteNombre = '{{ cliente.nombre|escapejs }}';
 
-          openModalSaldo = true" class="text-green-600 hover:underline ml-2">
-            Modificar saldo
-          </button>
+                // 🔥 Convertimos el saldo de texto a número
+                clienteSaldo = Number(
+                  document
+                    .querySelector('#cliente-{{ cliente.id }} .saldo')
+                    .textContent
+                    .replace(/\./g, '')
+                    .replace('$', '')
+                    .replace(',', '.')
+                ) || 0;
+
+                // Valores iniciales del modal
+                pagoTipo = 'total';
+                montoPago = clienteSaldo.toFixed(2);
+
+                // Abrimos el modal
+                openModalSaldo = true;
+              "
+              class="text-green-600 hover:underline ml-2"
+            >
+              Modificar saldo
+            </button>
+
 
         </td>
 
@@ -151,47 +166,91 @@
 
 
 
-  <!-- Modal para modificar saldo -->
-  <div x-show="openModalSaldo" x-cloak x-transition
-    class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
-    @keydown.escape.window="openModalSaldo = false" style="display: none;">
-    <div class="bg-white p-6 rounded shadow-lg w-full max-w-md">
-      <h3 class="text-xl font-semibold mb-4">Modificar saldo de cliente</h3>
-      <form id="form-modificar-saldo" method="post">
-        {% csrf_token %}
-        <p class="mb-2"><strong>Cliente:</strong> <span x-text="clienteNombre"></span></p>
-        <p class="mb-4"><strong>Saldo actual:</strong> $<span id="saldo-visible"></span></p>
-        <input type="hidden" name="cliente_id" :value="clienteId" />
+<!-- Modal para modificar saldo -->
+<div x-show="openModalSaldo" x-cloak x-transition
+  class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
+  @keydown.escape.window="openModalSaldo = false" style="display: none;">
 
-        <div class="space-y-3">
-          <!-- Campo para ingresar el monto -->
-          <input type="number" name="monto_pago" placeholder="Monto a pagar" class="w-full border p-2 rounded"
-            x-model="montoPago" x-bind:readonly="pagoTipo === 'total'" required step="0.01" min="0"
-            class="w-full border p-2 rounded" x-model="montoPago" required step="0.01" min="0">
+  <div class="bg-white p-6 rounded shadow-lg w-full max-w-md">
+    <h3 class="text-xl font-semibold mb-4">Modificar saldo de cliente</h3>
 
-          <div>
-            <label class="inline-flex items-center">
-              <input type="radio" name="tipo_pago" value="total" x-model="pagoTipo"
-                @change="montoPago = clienteSaldo.toFixed(2)" class="form-radio text-blue-600" />
+    <form @submit.prevent="guardarSaldo">
+      {% csrf_token %}
 
-              <span class="ml-2">Pago total de la deuda</span>
-            </label>
-            <label class="inline-flex items-center mt-2">
-              <input type="radio" name="tipo_pago" value="parcial" x-model="pagoTipo" @change="montoPago = ''"
-                class="form-radio text-blue-600" />
+      <p class="mb-2">
+        <strong>Cliente:</strong>
+        <span x-text="clienteNombre"></span>
+      </p>
 
-              <span class="ml-2">Pago parcial</span>
-            </label>
-          </div>
+      <p class="mb-4">
+        <strong>Saldo actual:</strong>
+        $<span x-text="saldoFormateado"></span>
+      </p>
+
+      <input type="hidden" name="cliente_id" :value="clienteId" />
+
+      <div class="space-y-3">
+      <!-- pago parcial -->
+      <input
+        x-show="pagoTipo === 'parcial'"
+        type="number"
+        placeholder="Monto a pagar"
+        class="w-full border p-2 rounded"
+        x-model="montoPago"
+        step="0.01"
+        min="0"
+      >
+
+      <!-- pago total -->
+      <p
+        x-show="pagoTipo === 'total'"
+        class="w-full border p-2 rounded bg-gray-100 text-gray-700"
+      >
+        $<span x-text="saldoFormateado"></span>
+      </p>
+
+      <!-- 🔥 ÚNICO campo que se envía al backend -->
+      <input type="hidden" name="monto_pago" :value="montoPago">
+
+        <div>
+          <label class="inline-flex items-center">
+            <input
+              type="radio"
+              name="tipo_pago"
+              value="total"
+              x-model="pagoTipo"
+              @change="montoPago = clienteSaldo"
+              class="form-radio text-blue-600"
+            >
+            <span class="ml-2">Pago total de la deuda</span>
+          </label>
+
+          <label class="inline-flex items-center mt-2">
+            <input
+              type="radio"
+              name="tipo_pago"
+              value="parcial"
+              x-model="pagoTipo"
+              @change="montoPago = ''"
+              class="form-radio text-blue-600"
+            >
+            <span class="ml-2">Pago parcial</span>
+          </label>
         </div>
-        <div class="flex justify-end mt-4 space-x-2">
-          <button type="button" @click="openModalSaldo = false" class="px-4 py-2 border rounded">Cancelar</button>
-          <button type="submit" @click="openModalSaldo = false"
-            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
-        </div>
-      </form>
-    </div>
+      </div>
+
+      <div class="flex justify-end mt-4 space-x-2">
+        <button type="button" @click="openModalSaldo = false" class="px-4 py-2 border rounded">
+          Cancelar
+        </button>
+        <button type="submit"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          Guardar
+        </button>
+              </div>
+    </form>
   </div>
+</div>
 
   <!-- Modal historial de pagos -->
   <div x-show="openModalHistorial" x-cloak x-transition
@@ -234,41 +293,7 @@ class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-5
 
 
 
-  <!-- Script para procesar la modificación del saldo -->
-  <script>
-    document.getElementById("form-modificar-saldo").addEventListener("submit", function (e) {
-      e.preventDefault();
-      const form = e.target;
-      const formData = new FormData(form);
-
-      fetch("{% url 'modificar_saldo_cliente' %}", {
-        method: "POST",
-        headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
-        body: formData
-      })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            // Actualizar el saldo del cliente en la tabla sin recargar la página
-            const clienteFila = document.getElementById('cliente-' + data.cliente.id);
-            const saldoCell = clienteFila.querySelector('.saldo');
-            saldoCell.textContent = "$" + data.cliente.saldo.toFixed(2);
-
-            // Accedé a Alpine y actualizá clienteSaldo
-            const scope = document.querySelector('[x-ref="mainScope"]').__x.$data;
-            scope.clienteSaldo = data.cliente.saldo;
-
-            // Cerrar el modal
-            scope.openModalSaldo = false;
-
-
-          } else {
-            alert("Error al modificar el saldo.");
-          }
-        });
-    });
-  </script>
-
+ 
 
 
   <!-- Script para procesar la creación del cliente -->
@@ -344,8 +369,41 @@ class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-5
         historialPagos: [],
 
         get saldoFormateado() {
-          return Number(this.clienteSaldo).toLocaleString('es-AR', { minimumFractionDigits: 0 });
+          return Number(this.clienteSaldo).toLocaleString('es-AR', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          });
         },
+        guardarSaldo() {
+          const formData = new FormData();
+          formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+          formData.append('cliente_id', this.clienteId);
+          formData.append('monto_pago', this.montoPago);
+          formData.append('tipo_pago', this.pagoTipo);
+
+          fetch("{% url 'modificar_saldo_cliente' %}", {
+            method: "POST",
+            body: formData
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              // actualizar saldo en tabla
+              const fila = document.getElementById('cliente-' + data.cliente.id);
+              fila.querySelector('.saldo').textContent =
+                "$" + Number(data.cliente.saldo).toLocaleString('es-AR');
+
+              // actualizar estado Alpine
+              this.clienteSaldo = data.cliente.saldo;
+
+              // 🔥 CERRAR MODAL (ahora sí funciona siempre)
+              this.openModalSaldo = false;
+            } else {
+              alert("Error al modificar el saldo");
+            }
+          });
+        },
+
 
         guardarClienteEditado() {
           const formData = new FormData();

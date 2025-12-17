@@ -7,6 +7,6 @@ comercio/settings.py
 # Archivos compilados de Python
 *.pyc
 __pycache__/
-
+backup
 # Entornos virtuales
 venv/
