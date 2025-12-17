@@ -96,15 +96,19 @@
     margin: 0;
 }
 
+
 body {
     margin: 0;
+    padding: 0;
 }
-
 .boleta {
-    width: 72mm;              /* CLAVE para 80(72.1) */
+    width: 72mm;
     padding: 2mm;
     box-sizing: border-box;
     font-family: Arial, sans-serif;
+    font-size: 10px;
+    height: auto !important; /* ← IMPORTANTE (corta al contenido) */
+    overflow: visible !important; /* ← evita espacio extra */
 }
 
 table {
@@ -112,23 +116,6 @@ table {
     table-layout: fixed;
 }
 
-@media print {
-
-    /* ❌ NO ocultar todo el body */
-    /* body * { visibility: hidden; }  ← ELIMINADO */
-
-    /* ocultar SOLO lo que no se imprime */
-    .no-print,
-    header,
-    aside,
-    nav {
-        display: none !important;
-    }
-
-    body {
-        background: white;
-    }
-}
 
 </style>
 

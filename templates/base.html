@@ -105,21 +105,16 @@
 <!-- Para imprimir solo la boleta -->
 <style>
 @media print {
-    body * {
-        visibility: hidden;
-    }
-
-    .boleta, .boleta * {
-        visibility: visible;
-    }
-
-    @page {
-        size: auto;
-        margin: 0;
-    }
-
+    header,
+    nav,
+    aside,
     .no-print {
         display: none !important;
+    }
+
+    body {
+        margin: 0;
+        background: white;
     }
 }
 
