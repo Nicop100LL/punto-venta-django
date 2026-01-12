@@ -1,31 +1,42 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="es">
 
 
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Panel{% endblock %}</title>
+    <title>{% block title %}SystemsBucha{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         [x-cloak] {
             display: none !important;
         }
     </style>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'logoB.png' %}" />
 </head>
 
 <body class="bg-gray-100 min-h-screen text-gray-800" x-data="{ open: false }">
 
 
-    <div class="flex">
+    <div class="flex flex-col min-h-screen">
         <!-- Menú lateral -->
         <!-- Sidebar normal en desktop -->
         <aside x-cloak
             class="w-64 bg-white h-screen shadow-md fixed top-0 left-0 z-30 transform transition-transform duration-300 ease-in-out"
             :class="open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
 
-            <div class="p-4 text-xl font-bold text-blue-700 border-b border-gray-200">
-                Mi Comercio
+            <div class="p-4 flex items-center border-b border-gray-200">
+                <!-- Logo -->
+                <img src="{% static 'logo.png' %}" alt="Logo"
+                    class="w-10 h-10 mr-3 transition-transform duration-300 hover:scale-110">
+
+                <!-- Nombre de la empresa (opcional) -->
+                <span class="text-xl font-bold text-blue-900">SystemsBucha</span>
             </div>
+
             <nav class="p-4 space-y-2">
                 <a href="{% url 'lista_productos' %}"
                     class="block py-2 px-4 rounded hover:bg-blue-100 {% if request.path == '/productos/' %}bg-blue-100{% endif %}">Productos</a>
@@ -57,9 +68,20 @@
                         </svg>
                     </button>
 
-                    <div class="text-lg font-semibold">
-                        {% block header %}Panel de Administración{% endblock %}
+                    <div class="text-lg font-semibold flex items-center space-x-2">
+                        {% if empresa %}
+                            {% if empresa.logo %}
+                                <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}" class="w-10 h-10 transition-transform duration-300 hover:scale-110">
+                            {% else %}
+                                <!-- Logo por defecto si no tiene -->
+                                <img src="{% static 'logo.png' %}" alt="{{ empresa.nombre }}" class="w-10 h-10 transition-transform duration-300 hover:scale-110">
+                            {% endif %}
+                            <span>{{ empresa.nombre }}</span>
+                        {% else %}
+                            Panel de Administración
+                        {% endif %}
                     </div>
+
                 </div>
 
                 <!-- Lado derecho -->
@@ -90,6 +112,10 @@
             <main class="p-6 flex-1 bg-gray-50">
                 {% block content %}{% endblock %}
             </main>
+            <!-- Footer -->
+        <footer class="bg-white border-t border-gray-200 text-gray-500 text-sm p-4 text-center">
+            &copy; {{ now|date:"Y" }} {% if empresa %}{{ empresa.nombre }}{% else %}Mi Empresa{% endif %}
+        </footer>
 
         </div>
 

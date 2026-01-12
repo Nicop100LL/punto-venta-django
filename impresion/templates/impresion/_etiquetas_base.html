@@ -1,3 +1,4 @@
+{% load custom_filters %}
 {% for hoja in hojas %}
 <div class="page">
     {% for producto in hoja %}
@@ -9,7 +10,7 @@
             {% endif %}
 
             {% if modelo.mostrar_precio %}
-                <div class="precio">$ {{ producto.precio_venta }}</div>
+                <div class="precio">$ {{ producto.precio_venta|floatformat:0|formato_precio }}</div>
             {% endif %}
         </div>
     {% endfor %}

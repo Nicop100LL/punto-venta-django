@@ -6,7 +6,9 @@ class Empresa(models.Model):
     cuit = models.CharField(max_length=13, blank=True, null=True)
     direccion = models.CharField(max_length=200, blank=True, null=True)
     condicion_iva = models.CharField(max_length=100, blank=True, null=True)
-
+    logo = models.ImageField(upload_to='logos/', blank=True, null=True)  # logo opcional
+    activo = models.BooleanField(default=True)  # empresa activa o no
+    
     def __str__(self):
         return self.nombre
 

@@ -8,9 +8,12 @@
 <div class="boleta mx-auto bg-white shadow text-[10px]">
 
     <!-- Encabezado de la venta -->
-     <h1 class="text-center font-bold text-lg">
-    {{ empresa.nombre }}
-    </h1>
+    <div class="text-center mb-2">
+        {% if empresa.logo %}
+            <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}" class="mx-auto w-16 h-16 mb-1">
+        {% endif %}
+        <h1 class="text-center font-bold text-lg">{{ empresa.nombre }}</h1>
+    </div>
 
     <h2 class="text-center font-bold text-base mb-2">Venta #{{ venta.numero_empresa }}</h2>
 
