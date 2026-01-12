@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'reportes',
     'django.contrib.humanize',
     'ventas',
-
+    'impresion',
 ]
 
 MIDDLEWARE = [

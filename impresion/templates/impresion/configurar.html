@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}Impresión{% endblock %}
+{% block header %}Impresión de productos{% endblock %}
+
+{% block content %}
+
+<div
+    x-data="{
+        seleccionados: [],
+        modeloSeleccionado: null,
+        busqueda: '',
+
+        productos: [
+            {% for producto in productos %}
+            {
+                id: {{ producto.id }},
+                nombre: '{{ producto.nombre|escapejs }}',
+                codigo: '{{ producto.codigo|escapejs }}',
+                precio: '{{ producto.precio_venta }}',
+                tipo: '{{ producto.get_tipo_venta_display }}'
+            },
+            {% endfor %}
+        ],
+
+        modelos: {
+            {% for modelo in modelos %}
+            {{ modelo.id }}: {
+                columnas: {{ modelo.columnas }},
+                filas: {{ modelo.filas }},
+                mostrar_codigo: {{ modelo.mostrar_codigo|yesno:'true,false' }},
+                mostrar_precio: {{ modelo.mostrar_precio|yesno:'true,false' }},
+                tamano_hoja: '{{ modelo.tamano_hoja }}',
+                orientacion: '{{ modelo.orientacion }}'
+            },
+            {% endfor %}
+        },
+
+        getProducto(id) {
+            const pid = Number(id)
+            return this.productos.find(p => p.id === pid) || null
+        },
+
+        maxEtiquetas() {
+            if (!this.modeloSeleccionado) return 0
+            const m = this.modelos[Number(this.modeloSeleccionado)]
+            return m ? m.columnas * m.filas : 0
+        },
+
+        hojaStyle() {
+            if (!this.modeloSeleccionado) return ''
+
+            const m = this.modelos[Number(this.modeloSeleccionado)]
+
+            let width = 70
+            let height = 99
+
+            // Tamaño hoja
+            if (m.tamano_hoja === 'A5') {
+                width = 148
+                height = 210
+            }
+
+            // Orientación
+            if (m.orientacion === 'landscape') {
+                [width, height] = [height, width]
+            }
+
+            return `
+                width: ${width}mm;
+                height: ${height}mm;
+                padding: 10mm;
+                display: grid;
+                grid-template-columns: repeat(${m.columnas}, 1fr);
+                grid-template-rows: repeat(${m.filas}, 1fr);
+                gap: 6mm;
+            `
+        },
+
+
+
+
+        paginas() {
+            const max = this.maxEtiquetas()
+            if (!max) return []
+
+            const pages = []
+            for (let i = 0; i < this.seleccionados.length; i += max) {
+                pages.push(this.seleccionados.slice(i, i + max))
+            }
+            return pages
+        }
+
+    }"
+    class="max-w-7xl mx-auto"
+>
+
+    <!-- INTRO -->
+    <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-2">Configuración</h2>
+        <p class="text-gray-600">
+            Seleccioná un modelo de impresión y los productos a imprimir.
+        </p>
+    </div>
+
+    <!-- MODELOS -->
+    <div class="mb-4">
+        <label class="block mb-1 font-semibold">
+            Modelo de impresión
+        </label>
+
+        <select
+            id="modelo_impresion"
+            class="border rounded px-3 py-2 w-full"
+            x-model="modeloSeleccionado"
+        >
+            <option value="">-- Seleccionar modelo --</option>
+            {% for modelo in modelos %}
+                <option value="{{ modelo.id }}">
+                    {{ modelo.nombre }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+
+    <!-- BUSCADOR -->
+    <input
+        type="text"
+        placeholder="Buscar por nombre o código..."
+        class="w-full border rounded px-3 py-2 mb-4"
+        x-model="busqueda"
+    >
+
+    <!-- CAJA PRODUCTOS -->
+    <div class="bg-white p-4 rounded shadow h-64 overflow-y-auto">
+        <template
+            x-for="producto in productos.filter(p =>
+                p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+                p.codigo.toLowerCase().includes(busqueda.toLowerCase())
+            )"
+            :key="producto.id"
+        >
+            <label class="flex justify-between items-center border-b py-2 px-2 hover:bg-gray-50">
+                <div>
+                    <div class="font-medium" x-text="producto.nombre"></div>
+                    <div class="text-xs text-gray-500" x-text="producto.codigo"></div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <span class="font-semibold">
+                        $ <span x-text="producto.precio"></span>
+                    </span>
+                    <input
+                        type="checkbox"
+                        name="productos"
+                        :value="producto.id"
+                        x-model="seleccionados"
+                    >
+
+                </div>
+            </label>
+        </template>
+    </div>
+
+    <div class="mt-2 text-sm text-gray-600">
+        Seleccionados:
+        <span class="font-semibold" x-text="seleccionados.length"></span>
+    </div>
+    <div class="mb-6">
+        <button
+            onclick="imprimirEtiquetas()"
+            class="bg-blue-600 text-white px-4 py-2 rounded"
+        >
+            🖨 Imprimir etiquetas
+        </button>
+
+    </div>
+
+
+
+    <!-- VISTA PREVIA -->
+    <div class="mt-10 print-area">
+        <h3 class="font-semibold mb-4">Vista previa</h3>
+
+        <template x-if="modeloSeleccionado && seleccionados.length">
+            <div class="space-y-10">
+
+                <template x-for="(pagina, index) in paginas()" :key="index">
+                    <div class="bg-gray-300 p-4 inline-block print-page">
+                        <div class="preview-scale">
+                        <div
+                            class="bg-white shadow mx-auto"
+                            
+                            :style="hojaStyle()"
+                        >
+
+                            <template x-for="id in pagina" :key="id">
+                                <template x-if="getProducto(id)">
+                                    <div class="border p-3 flex flex-col justify-between text-center">
+
+
+                                        <div class="text-lg font-bold"
+                                            x-text="getProducto(id).nombre"></div>
+
+                                        <template x-if="modelos[Number(modeloSeleccionado)].mostrar_codigo">
+                                            <div class="text-sm text-gray-600"
+                                                x-text="getProducto(id).codigo"></div>
+                                        </template>
+
+                                        <template x-if="modelos[Number(modeloSeleccionado)].mostrar_precio">
+                                            <div class="text-2xl font-extrabold">
+                                                $ <span x-text="getProducto(id).precio"></span>
+                                            </div>
+                                        </template>
+
+                                    </div>
+                                </template>
+                            </template>
+
+                        </div>
+
+                        <div class="text-center text-xs text-gray-500 mt-2">
+                            Hoja <span x-text="index + 1"></span>
+                        </div>
+                        </div>
+                    </div>
+                </template>
+
+            </div>
+        </template>
+
+        <template x-if="seleccionados.length > maxEtiquetas()">
+            <p class="text-sm text-orange-600 mt-2">
+                ⚠️ Hay más productos seleccionados que espacios disponibles.
+            </p>
+        </template>
+    </div>
+
+</div>
+
+<script>
+function imprimirEtiquetas() {
+    const modelo = document.getElementById("modelo_impresion").value;
+
+    if (!modelo) {
+        alert("Seleccioná un modelo de impresión");
+        return;
+    }
+
+    const seleccionados = Array.from(
+        document.querySelectorAll("input[name='productos']:checked")
+    ).map(el => el.value);
+
+    if (!seleccionados.length) {
+        alert("Seleccioná al menos un producto");
+        return;
+    }
+
+    const url = `/impresion/imprimir-etiquetas/?modelo=${modelo}&productos=${seleccionados.join(",")}`;
+    window.open(url, "_blank");
+}
+</script>
+
+<style>
+    .preview-scale {
+    transform: scale(1);        /* 🔧 ajustá: 0.5 / 0.6 / 0.7 */
+    transform-origin: top center;
+}
+
+@media print {
+
+    /* ocultar todo visualmente */
+    body * {
+        visibility: hidden;
+    }
+
+    /* mostrar SOLO la zona imprimible */
+    .print-area,
+    .print-area * {
+        visibility: visible;
+    }
+
+    /* sacar la vista previa del flujo normal */
+    .print-area {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white;
+    }
+
+    /* cada hoja = una página */
+    .print-page {
+        page-break-after: always;
+        break-after: page;
+    }
+
+    body {
+        margin: 0;
+        background: white;
+    }
+}
+</style>
+{% endblock %}
+
+

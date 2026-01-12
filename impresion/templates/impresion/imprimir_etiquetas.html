@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Impresión de etiquetas</title>
+
+ <style>
+/* ====== BASE ====== */
+
+body {
+    margin: 0;
+    background: #f0f0f0;
+}
+
+.page {
+    
+    display: grid;
+    grid-template-columns: repeat({{ modelo.columnas }}, 1fr);
+    grid-template-rows: repeat({{ modelo.filas }}, 1fr);
+
+    gap: 6mm;
+    box-sizing: border-box;
+
+    background: white;
+}
+
+/* ====== ETIQUETA ====== */
+.etiqueta {
+    background: {{ modelo.fondo_color }};
+    border: 1px solid {{ modelo.borde_color }};
+    padding: {{ modelo.padding }}mm;
+
+    display: flex;
+    flex-direction: column;
+
+    width: 100%;
+    height: 100%;
+
+    justify-content: {{ modelo.alineacion_vertical }};
+    align-items: {{ modelo.alineacion_horizontal }};
+
+    text-align: center;
+    box-sizing: border-box;
+}
+
+
+
+.titulo {
+    color: {{ modelo.titulo_color }};
+    font-size: {{ modelo.titulo_tamano }}px;
+    font-weight: {{ modelo.titulo_negrita|yesno:"bold,normal" }};
+}
+
+.precio {
+    color: {{ modelo.precio_color }};
+    font-size: {{ modelo.precio_tamano }}px;
+    font-weight: {{ modelo.precio_negrita|yesno:"bold,normal" }};
+}
+
+/* ====== SOLO IMPRESIÓN ====== */
+@media print {
+
+    body {
+        background: white;
+    }
+     html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+    }
+
+    @page {
+        size: {{ modelo.tamano_hoja }} {{ modelo.orientacion }};
+        margin: 10mm;
+    }
+
+    .page {
+        width: 100%;
+        height: 100%;
+        page-break-after: always;
+        break-after: page;
+    }
+}
+</style>
+
+
+
+</head>
+<body>
+    {% include "impresion/_etiquetas_base.html" %}
+
+    <script>
+        window.onload = function () {
+            window.print();
+        }
+    </script>
+</body>
+
+</html>

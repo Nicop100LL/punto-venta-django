@@ -19,6 +19,7 @@ urlpatterns = [
     path('ventas/', include('ventas.urls')),
     path('reportes/', include('reportes.urls')),
     path('dashboard/', dashboard, name='dashboard'),
-
+    path('impresion/', include('impresion.urls')),
+    
 
 ]

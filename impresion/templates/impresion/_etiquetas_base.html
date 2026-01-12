@@ -1,0 +1,17 @@
+{% for hoja in hojas %}
+<div class="page">
+    {% for producto in hoja %}
+        <div class="etiqueta">
+            <div class="titulo">{{ producto.nombre }}</div>
+
+            {% if modelo.mostrar_codigo %}
+                <div class="codigo">{{ producto.codigo }}</div>
+            {% endif %}
+
+            {% if modelo.mostrar_precio %}
+                <div class="precio">$ {{ producto.precio_venta }}</div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+{% endfor %}
