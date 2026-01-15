@@ -6,6 +6,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}SystemsBucha{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -125,7 +126,154 @@
         x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-50" x-transition:leave="transition ease-in duration-200"
         x-transition:leave-start="opacity-50" x-transition:leave-end="opacity-0" style="display: none;"></div>
-    <script src="//unpkg.com/alpinejs" defer></script>
+
+
+   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script> 
+        <script src="https://unpkg.com/html5-qrcode" defer></script>
+
+    <!--Principal de camara-->
+    <script>
+    window.ScannerCamara = (function () {
+    let instancia = null;
+
+    function abrir(targetId, onScan) {
+        if (!window.Html5Qrcode) {
+        alert('Html5Qrcode no está cargado');
+        return;
+        }
+
+        if (instancia) {
+        cerrar();
+        }
+
+        instancia = new Html5Qrcode(targetId);
+
+        Html5Qrcode.getCameras().then(cameras => {
+        if (!cameras.length) {
+            alert('No se encontró cámara');
+            return;
+        }
+
+        instancia.start(
+            cameras[0].id,
+            {
+            fps: 10,
+            qrbox: { width: 250, height: 150 }
+            },
+            decodedText => {
+            if (window.__scanBloqueado) return;
+            window.__scanBloqueado = true;
+
+            onScan(decodedText);
+
+            // 🔒 cerrar cámara inmediatamente
+            cerrar();
+            document.getElementById('scanner-modal').classList.add('hidden');
+
+            setTimeout(() => {
+                window.__scanBloqueado = false;
+            }, 1500);
+        }
+
+
+        );
+        }).catch(err => {
+        console.error('Error cámara:', err);
+        });
+    }
+
+    function cerrar() {
+        if (instancia) {
+        instancia.stop().then(() => {
+            instancia.clear();
+            instancia = null;
+        }).catch(() => {});
+        }
+    }
+
+    return { abrir, cerrar };
+    })();
+    </script>
+
+    <!--Sirve para sonido de escanner-->
+    <script>
+    /*
+    Feedback al escanear:
+    - Beep (si el navegador permite audio)
+    - Vibración (si el dispositivo lo soporta)
+    */
+    function feedbackScanner() {
+    // 🔊 BEEP
+    try {
+        const audio = new Audio(
+        'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA='
+        );
+        audio.play();
+    } catch (e) {
+        // silencio si el navegador bloquea audio
+    }
+
+    // 📳 VIBRACIÓN (solo móviles compatibles)
+    if (navigator.vibrate) {
+        navigator.vibrate(80); // 80 ms
+    }
+    }
+    </script>
+
+
+<div id="scanner-modal"
+     onclick="cerrarScannerSiFondo(event)"
+     class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex items-center justify-center px-2">
+
+  <div class="relative bg-white w-full max-w-md mx-auto p-4 rounded-xl">
+
+    <!-- BOTÓN CERRAR pegado al borde del contenedor -->
+    <button
+      id="scanner-cerrar"
+      class="absolute top-2 right-2 z-50 text-gray-700 text-2xl font-bold bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-md"
+      onclick="ScannerCamara.cerrar(); document.getElementById('scanner-modal').classList.add('hidden')">
+      ✕
+    </button>
+
+    <div class="relative w-full h-64 rounded overflow-hidden">
+      <!-- VIDEO -->
+      <div id="scanner-view" class="absolute inset-0" style="pointer-events: none;"></div>
+    </div>
+
+  </div>
+</div>
+
+
+
+
+<script>
+function cerrarScannerSiFondo(e) {
+    const modal = document.getElementById('scanner-modal');
+    const contenido = modal.querySelector('.relative.bg-white'); // tu contenedor interno
+
+    // Si el click está fuera del contenido, cerramos
+    if (!contenido.contains(e.target)) {
+        if (window.ScannerCamara) {
+            ScannerCamara.cerrar();
+        }
+        modal.classList.add('hidden');
+    }
+}
+</script>
+
+
+<script>
+window.addEventListener('popstate', () => {
+    const modal = document.getElementById('scanner-modal');
+    if (modal && !modal.classList.contains('hidden')) {
+        if (window.ScannerCamara) {
+            ScannerCamara.cerrar();
+        }
+        modal.classList.add('hidden');
+    }
+});
+</script>
+
 
 </body>
 
@@ -138,6 +286,7 @@
     header,
     nav,
     aside,
+    footer,
     .no-print {
         display: none !important;
     }
@@ -151,4 +300,4 @@
 </style>
 
 
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+

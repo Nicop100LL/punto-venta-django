@@ -331,6 +331,25 @@
     </div>
 </div>
 
+<button
+    type="button"
+    id="btn-scan-venta"
+    class="
+        fixed bottom-16 right-4
+        w-14 h-14
+        flex items-center justify-center
+        rounded-full
+        bg-gray-200
+        text-gray-800
+        text-3xl
+        shadow-lg
+        active:bg-gray-300
+        md:hidden
+        z-50
+    "
+>
+    📷
+</button>
 
 
 
@@ -447,11 +466,12 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
+                    feedbackErrorScanner();   // ❌ NO EXISTE
                     mostrarError(data.error);
                     inputPrecio.value = '';
                 } else {
                     inputPrecio.value = data.precio_venta;
-                    if (beep) beep.play();
+                    feedbackScanner();        // ✅ EXISTE
 
                     if (data.tipo_venta === 'kilo') {
                         mostrarModalKilos(data);
@@ -499,12 +519,13 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
+                    feedbackErrorScanner();   // ❌ NO EXISTE
                     alert(data.message || 'Producto no encontrado.');
                     detalleProducto.classList.add('hidden');
                     productoActual = null;
                     return;
                 }
-
+                feedbackScanner();            // ✅ EXISTE
                 productoActual = data;
                 productoNombre.textContent = data.nombre;
                 productoPrecio.textContent = parseFloat(data.precio_venta).toFixed(2);
@@ -632,6 +653,73 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 
+<script>
+const btnScanCamera = document.getElementById('btn-scan-venta');
+
+if (btnScanCamera) {
+  btnScanCamera.addEventListener('click', () => {
+    document.getElementById('scanner-modal').classList.remove('hidden');
+
+    ScannerCamara.abrir('scanner-view', (codigo) => {
+        ScannerCamara.cerrar();
+      document.getElementById('scanner-modal').classList.add('hidden');
+
+      const inputCodigo = document.getElementById('codigo');
+      inputCodigo.value = codigo;
+      inputCodigo.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter' })
+      );
+    });
+  });
+}
+
+</script>
+
+
+<script>
+    //funcion que emite un sonido distinto si el producto no existe
+function feedbackErrorScanner() {
+  try {
+    const audio = new Audio(
+      'data:audio/wav;base64,UklGRhIAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQgAAA==' // tono distinto
+    );
+    audio.play();
+  } catch (e) {}
+
+  if (navigator.vibrate) {
+    navigator.vibrate([60, 40, 60]); // vibración doble
+  }
+}
+</script>
+
+<script>
+const btnScan = document.getElementById('btn-scan-venta');
+
+if (btnScan) {
+  btnScan.addEventListener('click', () => {
+
+    // 1️⃣ mostrar modal
+    document.getElementById('scanner-modal').classList.remove('hidden');
+
+    // 2️⃣ permitir cerrar con botón BACK
+    history.pushState(null, '', location.href);
+
+    // 3️⃣ abrir cámara
+    ScannerCamara.abrir('scanner-view', codigo => {
+        feedbackScanner();
+
+        // 👉 acá procesás el código
+        const input = document.getElementById('codigo');
+        input.value = codigo;
+
+        input.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Enter' })
+        );
+    });
+
+  });
+}
+</script>
 
 
 

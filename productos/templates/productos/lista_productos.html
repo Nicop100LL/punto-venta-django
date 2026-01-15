@@ -72,7 +72,24 @@
       </div>
       <div class="mb-2">
         <label class="block">Código</label>
-        <input  name="codigo" class="w-full border px-3 py-2 rounded" required />
+
+        <div class="relative">
+          <input
+            id="codigo-producto"
+            name="codigo"
+            class="w-full border px-3 py-2 rounded pr-10"
+            required
+          />
+
+          <!-- BOTÓN CÁMARA -->
+          <button
+            type="button"
+            onclick="abrirScannerProducto()"
+            class="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-blue-600"
+            title="Escanear código">
+            📷
+          </button>
+        </div>
       </div>
       <div class="mb-2">
         <label class="block">Categoría</label>
@@ -358,6 +375,34 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <!-- --- fin revert --- -->
+
+<!-- --- “Función para abrir el escáner de cámara y escribir el código en el input del producto”
+ --- -->
+<script>
+function abrirScannerProducto() {
+  const modalScanner = document.getElementById('scanner-modal');
+  if (!modalScanner) {
+    alert('Scanner no disponible');
+    return;
+  }
+
+  modalScanner.classList.remove('hidden');
+
+  ScannerCamara.abrir('scanner-view', (codigo) => {
+    feedbackScanner();
+    // cerrar cámara
+    ScannerCamara.cerrar();
+    modalScanner.classList.add('hidden');
+
+    // colocar código en input
+    const input = document.getElementById('codigo-producto');
+    if (input) {
+      input.value = codigo;
+      input.focus();
+    }
+  });
+}
+</script>
 
 
 {% endblock %}

@@ -1,13 +1,25 @@
 # Base de datos local
 db.sqlite3
 
-# Configuraciones locales (evita sobreescribir settings del VPS)
-comercio/settings.py
 
-# Archivos compilados de Python
-*.pyc
-__pycache__/
-backup
-# Entornos virtuales
+
+# Virtualenv
+env/
+env_old/
 venv/
-/media/
+
+# Python
+__pycache__/
+*.pyc
+
+# Media
+media/
+
+# Backups
+*.sql
+*.sql.gz
+*.tar.gz
+*.json
+
+# OS
+.DS_Store
