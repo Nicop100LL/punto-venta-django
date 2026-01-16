@@ -161,21 +161,31 @@
             cam.label.toLowerCase().includes('back') || cam.facingMode === 'environment'
         );
         const camaraElegida = camaraTrasera || cameras[0]; // si no hay trasera, usar la primera
+        // ✅ Calcular tamaño qrbox según contenedor
+        const contenedor = document.getElementById(targetId);
+        const size = Math.min(contenedor.clientWidth * 0.8, 400);
+
+        contenedor.style.height = size + 'px';
 
         instancia.start(
             camaraElegida.id, // usar la trasera
             {
             fps: 10,
-            qrbox: (viewfinderWidth) => {
-                const size = Math.min(viewfinderWidth * 0.8, 400); // 80% del ancho, máximo 400px
-                return { width: size, height: size };
-            }
+            qrbox: { width: size, height: size }
             },
             decodedText => {
             if (window.__scanBloqueado) return;
             window.__scanBloqueado = true;
 
-            onScan(decodedText);
+            // Llenar input
+            const input = document.getElementById('codigo');
+            input.value = decodedText;
+
+            // Dar tiempo a que el input y el botón estén listos
+            requestAnimationFrame(() => {
+                const btnAgregar = document.querySelector('button[name="agregar"]');
+                if (btnAgregar) btnAgregar.click();
+            });
 
             // 🔒 cerrar cámara inmediatamente
             cerrar();
@@ -238,7 +248,7 @@
 
   <div class="relative bg-white w-full max-w-md mx-auto p-4 rounded-xl">
 
-    <!-- BOTÓN CERRAR pegado al borde del contenedor -->
+    <!-- BOTÓN CERRAR -->
     <button
       id="scanner-cerrar"
       class="absolute top-2 right-2 z-50 text-gray-700 text-2xl font-bold bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-md"
@@ -246,9 +256,10 @@
       ✕
     </button>
 
-    <div class="relative w-full h-64 rounded overflow-hidden">
-      <!-- VIDEO -->
-      <div id="scanner-view" class="absolute inset-0" style="pointer-events: none;"></div>
+    <!-- Contenedor cámara centrado -->
+    <div id="scanner-view"
+         class="relative w-full rounded overflow-hidden flex items-center justify-center"
+         style="pointer-events: none;">
     </div>
 
   </div>
