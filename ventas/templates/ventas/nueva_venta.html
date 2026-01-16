@@ -704,18 +704,21 @@ if (btnScan) {
     // 2️⃣ permitir cerrar con botón BACK
     history.pushState(null, '', location.href);
 
-    // 3️⃣ abrir cámara
+   // 3️⃣ abrir cámara
     ScannerCamara.abrir('scanner-view', codigo => {
         feedbackScanner();
 
-        // 👉 acá procesás el código
+        // Llenar el input con el código escaneado
         const input = document.getElementById('codigo');
         input.value = codigo;
 
-        input.dispatchEvent(
-          new KeyboardEvent('keydown', { key: 'Enter' })
-        );
+        // Dar un pequeño delay para asegurar que el DOM y el botón estén listos
+        setTimeout(() => {
+            const btnAgregar = document.querySelector('button[name="agregar"]');
+            if (btnAgregar) btnAgregar.click();  // ✅ esto agrega al carrito
+        }, 50); 
     });
+
 
   });
 }
