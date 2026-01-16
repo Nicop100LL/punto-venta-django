@@ -155,9 +155,12 @@ function abrirScannerProductoEditar() {
   // abrir cámara (usa ScannerCamara de base.html)
   ScannerCamara.abrir('scanner-view', (codigo) => {
     feedbackScanner();
-    // cerrar cámara inmediatamente (evita duplicados)
-    ScannerCamara.cerrar();
-    modalScanner.classList.add('hidden');
+    // cerrar cámara con un pequeño delay para asegurar detección en móviles
+    setTimeout(() => {
+        ScannerCamara.cerrar();
+        modalScanner.classList.add('hidden');
+    }, 200); // 200 ms es suficiente
+
 
     // escribir código escaneado en el input
     const input = document.getElementById('codigo-producto');

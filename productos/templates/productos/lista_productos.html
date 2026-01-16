@@ -386,22 +386,34 @@ function abrirScannerProducto() {
     return;
   }
 
+  // Mostrar el modal
   modalScanner.classList.remove('hidden');
 
-  ScannerCamara.abrir('scanner-view', (codigo) => {
-    feedbackScanner();
-    // cerrar cámara
-    ScannerCamara.cerrar();
-    modalScanner.classList.add('hidden');
+  // Forzar que el contenedor tenga altura visible
+  const contenedor = document.getElementById('scanner-view');
+  if (!contenedor.style.height) {
+    contenedor.style.height = '300px'; // podés ajustar la altura si querés
+  }
 
-    // colocar código en input
-    const input = document.getElementById('codigo-producto');
-    if (input) {
-      input.value = codigo;
-      input.focus();
-    }
+  // Esperar un frame para que el navegador calcule dimensiones
+  requestAnimationFrame(() => {
+    ScannerCamara.abrir('scanner-view', (codigo) => {
+      feedbackScanner();
+
+      // Cerrar cámara y modal
+      ScannerCamara.cerrar();
+      modalScanner.classList.add('hidden');
+
+      // Colocar código en input
+      const input = document.getElementById('codigo-producto');
+      if (input) {
+        input.value = codigo;
+        input.focus();
+      }
+    });
   });
 }
+
 </script>
 
 
