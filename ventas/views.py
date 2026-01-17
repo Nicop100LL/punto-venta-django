@@ -39,7 +39,8 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
 from .models import Venta
 from .forms import ClienteForm
-
+from django.http import JsonResponse
+from .models import Producto
 import math
 
 from decimal import Decimal
@@ -546,3 +547,30 @@ def estadisticas_ventas(request):
         'ticket_promedio': ticket_promedio,
         'ventas_por_dia': ventas_por_dia,
     })
+    
+    # views.py
+
+@login_required
+def buscar_producto_por_nombre(request):
+    q = request.GET.get('q', '').strip()
+
+    if len(q) < 2:
+        return JsonResponse([], safe=False)
+
+    productos = (
+        Producto.objects
+        .filter(nombre__icontains=q)
+        .order_by('nombre')[:10]
+    )
+
+    data = []
+    for p in productos:
+        data.append({
+            'id': p.id,
+            'codigo': p.codigo,
+            'nombre': p.nombre,
+            'precio': float(p.precio_venta),
+            'tipo_venta': p.tipo_venta,
+        })
+
+    return JsonResponse(data, safe=False)

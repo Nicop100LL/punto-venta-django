@@ -59,39 +59,93 @@
     </div>
 
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-            <label for="codigo" class="block text-sm font-medium text-gray-700">Código:</label>
-            <input type="text" name="codigo" id="codigo" required autofocus
-                class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2">                
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+
+        <!-- Código (principal) -->
+        <div class="md:col-span-3">
+            <label for="codigo" class="block text-sm font-medium text-gray-700">
+                Código
+            </label>
+            <input
+                type="text"
+                name="codigo"
+                id="codigo"
+                required
+                autofocus
+                class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-3 text-lg"
+            >
         </div>
 
-        <div>
-            <label for="cantidad" class="block text-sm font-medium text-gray-700">Cantidad:</label>
-            <input type="number" name="cantidad" id="cantidad" value="1" min="0.001" step="0.001" required
-                class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2">
+        <!-- Cantidad (secundario) -->
+        <div class="md:col-span-1">
+            <label for="cantidad" class="block text-sm font-medium text-gray-700">
+                Cant.
+            </label>
+            <input
+                type="number"
+                name="cantidad"
+                id="cantidad"
+                value="1"
+                min="0.001"
+                step="0.001"
+                required
+                class="mt-1 w-full border border-gray-300 rounded-lg px-2 py-2 text-sm"
+            >
         </div>
 
-        <div>
-            <label for="precio" class="block text-sm font-medium text-gray-700">Precio unitario:</label>
-            <input type="text" id="precio" readonly
-                class="mt-1 w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2">
+        <!-- Precio unitario (informativo) -->
+        <div class="md:col-span-2">
+            <label for="precio" class="block text-sm font-medium text-gray-700">
+                Precio
+            </label>
+            <input
+                type="text"
+                id="precio"
+                readonly
+                class="mt-1 w-full bg-gray-100 border border-gray-200 rounded-lg px-2 py-2 text-sm text-right font-semibold"
+            >
         </div>
+
     </div>
 
-    <div class="mt-4 flex justify-between items-center gap-x-4">
-        <button type="submit" name="agregar" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-            Agregar al carrito
+
+ <!-- =========================================================
+     BLOQUE BOTONES RESPONSIVE – Acciones principales/secundarias
+========================================================= -->
+<div class="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+    <!-- Acción principal -->
+    <button
+        type="submit"
+        name="agregar"
+        class="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 w-full md:w-auto">
+        Agregar al carrito
+    </button>
+
+    <!-- Separador visual (solo mobile) -->
+    <div class="h-px bg-gray-300 md:hidden"></div>
+
+    <!-- Acciones secundarias -->
+    <div class="flex flex-col gap-2 md:flex-row md:gap-2 md:items-center md:justify-end">
+        <button
+            type="button"
+            id="btn-buscar-nombre"
+            class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 w-full md:w-auto"
+            title="Buscar por nombre (F3)">
+            🔍 Buscar producto por nombre
         </button>
-       <button
+
+        <button
             type="button"
             id="btn-f9"
-            class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700"
-            title="Abrir búsqueda (F9)"
-                    >
-            Buscar Producto (F9)
+            class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 w-full md:w-auto"
+            title="Abrir búsqueda (F9)">
+            Buscar Producto por código (F9)
         </button>
     </div>
+</div>
+
+
 
 </form>
 
@@ -265,17 +319,32 @@
 {% endif %}
 
 <!-- Modal de error -->
-<div id="modal-error" style="display:none;"
-    class="fixed inset-0 flex items-center justify-center z-50 bg-gray-500 bg-opacity-50">
-    <div class="bg-white p-6 rounded-lg shadow-md w-1/3">
-        <h3 class="text-lg font-semibold">Error</h3>
-        <p id="modal-error-message" class="text-red-600"></p>
-        <button onclick="document.getElementById('modal-error').style.display='none'"
-            class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-            Cerrar
-        </button>
+<div id="modal-error"
+     class="fixed inset-0 hidden items-center justify-center z-[999]">
+
+    <!-- Backdrop -->
+    <div id="modal-error-backdrop"
+         class="absolute inset-0 bg-black bg-opacity-50"></div>
+
+    <!-- Caja -->
+    <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6 z-10">
+        <h3 class="text-lg font-semibold text-gray-800 mb-2">
+            ❌ Error
+        </h3>
+
+        <p id="modal-error-message"
+           class="text-red-600 text-sm mb-6"></p>
+
+        <div class="flex justify-end">
+            <button id="btn-cerrar-error"
+                    class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700">
+                Cerrar
+            </button>
+        </div>
     </div>
 </div>
+
+
 
 <!-- Audio para beep -->
 <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
@@ -299,12 +368,25 @@
 <!-- Modal escanear código con F9 -->
 <div id="modal-scan" style="display:none;" 
      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl w-96">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-96 relative">
         <h2 class="text-xl font-semibold mb-6 text-center text-gray-800">📷 Escanear Código (F9)</h2>
         
-        <input type="text" id="input-scan" autofocus
-               class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-               placeholder="Escanea o ingresa el código" />
+        <div class="relative">
+            <input type="text" id="input-scan" autofocus
+                   class="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   placeholder="Escanea o ingresa el código" />
+
+            <!-- Botón de cámara solo mobile -->
+            <button type="button"
+                    id="btn-scan-camera-modal"
+                    class="absolute right-2 top-1/2 -translate-y-1/2
+                           w-10 h-10 rounded-full bg-gray-200 text-xl flex items-center justify-center
+                           md:hidden"
+                    title="Escanear código con cámara">
+                📷
+            </button>
+        </div>
+        
         
         <div id="detalle-producto" class="mb-4 hidden">
             <p class="text-gray-800 text-base mb-1">
@@ -329,7 +411,14 @@
             </button>
         </div>
     </div>
+    <!-- Contenedor de la cámara -->
+<div id="scanner-overlay" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
+    <div id="scanner-video" class="w-80 h-60 bg-black rounded-lg"></div>
+    <button id="btn-close-scanner" class="absolute top-2 right-2 text-white text-xl">✕</button>
 </div>
+
+</div>
+
 
 <button
     type="button"
@@ -410,10 +499,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // == FUNCIONES GENERALES == //
 
-    function mostrarError(mensaje) {
-        modalErrorMessage.innerText = mensaje;
-        modalError.style.display = 'flex';
-    }
+
 
     function limpiarCampos() {
         inputCodigo.value = '';
@@ -465,35 +551,54 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(`/productos/buscar-producto/?codigo=${codigo}`)
             .then(response => response.json())
             .then(data => {
-                if (data.error) {
-                    feedbackErrorScanner();   // ❌ NO EXISTE
-                    mostrarError(data.error);
+                if (!data.success) {
+                    feedbackErrorScanner();
+                    mostrarError(data.message || 'Producto no encontrado');
                     inputPrecio.value = '';
-                } else {
-                    inputPrecio.value = data.precio_venta;
-                    feedbackScanner();        // ✅ EXISTE
+                    inputCodigo.focus();
+                    return;
+                }
 
-                    if (data.tipo_venta === 'kilo') {
-                        mostrarModalKilos(data);
-                    } else {
-                        document.querySelector('button[name="agregar"]').click();
-                    }
+                feedbackScanner();
+                inputPrecio.value = data.precio_venta;
+
+                if (data.tipo_venta === 'kilo') {
+                    mostrarModalKilos(data);
+                } else {
+                    document.querySelector('button[name="agregar"]').click();
                 }
             })
-            .catch(error => {
-                console.error('Error al buscar producto:', error);
+            .catch(() => {
+                mostrarError('Error al buscar el producto');
             });
     }
 
     // == ESCANEO CON F9 == //
 
-    function abrirModalScan() {
-        modalScan.style.display = 'flex';
-        detalleProducto.classList.add('hidden');
-        inputScan.value = '';
-        productoActual = null;
-        inputScan.focus();
+    function buscarProductoScan(codigo) {
+        fetch(`/productos/buscar-producto/?codigo=${codigo}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    feedbackErrorScanner();
+                    mostrarError(data.message || 'Producto no encontrado');
+                    detalleProducto.classList.add('hidden');
+                    productoActual = null;
+                    return;
+                }
+
+                feedbackScanner();
+                productoActual = data;
+                productoNombre.textContent = data.nombre;
+                productoPrecio.textContent = parseFloat(data.precio_venta).toFixed(2);
+                productoDescuento.style.display = 'none';
+                detalleProducto.classList.remove('hidden');
+            })
+            .catch(() => {
+                mostrarError('Error al buscar el producto');
+            });
     }
+
 
     // Evento para botón Buscar Producto (F9)
     document.getElementById('btn-f9').addEventListener('click', abrirModalScan);
@@ -512,31 +617,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 100);  // 100ms debería ser suficiente para que modal kilos se abra si debe hacerlo
     }
 
+    function abrirModalScan() {
+        modalScan.style.display = 'flex';
+        inputScan.value = '';
+        detalleProducto.classList.add('hidden');
+        productoActual = null;
 
-
-    function buscarProductoScan(codigo) {
-        fetch(`/productos/buscar-producto/?codigo=${codigo}`)
-            .then(res => res.json())
-            .then(data => {
-                if (!data.success) {
-                    feedbackErrorScanner();   // ❌ NO EXISTE
-                    alert(data.message || 'Producto no encontrado.');
-                    detalleProducto.classList.add('hidden');
-                    productoActual = null;
-                    return;
-                }
-                feedbackScanner();            // ✅ EXISTE
-                productoActual = data;
-                productoNombre.textContent = data.nombre;
-                productoPrecio.textContent = parseFloat(data.precio_venta).toFixed(2);
-                productoDescuento.style.display = 'none';
-                detalleProducto.classList.remove('hidden');
-            })
-            .catch(() => {
-                alert('Error al buscar producto.');
-                detalleProducto.classList.add('hidden');
-                productoActual = null;
-            });
+        setTimeout(() => {
+            inputScan.focus();
+        }, 50);
     }
 
     function agregarAlCarritoDesdeScan() {
@@ -722,6 +811,446 @@ if (btnScan) {
 
   });
 }
+</script>
+
+
+<!--Error producto no encontrado-->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const modal = document.getElementById('modal-error');
+    const mensaje = document.getElementById('modal-error-message');
+    const btnCerrar = document.getElementById('btn-cerrar-error');
+    const backdrop = document.getElementById('modal-error-backdrop');
+    const inputCodigo = document.getElementById('codigo');
+    const modalScan = document.getElementById('modal-scan');
+
+    function cerrarModalScan() {
+        if (modalScan && modalScan.style.display === 'flex') {
+            modalScan.style.display = 'none';
+        }
+    }
+
+    function abrirModalError(texto) {
+        // 🔥 cerrar cualquier otro modal
+        cerrarModalScan();
+
+        mensaje.innerText = texto;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // 🔒 bloquear scroll y teclado de fondo
+        document.body.style.overflow = 'hidden';
+
+        // foco controlado
+        setTimeout(() => {
+            if (inputCodigo) {
+                inputCodigo.value = '';
+                inputCodigo.focus();
+            }
+        }, 100);
+    }
+
+    function cerrarModalError() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+
+        document.body.style.overflow = '';
+
+        setTimeout(() => {
+            if (inputCodigo) inputCodigo.focus();
+        }, 50);
+    }
+
+    // 🌍 función global ÚNICA
+    window.mostrarError = abrirModalError;
+
+    // eventos
+    btnCerrar.addEventListener('click', cerrarModalError);
+    backdrop.addEventListener('click', cerrarModalError);
+
+    document.addEventListener('keydown', e => {
+        if (!modal.classList.contains('hidden') && e.key === 'Escape') {
+            e.preventDefault();
+            cerrarModalError();
+        }
+    });
+});
+</script>
+
+<!-- Modal buscar producto por nombre -->
+<div id="modal-buscar-nombre"
+     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+
+  <div class="bg-white rounded-lg shadow-xl p-4 w-full max-w-md">
+    <h2 class="text-lg font-semibold mb-3">Buscar producto</h2>
+
+    <input
+      type="text"
+      id="input-buscar-nombre"
+      class="w-full border border-gray-300 rounded px-3 py-2 mb-3"
+      placeholder="Escriba el nombre del producto..." />
+
+    <ul
+      id="lista-resultados-nombre"
+      class="max-h-60 overflow-y-auto text-sm">
+      <!-- resultados después -->
+    </ul>
+    <div class="flex justify-end mt-3">
+  <button
+    id="btn-cancelar-buscar-nombre"
+    class="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400">
+    Cancelar (Esc)
+  </button>
+</div>
+
+  </div>
+</div>
+
+<!--buscador por nombre-->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const btnBuscarNombre = document.getElementById('btn-buscar-nombre');
+  const modalBuscar = document.getElementById('modal-buscar-nombre');
+  const inputBuscar = document.getElementById('input-buscar-nombre');
+  const listaResultados = document.getElementById('lista-resultados-nombre');
+  const btnCancelar = document.getElementById('btn-cancelar-buscar-nombre');
+  const inputCodigo = document.getElementById('codigo');
+
+  let debounceTimer = null;
+
+  /* =======================
+     ABRIR / CERRAR MODAL
+  ======================= */
+
+  function abrirBuscadorNombre() {
+    modalBuscar.classList.remove('hidden');
+    inputBuscar.value = '';
+    listaResultados.innerHTML = '';
+    setTimeout(() => inputBuscar.focus(), 50);
+  }
+
+  function cerrarBuscadorNombre() {
+    modalBuscar.classList.add('hidden');
+    listaResultados.innerHTML = '';
+    setTimeout(() => inputCodigo.focus(), 50);
+  }
+
+  btnBuscarNombre.addEventListener('click', abrirBuscadorNombre);
+  btnCancelar.addEventListener('click', cerrarBuscadorNombre);
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F3') {
+      e.preventDefault();
+      abrirBuscadorNombre();
+    }
+
+    if (e.key === 'Escape' && !modalBuscar.classList.contains('hidden')) {
+      e.preventDefault();
+      cerrarBuscadorNombre();
+    }
+  });
+
+  /* =======================
+     BÚSQUEDA EN TIEMPO REAL
+  ======================= */
+
+  inputBuscar.addEventListener('input', () => {
+    const query = inputBuscar.value.trim();
+
+    clearTimeout(debounceTimer);
+
+    if (query.length < 2) {
+      listaResultados.innerHTML = '';
+      return;
+    }
+
+    debounceTimer = setTimeout(() => {
+      fetch(`/ventas/productos/buscar-por-nombre/?q=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(productos => renderResultados(productos))
+        .catch(() => {
+          listaResultados.innerHTML =
+            '<li class="px-2 py-2 text-red-500">Error al buscar</li>';
+        });
+    }, 250);
+  });
+
+  function renderResultados(productos) {
+    listaResultados.innerHTML = '';
+
+    if (!productos.length) {
+      listaResultados.innerHTML =
+        '<li class="px-2 py-2 text-gray-500">Sin resultados</li>';
+      return;
+    }
+
+    productos.forEach(prod => {
+      const li = document.createElement('li');
+      li.className =
+        'px-3 py-2 cursor-pointer hover:bg-blue-100 border-b';
+
+      li.innerHTML = `
+        <div class="flex justify-between">
+          <span>${prod.nombre}</span>
+          <span class="font-semibold">$${prod.precio.toFixed(0)}</span>
+        </div>
+      `;
+
+      li.addEventListener('click', () => {
+        inputCodigo.value = prod.codigo;
+        cerrarBuscadorNombre();
+
+        // simula Enter para reutilizar tu lógica existente
+        inputCodigo.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Enter' })
+        );
+      });
+
+      listaResultados.appendChild(li);
+    });
+  }
+});
+</script>
+
+
+<script>
+/* ==========================================================
+   SCRIPT 3 – Navegación teclado buscador por nombre
+   Flechas / Enter / Esc
+========================================================== */
+
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('modal-buscar-nombre');
+  const input = document.getElementById('input-buscar-nombre');
+  const lista = document.getElementById('lista-resultados-nombre');
+  const btnCancelar = document.getElementById('btn-cancelar-buscar-nombre');
+
+  let productos = [];
+  let indexActivo = -1;
+
+  // 👉 cerrar modal (ESC y botón)
+  function cerrarBuscador() {
+    modal.classList.add('hidden');
+    lista.innerHTML = '';
+    productos = [];
+    indexActivo = -1;
+    document.getElementById('codigo').focus();
+  }
+
+  btnCancelar.addEventListener('click', cerrarBuscador);
+
+  // 👉 buscar productos
+  let debounce = null;
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearTimeout(debounce);
+
+    if (q.length < 2) {
+      lista.innerHTML = '';
+      productos = [];
+      indexActivo = -1;
+      return;
+    }
+
+    debounce = setTimeout(() => {
+      fetch(`/ventas/productos/buscar-por-nombre/?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => {
+          productos = data;
+          indexActivo = 0;
+          render();
+        });
+    }, 200);
+  });
+
+  // 👉 render lista
+/* ==========================================================
+   SCRIPT 4 – Scroll automático al item activo
+   Función: mantiene visible el elemento seleccionado
+========================================================== */
+function render() {
+  lista.innerHTML = '';
+
+  if (!productos.length) {
+    lista.innerHTML =
+      '<li class="px-2 py-2 text-gray-500">Sin resultados</li>';
+    return;
+  }
+
+  productos.forEach((p, i) => {
+    const li = document.createElement('li');
+    li.className = `
+      px-3 py-2 cursor-pointer border-b
+      ${i === indexActivo ? 'bg-blue-200' : 'hover:bg-blue-100'}
+    `;
+
+    li.innerHTML = `
+      <div class="flex justify-between">
+        <span>${p.nombre}</span>
+        <span class="font-semibold">$${Math.round(p.precio)}</span>
+      </div>
+    `;
+
+    li.addEventListener('click', () => seleccionar(p));
+    lista.appendChild(li);
+
+    // 👇 SCROLL AUTOMÁTICO AL ITEM ACTIVO
+    if (i === indexActivo) {
+      setTimeout(() => {
+        li.scrollIntoView({
+          block: 'nearest',
+          behavior: 'smooth'
+        });
+      }, 0);
+    }
+  });
+}
+
+  // 👉 teclado
+  input.addEventListener('keydown', e => {
+    if (!productos.length) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      indexActivo = (indexActivo + 1) % productos.length;
+      render();
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      indexActivo =
+        (indexActivo - 1 + productos.length) % productos.length;
+      render();
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      seleccionar(productos[indexActivo]);
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      cerrarBuscador();
+    }
+  });
+
+  // 👉 seleccionar producto
+  function seleccionar(prod) {
+    cerrarBuscador();
+
+    const inputCodigo = document.getElementById('codigo');
+    const inputCantidad = document.getElementById('cantidad');
+    const inputPrecio = document.getElementById('precio');
+    // 🔹 guardar la cantidad que ya estaba
+    const cantidadActual = parseFloat(inputCantidad.value) || 1;
+
+    inputCodigo.value = prod.codigo;
+
+    inputPrecio.value = prod.precio.toFixed(2);
+
+    if (prod.tipo_venta === 'kilo') {
+      mostrarModalKilos(prod);
+      return;
+    }
+
+    document.querySelector('button[name="agregar"]').click();
+  }
+});
+</script>
+
+
+
+
+<style>
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.15s ease-out;
+}
+</style>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const btnCamara = document.getElementById('btn-scan-camera-modal');
+    const inputScan = document.getElementById('input-scan');
+
+    let html5QrScanner = null;
+
+    function abrirCamara(targetId, onScan) {
+        if (!window.Html5Qrcode) {
+            alert('Html5Qrcode no está cargado');
+            return;
+        }
+
+        html5QrScanner = new Html5Qrcode(targetId);
+
+        Html5Qrcode.getCameras().then(cameras => {
+            if (!cameras.length) {
+                alert('No se encontró cámara');
+                return;
+            }
+
+            html5QrScanner.start(
+                cameras[0].id,
+                { fps: 10, qrbox: { width: 250, height: 150 } },
+                decodedText => onScan(decodedText),
+                error => {}
+            );
+        }).catch(err => console.error('Error cámara:', err));
+    }
+
+    function cerrarCamara() {
+        if (html5QrScanner) {
+            html5QrScanner.stop().then(() => {
+                html5QrScanner.clear();
+                html5QrScanner = null;
+            }).catch(console.error);
+        }
+    }
+
+    btnCamara.addEventListener('click', () => {
+        // Mostrar overlay que ya está dentro del modal F9
+        const scannerOverlay = document.getElementById('scanner-overlay');
+        const scannerVideo = document.getElementById('scanner-video');
+        const btnCloseScanner = document.getElementById('btn-close-scanner');
+
+        if (!scannerOverlay) {
+            console.error('No se encontró el contenedor #scanner-overlay en el modal.');
+            return;
+        }
+
+        // Mostrar overlay
+        scannerOverlay.classList.remove('hidden');
+
+        // Abrir cámara apuntando al div de video dentro del overlay
+        abrirCamara('scanner-video', codigo => {
+            inputScan.value = codigo;
+            inputScan.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            cerrarCamara();
+            scannerOverlay.classList.add('hidden');
+        });
+
+        // Cerrar con el botón de cerrar
+        btnCloseScanner.addEventListener('click', () => {
+            cerrarCamara();
+            scannerOverlay.classList.add('hidden');
+        }, { once: true }); // se ejecuta solo una vez para no acumular listeners
+    });
+});
 </script>
 
 
