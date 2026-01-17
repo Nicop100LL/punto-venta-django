@@ -553,14 +553,15 @@ def estadisticas_ventas(request):
 @login_required
 def buscar_producto_por_nombre(request):
     q = request.GET.get('q', '').strip()
+    empresa = request.user.empresa  # 🔹 filtramos por empresa
 
     if len(q) < 2:
         return JsonResponse([], safe=False)
 
     productos = (
         Producto.objects
-        .filter(nombre__icontains=q)
-        .order_by('nombre')[:10]
+        .filter(nombre__icontains=q, empresa=empresa)  # 🔹 agregamos empresa
+        .order_by('nombre')[:10]  # limitar a 10 resultados
     )
 
     data = []
