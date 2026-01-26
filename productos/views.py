@@ -7,6 +7,8 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+from django.db.models.functions import Substr, Cast
+from django.db.models import IntegerField, Max
 
 from .models import Producto, Categoria
 
@@ -119,21 +121,25 @@ def _clean_number_string(s):
     # Reemplazar coma decimal por punto
     s = s.replace(',', '.')
     return s
-
 @login_required
 def editar_producto(request, id):
-    producto = get_object_or_404(Producto, id=id, empresa=request.user.empresa)
+    producto = get_object_or_404(
+        Producto,
+        id=id,
+        empresa=request.user.empresa
+    )
 
     if request.method == 'POST':
         producto.nombre = request.POST.get('nombre', producto.nombre)
-        producto.codigo = request.POST.get('codigo', producto.codigo)
+
         # --- VALIDACIÓN DE CÓDIGO DUPLICADO ---
         codigo_post = request.POST.get('codigo', '').strip()
+
         if Producto.objects.filter(
-                empresa=request.user.empresa,
-                codigo=codigo_post
-            ).exclude(id=producto.id).exists():
-            
+            empresa=request.user.empresa,
+            codigo=codigo_post
+        ).exclude(id=producto.id).exists():
+
             messages.error(request, "Ya existe un producto con ese código.")
             categorias = Categoria.objects.filter(empresa=request.user.empresa)
             return render(request, 'productos/editar_producto.html', {
@@ -141,8 +147,10 @@ def editar_producto(request, id):
                 'categorias': categorias,
             })
 
+        # ✅ ASIGNAMOS EL CÓDIGO SOLO SI PASÓ LA VALIDACIÓN
+        producto.codigo = codigo_post
 
-        # --- PRECIOS Y STOCK: limpiamos antes de convertir ---
+        # --- PRECIOS Y STOCK ---
         raw_precio_venta = request.POST.get('precio_venta')
         raw_precio_compra = request.POST.get('precio_compra')
         raw_stock = request.POST.get('stock_actual')
@@ -154,7 +162,6 @@ def editar_producto(request, id):
         try:
             if precio_venta_str is not None:
                 producto.precio_venta = Decimal(precio_venta_str)
-            # si no viene, mantenemos el valor anterior
 
             if precio_compra_str is not None:
                 producto.precio_compra = Decimal(precio_compra_str)
@@ -162,8 +169,12 @@ def editar_producto(request, id):
             if stock_str is not None:
                 stock_nuevo = Decimal(stock_str)
                 producto.stock_actual = max(stock_nuevo, Decimal('0'))
+
         except (InvalidOperation, ValueError):
-            messages.error(request, 'Formato de número inválido. Revisa precios y stock.')
+            messages.error(
+                request,
+                'Formato de número inválido. Revisa precios y stock.'
+            )
             categorias = Categoria.objects.filter(empresa=request.user.empresa)
             return render(request, 'productos/editar_producto.html', {
                 'producto': producto,
@@ -172,23 +183,33 @@ def editar_producto(request, id):
 
         categoria_id = request.POST.get('categoria')
         if categoria_id:
-            producto.categoria = Categoria.objects.get(id=categoria_id, empresa=request.user.empresa)
+            producto.categoria = Categoria.objects.get(
+                id=categoria_id,
+                empresa=request.user.empresa
+            )
 
         producto.aplica_descuento = 'aplica_descuento' in request.POST
 
         if producto.aplica_descuento:
-            # cantidad minima y porcentaje también pueden venir formateados
             raw_cant_min = request.POST.get('cantidad_minima_descuento')
             cant_min_str = _clean_number_string(raw_cant_min)
+
             try:
-                producto.cantidad_minima_descuento = int(Decimal(cant_min_str)) if cant_min_str is not None else 0
+                producto.cantidad_minima_descuento = (
+                    int(Decimal(cant_min_str))
+                    if cant_min_str is not None else 0
+                )
             except (InvalidOperation, ValueError, TypeError):
                 producto.cantidad_minima_descuento = 0
 
             raw_porcentaje = request.POST.get('porcentaje_descuento')
             porcentaje_str = _clean_number_string(raw_porcentaje)
+
             try:
-                producto.porcentaje_descuento = Decimal(porcentaje_str) if porcentaje_str is not None else None
+                producto.porcentaje_descuento = (
+                    Decimal(porcentaje_str)
+                    if porcentaje_str is not None else None
+                )
             except (InvalidOperation, ValueError, TypeError):
                 producto.porcentaje_descuento = None
         else:
@@ -204,6 +225,7 @@ def editar_producto(request, id):
         'producto': producto,
         'categorias': categorias,
     })
+
 
 @login_required
 def eliminar_producto(request, id):
@@ -337,3 +359,33 @@ def buscar_producto_por_codigo(request):
         })
     except Producto.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Producto no encontrado'})
+
+
+
+@login_required
+def generar_codigo_producto(request):
+    empresa = request.user.empresa
+    producto_id = request.GET.get("producto_id")
+
+    qs = Producto.objects.filter(
+        empresa=empresa,
+        codigo__startswith="INT-"
+    )
+
+    if producto_id:
+        qs = qs.exclude(id=producto_id)
+
+    # ⬇️ EXTRAER PARTE NUMÉRICA DEL CÓDIGO
+    qs = qs.annotate(
+        numero_codigo=Cast(Substr("codigo", 5), IntegerField())
+    )
+
+    max_numero = qs.aggregate(max_num=Max("numero_codigo"))["max_num"]
+
+    siguiente = (max_numero or 0) + 1
+    codigo = f"INT-{siguiente:06d}"
+
+    return JsonResponse({
+        "success": True,
+        "codigo": codigo
+    })

@@ -43,7 +43,7 @@
           <p>Precio: ${{ p.precio_venta|floatformat:0|formato_precio }}</p>
           <div class="flex justify-between mt-2">
             <a href="{% url 'editar_producto' p.id %}" class="text-blue-600 hover:underline">Editar</a>
-            <a href="{% url 'eliminar_producto' p.id %}" class="text-red-600 hover:underline">Eliminar</a>
+            <!-- <a href="{% url 'eliminar_producto' p.id %}" class="text-red-600 hover:underline">Eliminar</a> -->
           </div>
         </div>
         {% endif %}
@@ -73,24 +73,36 @@
       <div class="mb-2">
           <label class="block">Código</label>
 
-          <div class="relative">
-            <input
-              id="codigo"
-              name="codigo"
-              class="w-full border px-3 py-2 rounded pr-10"
-              required
-            />
+          <div class="flex gap-2">
+            <div class="relative flex-1">
+              <input
+                id="codigo"
+                name="codigo"
+                class="w-full border px-3 py-2 rounded pr-10"
+                required
+              />
 
-            <!-- BOTÓN CÁMARA: solo móvil -->
+              <!-- BOTÓN CÁMARA -->
+              <button
+                type="button"
+                onclick="abrirScannerProducto()"
+                class="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-blue-600 md:hidden"
+                title="Escanear código">
+                📷
+              </button>
+            </div>
+
+            <!-- BOTÓN GENERAR -->
             <button
               type="button"
-              onclick="abrirScannerProducto()"
-              class="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-blue-600 md:hidden"
-              title="Escanear código">
-              📷
+              onclick="generarCodigoProducto()"
+              class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm whitespace-nowrap"
+              title="Generar código interno">
+              ⚙ Generar
             </button>
           </div>
-      </div>
+        </div>
+
       <div class="mb-2">
         <label class="block">Categoría</label>
         <div class="flex gap-2 items-center">
@@ -414,6 +426,43 @@ function abrirScannerProducto() {
   });
 }
 
+</script>
+
+<!--Scrip generar codigo de producto-->
+<script>
+function generarCodigoProducto() {
+  const input = document.getElementById('codigo');
+  if (!input) return;
+
+  // Evitar sobreescribir sin querer
+  if (input.value.trim() !== '') {
+    if (!confirm('El producto ya tiene un código. ¿Reemplazarlo?')) {
+      return;
+    }
+  }
+
+  fetch("{% url 'generar_codigo_producto' %}", {
+    method: "POST",
+    headers: {
+      "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+      "X-Requested-With": "XMLHttpRequest"
+    }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      input.value = data.codigo;
+      input.focus();
+      showToast("✅ Código generado automáticamente");
+    } else {
+      showToast("⚠️ No se pudo generar el código", "error");
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    showToast("❌ Error al generar el código", "error");
+  });
+}
 </script>
 
 

@@ -11,4 +11,9 @@ urlpatterns = [
     path('productos/exportar_pdf/', views.exportar_productos_pdf, name='exportar_productos_pdf'),
     path('productos/nueva_categoria/', views.nueva_categoria, name='nueva_categoria'),
     path('buscar-producto/', views.buscar_producto_por_codigo, name='buscar_producto_por_codigo'),
+     path(
+        "generar-codigo/",
+        views.generar_codigo_producto,
+        name="generar_codigo_producto"
+    ),
 ]

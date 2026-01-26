@@ -42,7 +42,7 @@ from .forms import ClienteForm
 from django.http import JsonResponse
 from .models import Producto
 import math
-
+from caja.utils import get_caja_abierta
 from decimal import Decimal
 from urllib.parse import urlencode
 from django.contrib.auth.decorators import login_required
@@ -50,6 +50,8 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from .models import Producto, DetalleVenta, Cliente
 from .forms import VentaForm, DetalleVentaForm
+from django.contrib import messages
+
 
 
 @login_required
@@ -62,6 +64,21 @@ def nueva_venta(request):
     - Finaliza venta y actualiza saldo si es cuenta corriente
     """
 
+    # =========================
+    # CAJA ABIERTA (solo detección)
+    # =========================
+    caja_abierta = get_caja_abierta(
+        request.user,
+        request.user.empresa
+    )
+    # =========================
+    # MODAL ABRIR CAJA (solo empleados)
+    # =========================
+    abrir_modal_caja = False
+    if request.user.es_empleado and not caja_abierta:
+        abrir_modal_caja = True
+
+        
     # =========================
     # INICIALIZACIÓN DE SESIÓN
     # =========================
@@ -101,6 +118,7 @@ def nueva_venta(request):
         request.session['tipo_pago'] = tipo_pago
         request.session['tipo_comprobante'] = tipo_comprobante
         request.session['cuenta_corriente'] = cuenta_corriente
+        request.session['nota'] = request.POST.get('nota', '')
 
         # =========================
         # AGREGAR PRODUCTO
@@ -165,7 +183,29 @@ def nueva_venta(request):
         # FINALIZAR VENTA
         # =========================
         elif 'finalizar' in request.POST:
-
+            
+             # 🔒 BLOQUEAR VENTA SIN CAJA solo para empleados
+            if request.user.es_empleado and not caja_abierta:
+                abrir_modal_caja = True  # activamos modal
+                venta_form = VentaForm(initial={'cliente': cliente_id_int})
+                venta_form.fields['cliente'].queryset = Cliente.objects.filter(
+                    empresa=request.user.empresa
+                )
+                # PASAMOS TODAS LAS VARIABLES EXISTENTES
+                return render(request, 'ventas/nueva_venta.html', {
+                    'venta_form': venta_form,
+                    'detalle_form': DetalleVentaForm(),
+                    'carrito': carrito,
+                    'total': sum(float(i['subtotal']) for i in carrito),
+                    'tipo_comprobante': tipo_comprobante,
+                    'cliente_id': cliente_id_int,
+                    'cuenta_corriente': cuenta_corriente,
+                    'saldo_cliente': None if cliente_id_int is None else Cliente.objects.filter(id=cliente_id_int).first().saldo,
+                    'tipo_pago': tipo_pago,
+                    'abrir_modal_caja': abrir_modal_caja,
+                    'caja_abierta': caja_abierta,
+                })
+            
             venta_form = VentaForm(request.POST)
             venta_form.fields['cliente'].queryset = Cliente.objects.filter(
                 empresa=request.user.empresa
@@ -173,8 +213,11 @@ def nueva_venta(request):
 
             if venta_form.is_valid() and carrito:
                 venta = venta_form.save(commit=False)
+                venta.nota = request.POST.get('nota', '')
                 venta.usuario = request.user
                 venta.empresa = request.user.empresa
+                
+                venta.caja = caja_abierta
                 venta.total = sum(Decimal(str(i['subtotal'])) for i in carrito)
                 venta.tipo_comprobante = tipo_comprobante
                 venta.tipo_pago = tipo_pago
@@ -219,6 +262,8 @@ def nueva_venta(request):
                 # Limpiar sesión
                 for key in ('carrito', 'cliente_id', 'tipo_pago', 'tipo_comprobante', 'cuenta_corriente'):
                     request.session.pop(key, None)
+                request.session.pop('nota', None)
+                
 
                 return redirect(
                     f"{reverse('detalle_venta', args=[venta.id])}?tipo={tipo_comprobante}"
@@ -252,6 +297,9 @@ def nueva_venta(request):
         'cuenta_corriente': cuenta_corriente,
         'saldo_cliente': saldo_cliente,
         'tipo_pago': tipo_pago,
+        'abrir_modal_caja': abrir_modal_caja,
+        'caja_abierta': caja_abierta,
+
     })
 
 

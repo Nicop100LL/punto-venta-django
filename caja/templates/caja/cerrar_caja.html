@@ -1,0 +1,15 @@
+<h1>Cerrar Caja</h1>
+
+<p><strong>Usuario:</strong> {{ caja.usuario }}</p>
+<p><strong>Apertura:</strong> {{ caja.fecha_apertura|date:"d/m/Y H:i" }}</p>
+
+<hr>
+
+<p><strong>Total ventas del turno:</strong> ${{ total_ventas }}</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">
+        Cerrar caja
+    </button>
+</form>

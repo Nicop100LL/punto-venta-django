@@ -10,7 +10,7 @@ class DetalleVentaForm(forms.Form):
 class VentaForm(forms.ModelForm):
     class Meta:
         model = Venta
-        fields = ['cliente']
+        fields = ['cliente', 'nota']
 
 class ClienteForm(forms.ModelForm):
     class Meta:

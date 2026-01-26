@@ -82,6 +82,11 @@
     <p class="text-lg mt-1 font-bold"><strong>Total:</strong> ${{ venta.total|floatformat:0|formato_precio }}</strong>
     </p>
 
+    {% if venta.nota %}
+    <hr class="my-2 border-dashed">
+    <p><strong>Nota:</strong> {{ venta.nota }}</p>
+    {% endif %}
+
     <!-- Botones solo visibles fuera de impresión -->
     <div class="no-print mt-4 flex justify-between">
         <button onclick="window.print()"

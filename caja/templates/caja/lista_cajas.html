@@ -1,0 +1,65 @@
+{% extends "caja/base_caja.html" %}
+{% load custom_filters %}
+{% block caja_content %}
+<h1 class="text-xl font-bold mb-4">Cierres de Caja</h1>
+
+<table class="w-full border text-sm">
+    <thead class="bg-gray-100">
+        <tr>
+            <th class="border px-2 py-1">Usuario</th>
+            <th class="border px-2 py-1">Apertura</th>
+            <th class="border px-2 py-1">Cierre</th>
+            <th class="border px-2 py-1">Monto Inicial</th>
+            <th class="border px-2 py-1">Saldo Final</th>
+            <th class="border px-2 py-1">Acciones</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for caja in cajas %}
+        <tr class="border-t">
+            <td class="px-2 py-1">{{ caja.usuario.username }}</td>
+
+            <td class="px-2 py-1">
+                {{ caja.fecha_apertura|date:"d/m/Y H:i" }}
+            </td>
+
+            <td class="px-2 py-1">
+                {% if caja.fecha_cierre %}
+                    {{ caja.fecha_cierre|date:"d/m/Y H:i" }}
+                {% else %}
+                    <span class="text-green-600 font-semibold">ABIERTA</span>
+                {% endif %}
+            </td>
+
+            <td class="px-2 py-1">
+                ${{ caja.monto_inicial|floatformat:0|formato_precio }}
+            </td>
+
+            <td class="px-2 py-1">
+                {% if caja.saldo_final %}
+                    ${{ caja.saldo_final|floatformat:0|formato_precio }}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+
+            <td class="px-2 py-1">
+                <a
+                    href="{% url 'detalle_caja_historica' caja.id %}"
+                    class="text-blue-600 hover:underline"
+                >
+                    Ver detalle
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" class="text-center py-4 text-gray-500">
+                No hay cierres registrados.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

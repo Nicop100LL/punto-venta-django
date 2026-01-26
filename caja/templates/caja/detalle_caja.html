@@ -1,0 +1,50 @@
+<h1>Detalle de Caja</h1>
+
+<p>Usuario: {{ caja.usuario }}</p>
+<p>Apertura: {{ caja.fecha_apertura|date:"d/m/Y H:i" }}</p>
+<p>Cierre: 
+    {% if caja.fecha_cierre %}
+        {{ caja.fecha_cierre|date:"d/m/Y H:i" }}
+    {% else %}
+        <strong>ABIERTA</strong>
+    {% endif %}
+</p>
+<p>Monto inicial: ${{ caja.monto_inicial }}</p>
+
+<h2>Totales de ventas</h2>
+<ul>
+    <li>Total general: ${{ total_general|floatformat:2 }}</li>
+    <li>Efectivo: ${{ total_efectivo|floatformat:2 }}</li>
+    <li>QR: ${{ total_qr|floatformat:2 }}</li>
+    <li>Tarjeta: ${{ total_tarjeta|floatformat:2 }}</li>
+    <li>Transferencia: ${{ total_transferencia|floatformat:2 }}</li>
+    <li>Cuenta corriente: ${{ total_cuenta_corriente|floatformat:2 }}</li>
+</ul>
+
+<h2>Ventas</h2>
+<table border="1" cellpadding="5">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Cliente</th>
+            <th>Total</th>
+            <th>Tipo de Pago</th>
+            <th>Fecha</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for venta in caja.ventas.all %}
+        <tr>
+            <td>{{ venta.id }}</td>
+            <td>{% if venta.cliente %}{{ venta.cliente.nombre }}{% else %}-{% endif %}</td>
+            <td>${{ venta.total|floatformat:2 }}</td>
+            <td>{{ venta.get_tipo_pago_display }}</td>
+            <td>{{ venta.fecha|date:"d/m/Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5">No hay ventas registradas en esta caja.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

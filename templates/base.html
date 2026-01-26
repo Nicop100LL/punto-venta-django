@@ -1,4 +1,5 @@
 {% load static %}
+{% load custom_filters %}
 
 <!DOCTYPE html>
 <html lang="es">
@@ -19,7 +20,13 @@
     <link rel="icon" type="image/png" href="{% static 'logoB.png' %}" />
 </head>
 
-<body class="bg-gray-100 min-h-screen text-gray-800" x-data="{ open: false }">
+<body
+  class="bg-gray-100 min-h-screen text-gray-800"
+  x-data="{
+    open: false,
+    openCerrarCaja: false,
+    openAbrirCaja: {{ abrir_modal_caja|yesno:'true,false' }}
+  }">
 
 
     <div class="flex flex-col min-h-screen">
@@ -53,8 +60,44 @@
                     class="block px-4 py-2 rounded hover:bg-blue-100
                     {% if '/impresion/' in request.path %}bg-blue-100{% endif %}">
                     🏷️ Impresión de etiquetas</a>
+                <a href="{% url 'lista_cajas' %}"
+                  class="block px-4 py-2 rounded hover:bg-blue-100">
+                   💼 Cajas
+                </a>
+
 
             </nav>
+       <!-- BLOQUE CAJA -->
+        <div class="absolute bottom-0 left-0 w-full p-4 border-t bg-gray-50">
+
+            {% if caja_abierta %}
+                <div class="flex items-center justify-between">
+                    <div class="text-sm">
+                        <p class="text-green-600 font-semibold">● Caja abierta</p>
+                        <p class="text-xs text-gray-500">
+                            {{ caja_abierta.fecha_apertura|date:"H:i" }}
+                        </p>
+                    </div>
+
+                    <button
+                        @click="openCerrarCaja = true"
+                        class="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700">
+                        Cerrar
+                    </button>
+
+                </div>
+            {% else %}
+                <button
+                    @click="openAbrirCaja = true"
+                    class="w-full bg-yellow-500 text-black px-3 py-1 rounded text-xs hover:bg-yellow-600">
+                    Abrir caja
+                </button>
+
+            {% endif %}
+
+        </div>
+
+
         </aside>
         <!-- Contenido principal -->
         <div class="flex-1 min-h-screen flex flex-col ml-0 md:ml-64">
@@ -111,6 +154,33 @@
                 </div>
 
             </header>
+
+{% if messages %}
+<div
+    x-data="{ show: true }"
+    x-init="setTimeout(() => show = false, 3000)"
+    x-show="show"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="opacity-0 translate-y-2"
+    x-transition:enter-end="opacity-100 translate-y-0"
+    x-transition:leave="transition ease-in duration-300"
+    x-transition:leave-start="opacity-100 translate-y-0"
+    x-transition:leave-end="opacity-0 translate-y-2"
+    class="fixed top-20 right-4 z-50 space-y-2"
+>
+    {% for message in messages %}
+    <div class="
+        px-4 py-2 rounded-lg shadow-lg text-sm font-medium
+        {% if message.tags == 'success' %}bg-green-600 text-white{% endif %}
+        {% if message.tags == 'warning' %}bg-yellow-500 text-black{% endif %}
+        {% if message.tags == 'error' %}bg-red-600 text-white{% endif %}
+    ">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 
             <!-- Contenido -->
             <main class="p-6 flex-1 bg-gray-50">
@@ -265,6 +335,127 @@
   </div>
 </div>
 
+<!--Modal abrir caja-->
+<div
+    x-show="openAbrirCaja"
+    x-cloak
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="opacity-0 scale-95"
+    x-transition:enter-end="opacity-100 scale-100"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-start="opacity-100 scale-100"
+    x-transition:leave-end="opacity-0 scale-95"
+
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+
+    <div
+        @click.outside="openAbrirCaja = false"
+        class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+
+        <h2 class="text-lg font-bold mb-4 text-yellow-600">
+            💰 Abrir Caja
+        </h2>
+
+        <form method="post" action="{% url 'abrir_caja' %}">
+            {% csrf_token %}
+
+            <label class="block text-sm font-medium mb-2">
+                Monto inicial
+            </label>
+
+            <input
+                type="number"
+                step="0.01"
+                name="monto_inicial"
+                required
+                class="w-full border rounded px-3 py-2 mb-4">
+
+            <div class="flex justify-end gap-2">
+                <button
+                    type="button"
+                    @click="openAbrirCaja = false"
+                    class="px-4 py-2 bg-gray-300 rounded">
+                    Cancelar
+                </button>
+
+                <button
+                    type="submit"
+                    class="px-4 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-600">
+                    Abrir caja
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!--Modal cerrar sesion caja-->
+<div
+    
+    x-show="openCerrarCaja"
+    x-cloak
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+
+    <div
+        @click.outside="openCerrarCaja = false"
+        class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+
+        <h2 class="text-lg font-bold mb-4 text-red-600">
+            ⚠️ Cierre de Caja
+        </h2>
+
+        <!-- Resumen -->
+        <div class="text-sm space-y-2 mb-4">
+            <p><strong>Fecha apertura:</strong> {{ caja_abierta.fecha_apertura|date:"d/m/Y H:i" }}</p>
+            <p><strong>Monto inicial:</strong> ${{ caja_abierta.monto_inicial|floatformat:0|formato_precio }}</p>
+
+            <hr>
+
+            <p><strong>Total ventas:</strong> ${{ total_ventas|floatformat:0|formato_precio }}</p>
+            <p><strong>Ingresos efectivo:</strong> ${{ total_efectivo|floatformat:0|formato_precio }}</p>
+            <p><strong>Otros medios:</strong> ${{ total_no_efectivo|floatformat:0|formato_precio }}</p>
+
+            <hr>
+
+            <p class="text-base font-semibold">
+                Total en caja esperado:
+                <span class="float-right">
+                    ${{ total_caja|floatformat:0|formato_precio }}
+                </span>
+            </p>
+        </div>
+
+        <!-- Confirmación -->
+        <form method="post" action="{% url 'cerrar_caja' %}">
+            {% csrf_token %}
+
+            <label class="block text-sm font-medium mb-2">
+                Monto real en caja:
+            </label>
+            <input
+                type="number"
+                step="0.01"
+                name="monto_cierre"
+                required
+                class="w-full border rounded px-3 py-2 mb-4">
+
+            <div class="flex justify-end gap-2">
+                <button
+                    type="button"
+                    @click="openCerrarCaja = false"
+                    class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+                    Cancelar
+                </button>
+
+                <button
+                    type="submit"
+                    class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                    Confirmar cierre
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 
 
 
@@ -295,6 +486,9 @@ window.addEventListener('popstate', () => {
     }
 });
 </script>
+
+
+
 
 
 </body>

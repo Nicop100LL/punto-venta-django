@@ -34,7 +34,7 @@
         </div>
 
 
-        </select>
+        
     </div>
     <div class="mb-4">
         <label for="tipo_pago" class="block text-sm font-medium text-gray-700">Tipo de pago</label>
@@ -107,6 +107,25 @@
         </div>
 
     </div>
+
+<div class="mb-4">
+    <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+        <input type="checkbox" id="toggle-nota" class="rounded">
+        Agregar nota
+    </label>
+</div>
+
+<div id="bloque-nota" class="mb-4 hidden">
+    <label for="nota" class="block text-gray-700 font-bold mb-2">
+        Nota (opcional):
+    </label>
+    <textarea
+        name="nota"
+        id="nota"
+        rows="2"
+        class="w-full border border-gray-300 rounded px-3 py-2"
+        placeholder="Comentario de la venta..."></textarea>
+</div>
 
 
  <!-- =========================================================
@@ -221,6 +240,7 @@
     <input type="hidden" name="tipo_comprobante" value="{{ tipo_comprobante }}">
     <input type="hidden" name="cliente" id="cliente-hidden-finalizar">
     <input type="hidden" name="tipo_pago" value="{{ tipo_pago }}">
+    <input type="hidden" name="nota" id="nota-hidden-finalizar">
 
     <div class="mb-4">
         <label for="cuenta_corriente" class="inline-flex items-center">
@@ -456,6 +476,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // sincronizar al cargar
     clienteHiddenFinalizar.value = selectCliente.value;
+
+        // ===============================
+        // SINCRONIZAR NOTA CON FORM FINALIZAR
+        // ===============================
+        const textareaNota = document.getElementById('nota');
+        const notaHiddenFinalizar = document.getElementById('nota-hidden-finalizar');
+
+        if (textareaNota && notaHiddenFinalizar) {
+            // sincronizar al cargar
+            notaHiddenFinalizar.value = textareaNota.value;
+
+            // sincronizar mientras escribe
+            textareaNota.addEventListener('input', () => {
+                notaHiddenFinalizar.value = textareaNota.value;
+            });
+        }
+    document.addEventListener('change', (e) => {
+        if (e.target.id === 'toggle-nota') {
+            const bloqueNota = document.getElementById('bloque-nota');
+            const textareaNota = document.getElementById('nota');
+
+            if (bloqueNota) {
+                const visible = e.target.checked;
+                bloqueNota.classList.toggle('hidden', !visible);
+
+                if (visible && textareaNota) {
+                    setTimeout(() => {
+                        textareaNota.focus();
+                    }, 50);
+                }
+            }
+        }
+    });
+
+
 
     // sincronizar cada vez que cambia el cliente
     selectCliente.addEventListener('change', () => {

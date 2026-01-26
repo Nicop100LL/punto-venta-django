@@ -4,14 +4,20 @@
     {% for producto in hoja %}
         <div class="etiqueta">
             <div class="titulo">{{ producto.nombre }}</div>
-
-            {% if modelo.mostrar_codigo %}
+             {% if modelo.mostrar_barcode %}
+                <div class="barcode">
+                    <img src="data:image/svg+xml;base64,{{ producto.barcode_svg|safe }}">
+                </div>
+            {% elif modelo.mostrar_codigo %}
                 <div class="codigo">{{ producto.codigo }}</div>
             {% endif %}
 
+
+
             {% if modelo.mostrar_precio %}
-                <div class="precio">$ {{ producto.precio_venta|floatformat:0|formato_precio }}</div>
+                <div class="precio">$ {{ producto.precio_venta|formato_precio }}</div>
             {% endif %}
+        
         </div>
     {% endfor %}
 </div>

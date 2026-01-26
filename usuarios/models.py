@@ -14,6 +14,10 @@ class Empresa(models.Model):
 
 class Usuario(AbstractUser):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, null=True, blank=True)
+    es_empleado = models.BooleanField(
+        default=False,
+        help_text="Si está tildado, necesita abrir caja para vender y tiene restricciones de acceso"
+    )
 
     def is_superuser_or_staff(self):
         return self.is_superuser or self.is_staff

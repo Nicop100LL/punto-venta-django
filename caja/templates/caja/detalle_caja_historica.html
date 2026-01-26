@@ -1,0 +1,107 @@
+{% extends "caja/base_caja.html" %}
+{% load custom_filters %}
+
+{% block acciones_caja %}
+<a href="{% url 'lista_cajas' %}"
+   class="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300">
+   ← Volver
+</a>
+{% endblock %}
+
+{% block caja_content %}
+
+<!-- Datos generales -->
+<div class="bg-white rounded shadow p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-2">
+        Detalle de Caja
+    </h2>
+
+    <p class="text-sm text-gray-700">
+        <strong>Usuario:</strong> {{ caja.usuario }}<br>
+        <strong>Apertura:</strong> {{ caja.fecha_apertura|date:"d/m/Y H:i" }}<br>
+        <strong>Cierre:</strong>
+        {% if caja.fecha_cierre %}
+            {{ caja.fecha_cierre|date:"d/m/Y H:i" }}
+        {% else %}
+            <span class="text-green-600 font-semibold">ABIERTA</span>
+        {% endif %}<br>
+        <strong>Monto inicial:</strong> ${{ caja.monto_inicial|floatformat:2|formato_precio }}<br>
+        <strong>Ingreso total en caja:</strong> ${{ total_ventas|floatformat:2|formato_precio }}<br>
+        {% if caja.fecha_cierre %}
+       <strong>Diferencia:</strong> ${{ caja.diferencia|floatformat:2|formato_precio }}<br>
+       <strong>Saldo final:</strong> ${{ caja.saldo_final|floatformat:0|formato_precio }}
+
+        {% endif %}
+    </p>
+</div>
+
+<!-- Ventas -->
+<div class="bg-white rounded shadow p-4 mb-6">
+    <h3 class="text-md font-semibold mb-3">
+        Ventas
+    </h3>
+
+    <div class="overflow-x-auto max-h-64 overflow-y-auto border rounded">
+        <table class="min-w-full text-sm border-collapse border border-gray-200">
+            <thead class="bg-gray-100 sticky top-0">
+                <tr>
+                    <th scope="col" class="p-2 border-b text-left">#</th>
+                    <th scope="col" class="p-2 border-b text-left">Fecha</th>
+                    <th scope="col" class="p-2 border-b text-left">Pago</th>
+                    <th scope="col" class="p-2 border-b text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for venta in ventas %}
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-2">{{ venta.numero_empresa }}</td>
+                    <td class="p-2">{{ venta.fecha|date:"d/m/Y H:i" }}</td>
+                    <td class="p-2">{{ venta.get_tipo_pago_display }}</td>
+                    <td class="p-2 text-right font-semibold">
+                        ${{ venta.total|floatformat:2|formato_precio }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="p-4 text-center text-gray-500">
+                        No hay ventas registradas
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Totales por medio de pago -->
+<div class="grid md:grid-cols-2 gap-6 mb-6">
+
+    <div class="bg-white rounded shadow p-4">
+        <h3 class="text-md font-semibold mb-2">
+            Totales por medio de pago
+        </h3>
+
+        <ul class="text-sm space-y-1">
+            <li class="text-green-600">💵 Efectivo: ${{ totales.EF|default:0|floatformat:2|formato_precio }}</li>
+            <li class="text-blue-600">📲 QR Mercado Pago: ${{ totales.MP|default:0|floatformat:2|formato_precio }}</li>
+            <li class="text-blue-800">📲 QR Cuenta DNI: ${{ totales.DN|default:0|floatformat:2|formato_precio }}</li>
+            <li class="text-purple-600">💳 Tarjeta: ${{ totales.TJ|default:0|floatformat:2|formato_precio }}</li>
+            <li class="text-gray-800">🏦 Transferencia: ${{ totales.TR|default:0|floatformat:2|formato_precio }}</li>
+            <li class="text-yellow-700">🏛️ Cuenta corriente: ${{ totales.CC|default:0|floatformat:2|formato_precio }}</li>
+
+        </ul>
+    </div>
+
+    <div class="bg-white rounded shadow p-4">
+        <h3 class="text-md font-semibold mb-2">
+            Totales generales
+        </h3>
+
+        <p class="text-lg font-bold text-right">
+            ${{ total_ventas|floatformat:2|formato_precio }}
+        </p>
+    </div>
+
+</div>
+
+{% endblock %}

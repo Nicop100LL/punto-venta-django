@@ -56,6 +56,17 @@ body {
     font-size: {{ modelo.precio_tamano }}px;
     font-weight: {{ modelo.precio_negrita|yesno:"bold,normal" }};
 }
+/* ====== BARCODE ====== */
+.barcode {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.barcode img {
+    display: block;
+}
+
 
 /* ====== SOLO IMPRESIÓN ====== */
 @media print {

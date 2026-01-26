@@ -2,8 +2,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import Usuario, Empresa
-from ventas.models import Cliente  # Asegurate de que esté definido ahí
-
+from ventas.models import Cliente
 from .forms import UsuarioCreationForm, UsuarioChangeForm
 
 class UsuarioAdmin(UserAdmin):
@@ -11,16 +10,18 @@ class UsuarioAdmin(UserAdmin):
     form = UsuarioChangeForm
     model = Usuario
 
-    list_display = ('username', 'email', 'empresa', 'is_staff', 'is_active')
+    list_display = ('username', 'email', 'empresa', 'is_staff', 'is_active', 'es_empleado')  # Mostrar en lista
 
+    # Para la edición
     fieldsets = UserAdmin.fieldsets + (
-        (None, {'fields': ('empresa',)}),
+        (None, {'fields': ('empresa', 'es_empleado')}),  # agregamos es_empleado aquí
     )
 
+    # Para la creación
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'password1', 'password2', 'empresa'),
+            'fields': ('username', 'password1', 'password2', 'empresa', 'es_empleado'),  # agregamos es_empleado aquí
         }),
     )
 

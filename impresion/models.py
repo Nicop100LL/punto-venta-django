@@ -62,6 +62,25 @@ class ModeloImpresion(models.Model):
     precio_color = models.CharField(max_length=20, default="#000000")
     precio_tamano = models.PositiveIntegerField(default=28)
     precio_negrita = models.BooleanField(default=True)
+    
+    # ===== CÓDIGO DE BARRAS =====
+    mostrar_barcode = models.BooleanField(default=False)
+
+    barcode_ancho = models.PositiveIntegerField(
+        default=120,
+        help_text="Ancho del código de barras en px"
+    )
+
+    barcode_alto = models.PositiveIntegerField(
+        default=40,
+        help_text="Alto del código de barras en px"
+    )
+
+    barcode_mostrar_texto = models.BooleanField(
+        default=False,
+        help_text="Mostrar el código debajo del barcode"
+    )
+
 
     # ===== OPCIONES =====
     mostrar_codigo = models.BooleanField(default=True)

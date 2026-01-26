@@ -4,6 +4,7 @@ from usuarios.models import Usuario, Empresa
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.conf import settings
+from caja.models import CierreCaja
 
 
 TIPO_COMPROBANTE_CHOICES = [
@@ -42,6 +43,14 @@ class Venta(models.Model):
         max_length=20,
         choices=TIPO_COMPROBANTE_CHOICES,
         default='ticket'
+    )
+    nota = models.TextField(blank=True, null=True)  
+    caja = models.ForeignKey(
+        CierreCaja,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ventas'
     )
 
     # 🔥 NUEVO: número correlativo por empresa

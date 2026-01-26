@@ -22,7 +22,8 @@ urlpatterns = [
     path('reportes/', include('reportes.urls')),
     path('dashboard/', dashboard, name='dashboard'),
     path('impresion/', include('impresion.urls')),
-    
+    path('caja/', include('caja.urls')),
+
 
 ]
 

@@ -29,25 +29,35 @@
             <div>
                 <label for="codigo" class="block text-sm font-medium">Código</label>
 
-                <div class="relative">
-                    <input
-                        type="text"
-                        id="codigo"
-                        name="codigo"
-                        value="{{ producto.codigo }}"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm pr-10"
-                        required
-                    >
+             <div class="relative flex gap-1">
+                <input
+                    type="text"
+                    id="codigo"
+                    name="codigo"
+                    value="{{ producto.codigo }}"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    required
+                >
 
-                    <!-- Botón cámara: solo móvil -->
-                    <button
-                        type="button"
-                        onclick="abrirScannerProductoEditar()"
-                        class="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-blue-600 md:hidden"
-                        title="Escanear código">
-                        📷
-                    </button>
-                </div>
+                <!-- Generar código -->
+                <button
+                    type="button"
+                    onclick="generarCodigoProducto()"
+                    class="mt-1 px-2 border rounded text-gray-600 hover:bg-gray-100"
+                    title="Generar código">
+                    🔁
+                </button>
+
+                <!-- Escanear (solo móvil) -->
+                <button
+                    type="button"
+                    onclick="abrirScannerProductoEditar()"
+                    class="mt-1 px-2 border rounded text-gray-600 hover:bg-gray-100 md:hidden"
+                    title="Escanear código">
+                    📷
+                </button>
+            </div>
+
 
             </div>
 
@@ -163,13 +173,32 @@ function abrirScannerProductoEditar() {
 
 
     // escribir código escaneado en el input
-    const input = document.getElementById('codigo-producto');
+    const input = document.getElementById('codigo');
     if (input) {
       input.value = codigo;
       input.focus();
     }
   });
 }
+</script>
+
+<!--Generar código-->
+<script>
+function generarCodigoProducto() {
+    fetch("{% url 'generar_codigo_producto' %}?producto_id={{ producto.id }}")
+        .then(r => r.json())
+        .then(data => {
+            if (data.codigo) {
+                const input = document.getElementById('codigo');
+                input.value = data.codigo;
+                input.focus();
+            } else {
+                alert('No se pudo generar el código');
+            }
+        })
+        .catch(() => alert('Error al generar el código'));
+}
+
 </script>
 
 

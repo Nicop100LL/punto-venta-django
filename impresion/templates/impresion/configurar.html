@@ -31,6 +31,7 @@
                 filas: {{ modelo.filas }},
                 mostrar_codigo: {{ modelo.mostrar_codigo|yesno:'true,false' }},
                 mostrar_precio: {{ modelo.mostrar_precio|yesno:'true,false' }},
+                mostrar_barcode: {{ modelo.mostrar_barcode|yesno:'true,false' }}, 
                 tamano_hoja: '{{ modelo.tamano_hoja }}',
                 orientacion: '{{ modelo.orientacion }}'
             },
@@ -75,6 +76,7 @@
                 grid-template-columns: repeat(${m.columnas}, 1fr);
                 grid-template-rows: repeat(${m.filas}, 1fr);
                 gap: 6mm;
+                align-items: stretch; 
             `
         },
 
@@ -90,7 +92,48 @@
                 pages.push(this.seleccionados.slice(i, i + max))
             }
             return pages
+        },
+
+        clasesEtiqueta() {
+            if (!this.modeloSeleccionado) return {}
+
+            const m = this.modelos[Number(this.modeloSeleccionado)]
+            if (!m) return {}
+
+            const total = m.columnas * m.filas
+
+            if (total <= 4) {
+                return {
+                    nombre: 'text-lg',
+                    precio: 'text-2xl',
+                    codigo: 'text-sm'
+                }
+            }
+
+            if (total <= 6) {
+                return {
+                    nombre: 'text-base',
+                    precio: 'text-xl',
+                    codigo: 'text-xs'
+                }
+            }
+
+            if (total <= 8) {
+                return {
+                    nombre: 'text-sm',
+                    precio: 'text-lg',
+                    codigo: 'text-xs'
+                }
+            }
+
+            return {
+                nombre: 'text-xs',
+                precio: 'text-base',
+                codigo: 'text-[10px]'
+            }
         }
+
+
 
     }"
     class="max-w-7xl mx-auto"
@@ -198,24 +241,67 @@
 
                             <template x-for="id in pagina" :key="id">
                                 <template x-if="getProducto(id)">
-                                    <div class="border p-3 flex flex-col justify-between text-center">
+                                    <div
+                                        class="border p-3 flex flex-col text-center"
+                                        style="height: 100%; overflow: hidden;"
+                                    >
+                                        <div
+                                            class="w-full h-full flex flex-col justify-center items-center"
+                                            :style="`transform: scale(${escalaEtiqueta()}); transform-origin: center;`"
+                                        >
 
 
-                                        <div class="text-lg font-bold"
-                                            x-text="getProducto(id).nombre"></div>
+                                        <!-- NOMBRE -->
+                                        <div
+                                            class="font-bold truncate"
+                                            :class="clasesEtiqueta().nombre"
+                                            x-text="getProducto(id).nombre">
+                                        </div>
 
-                                        <template x-if="modelos[Number(modeloSeleccionado)].mostrar_codigo">
-                                            <div class="text-sm text-gray-600"
-                                                x-text="getProducto(id).codigo"></div>
+                                        <!-- BARCODE (PREVIEW) -->
+                                        <template x-if="modelos[Number(modeloSeleccionado)].mostrar_barcode">
+                                            <div class="my-2 flex flex-col items-center">
+                                                <!-- Simulación visual del barcode -->
+                                                <div class="bg-black"
+                                                    style="width:120px; height:40px;">
+                                                </div>
+
+                                                <!-- Texto del código (opcional, solo visual) -->
+                                                <div class="text-xs mt-1 text-gray-600"
+                                                    x-text="getProducto(id).codigo">
+                                                </div>
+                                            </div>
                                         </template>
 
+                                        <!-- CÓDIGO (solo si NO hay barcode) -->
+                                        <template
+                                            x-if="!modelos[Number(modeloSeleccionado)].mostrar_barcode
+                                                && modelos[Number(modeloSeleccionado)].mostrar_codigo">
+                                            <div
+                                                class="truncate text-gray-600"
+                                                :class="clasesEtiqueta().codigo"
+                                                x-text="getProducto(id).codigo">
+                                            </div>
+
+                                        </template>
+
+                                        <!-- PRECIO -->
                                         <template x-if="modelos[Number(modeloSeleccionado)].mostrar_precio">
-                                            <div class="text-2xl font-extrabold">
-                                                $ <span x-text="getProducto(id).precio.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })"></span>
+                                            <div
+                                                class="font-extrabold"
+                                                :class="clasesEtiqueta().precio">
+                                                $ <span
+                                                    x-text="getProducto(id).precio.toLocaleString(
+                                                        'es-AR',
+                                                        { minimumFractionDigits: 0, maximumFractionDigits: 0 }
+                                                    )">
+                                                </span>
                                             </div>
                                         </template>
 
                                     </div>
+                                    </div>
+
                                 </template>
                             </template>
 

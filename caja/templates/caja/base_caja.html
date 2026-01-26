@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4">
+
+    <!-- Header Caja -->
+    <div class="flex items-center justify-between mb-6 border-b pb-3">
+        <h1 class="text-xl font-bold text-gray-800">
+            💰 Caja
+        </h1>
+
+        {% block acciones_caja %}
+        <!-- botones específicos de cada pantalla -->
+        {% endblock %}
+    </div>
+
+    <!-- Contenido específico -->
+    {% block caja_content %}
+    {% endblock %}
+
+</div>
+{% endblock %}
