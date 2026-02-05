@@ -63,6 +63,8 @@ def nueva_venta(request):
     - Guarda cliente en sesión
     - Finaliza venta y actualiza saldo si es cuenta corriente
     """
+    PRODUCTO_VARIOS_CODIGO = '1010'
+
 
     # =========================
     # CAJA ABIERTA (solo detección)
@@ -126,6 +128,7 @@ def nueva_venta(request):
         if 'agregar' in request.POST:
             codigo = request.POST.get('codigo')
             cantidad = Decimal(request.POST.get('cantidad', '1'))
+            precio_manual = request.POST.get('precio_unitario')
 
             try:
                 producto = Producto.objects.get(
@@ -140,11 +143,26 @@ def nueva_venta(request):
 
                 # Calculamos precio con descuento
                 def calcular_precio(cant):
-                    if producto.aplica_descuento and cant >= producto.cantidad_minima_descuento:
-                        return producto.precio_venta * (1 - producto.porcentaje_descuento / 100), producto.porcentaje_descuento
+                    # 🔥 PRODUCTO VARIOS → precio manual, sin descuento
+                    if producto.codigo == PRODUCTO_VARIOS_CODIGO and precio_manual:
+                        return Decimal(precio_manual), 0
+
+                    # Productos normales con descuento
+                    if (
+                        producto.aplica_descuento and
+                        producto.cantidad_minima_descuento and
+                        cant >= producto.cantidad_minima_descuento
+                    ):
+                        return (
+                            producto.precio_venta * (1 - producto.porcentaje_descuento / 100),
+                            producto.porcentaje_descuento
+                        )
+
                     return producto.precio_venta, 0
 
-                if item:
+
+                if item and producto.codigo != PRODUCTO_VARIOS_CODIGO:
+
                     item['cantidad'] += float(cantidad)
                     precio, descuento = calcular_precio(item['cantidad'])
                     item['precio_unitario'] = float(precio)
@@ -152,14 +170,21 @@ def nueva_venta(request):
                     item['descuento'] = float(descuento)
                 else:
                     precio, descuento = calcular_precio(cantidad)
-                    carrito.append({
+                    item_dict = {
                         'producto_id': producto.id,
                         'nombre': producto.nombre,
                         'precio_unitario': float(precio),
                         'cantidad': float(cantidad),
                         'subtotal': float(precio * cantidad),
                         'descuento': float(descuento),
-                    })
+                    }
+
+                    # 🔹 Agregamos codigo_unico solo para VARIOS
+                    if producto.codigo == PRODUCTO_VARIOS_CODIGO:
+                        item_dict['codigo_unico'] = request.POST.get('codigo_unico_varios')
+
+                    carrito.append(item_dict)
+
 
                 request.session['carrito'] = carrito
                 request.session.modified = True
@@ -171,13 +196,24 @@ def nueva_venta(request):
         # =========================
         # ELIMINAR PRODUCTO
         # =========================
+        elif 'eliminar_codigo_unico' in request.POST:
+            # Borrar un producto VARIOS por su código único
+            codigo_unico = request.POST.get('eliminar_codigo_unico')
+            request.session['carrito'] = [
+                i for i in carrito if i.get('codigo_unico') != codigo_unico
+            ]
+            request.session.modified = True
+            return redirect('nueva_venta')
+
         elif 'eliminar_codigo' in request.POST:
+            # Borrar productos normales por producto_id
             producto_id = int(request.POST.get('eliminar_codigo'))
             request.session['carrito'] = [
                 i for i in carrito if i['producto_id'] != producto_id
             ]
             request.session.modified = True
             return redirect('nueva_venta')
+
 
         # =========================
         # FINALIZAR VENTA
@@ -250,14 +286,20 @@ def nueva_venta(request):
                 # Detalle y stock
                 for item in carrito:
                     producto = Producto.objects.get(id=item['producto_id'])
+
                     DetalleVenta.objects.create(
                         venta=venta,
                         producto=producto,
                         cantidad=item['cantidad'],
                         precio_unitario=item['precio_unitario']
                     )
+
+                # 🔥 NO descontar stock para VARIOS
+                if producto.codigo != PRODUCTO_VARIOS_CODIGO:
                     producto.stock_actual -= Decimal(str(item['cantidad']))
                     producto.save()
+
+
 
                 # Limpiar sesión
                 for key in ('carrito', 'cliente_id', 'tipo_pago', 'tipo_comprobante', 'cuenta_corriente'):

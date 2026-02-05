@@ -23,6 +23,8 @@ urlpatterns = [
     path('dashboard/', dashboard, name='dashboard'),
     path('impresion/', include('impresion.urls')),
     path('caja/', include('caja.urls')),
+    path("impresoras/", include("impresoras.urls")),
+
 
 
 ]
