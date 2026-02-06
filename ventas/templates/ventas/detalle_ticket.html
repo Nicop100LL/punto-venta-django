@@ -87,12 +87,55 @@
     <p><strong>Nota:</strong> {{ venta.nota }}</p>
     {% endif %}
 
+    {% if venta.notas_credito.exists %}
+    <hr class="my-2 border-dashed">
+
+    <h3 class="text-xs font-bold mb-1">
+        Notas de Crédito
+    </h3>
+
+    <table class="w-full text-[10px]">
+        <thead>
+            <tr class="border-b border-black">
+                <th class="text-left">#</th>
+                <th class="text-left">Fecha</th>
+                <th class="text-right">Total</th>
+                <th class="text-right">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for nc in venta.notas_credito.all %}
+            <tr>
+                <td>{{ nc.id }}</td>
+                <td>{{ nc.fecha|date:"d/m/Y H:i" }}</td>
+                <td class="text-right">
+                    ${{ nc.total|floatformat:0|formato_precio }}
+                </td>
+                <td class="text-right">
+                    <a href="{% url 'detalle_nota_credito' nc.id %}"
+                    class="text-blue-600 underline">
+                        Ver
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+
     <!-- Botones solo visibles fuera de impresión -->
     <div class="no-print mt-4 flex justify-between">
         <button onclick="window.print()"
             class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700">Imprimir</button>
         <a href="{% url 'venta_pdf' venta.id %}"
             class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700">PDF</a>
+        
+            <!-- NUEVO: botón Nota de Crédito -->
+        <a href="{% url 'crear_nota_credito' venta.id %}"
+            class="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600">
+            Crear Nota de Crédito
+        </a>
     </div>
 
 </div>

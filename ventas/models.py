@@ -107,3 +107,45 @@ class PagoCliente(models.Model):
 
     def __str__(self):
         return f"{self.cliente.nombre} - {self.tipo} - {self.monto} ({self.fecha})"
+    
+
+
+class NotaCredito(models.Model):
+    venta = models.ForeignKey(Venta, on_delete=models.PROTECT, related_name='notas_credito')
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
+    fecha = models.DateTimeField(auto_now_add=True)
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    motivo = models.TextField(blank=True, null=True)
+    estado = models.CharField(
+        max_length=20,
+        choices=[('pendiente', 'Pendiente'), ('aplicada', 'Aplicada'), ('cancelada', 'Cancelada')],
+        default='pendiente'
+    )
+    caja = models.ForeignKey(
+        'caja.CierreCaja',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notas_credito'
+    )
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return f"Nota de Crédito #{self.id} - Venta #{self.venta.id}"
+
+
+class DetalleNotaCredito(models.Model):
+    nota_credito = models.ForeignKey(
+        NotaCredito,
+        related_name='detalles',
+        on_delete=models.CASCADE
+    )
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+    cantidad = models.DecimalField(max_digits=10, decimal_places=2)
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)

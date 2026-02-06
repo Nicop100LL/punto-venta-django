@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Nota de Crédito{% endblock %}
+
+{% block content %}
+<div class="boleta mx-auto p-4 bg-white shadow text-[10px]">
+
+    <!-- Encabezado -->
+    <h1 class="text-center font-bold text-lg">
+        NOTA DE CRÉDITO
+    </h1>
+
+    <p class="text-center text-xs mb-2">
+        Asociada a Venta #{{ nota.venta.numero_empresa }}
+    </p>
+
+    <hr class="my-2 border-dashed">
+
+    <!-- Datos generales -->
+    <p><strong>Fecha:</strong> {{ nota.fecha|date:"d/m/Y H:i" }}</p>
+    <p>
+        <strong>Usuario:</strong>
+        {{ nota.usuario.get_full_name|default:nota.usuario.username }}
+    </p>
+
+    {% if nota.cliente %}
+        <p><strong>Cliente:</strong> {{ nota.cliente.nombre }}</p>
+    {% else %}
+        <p><strong>Cliente:</strong> Consumidor Final</p>
+    {% endif %}
+
+    <hr class="my-2 border-dashed">
+
+    <!-- Detalle de productos -->
+    <table class="w-full text-xs">
+        <thead>
+            <tr class="border-b border-black text-left">
+                <th>Producto</th>
+                <th class="text-center">Cant</th>
+                <th class="text-right">P.Unit</th>
+                <th class="text-right">Subt</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in nota.detalles.all %}
+            <tr>
+                <td class="break-words whitespace-normal">
+                    {{ item.producto.nombre }}
+                </td>
+                <td class="text-center">{{ item.cantidad }}</td>
+                <td class="text-right">
+                    ${{ item.precio_unitario|formato_precio }}
+                </td>
+                <td class="text-right">
+                    ${{ item.subtotal|formato_precio }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center text-gray-500 text-xs">
+                    Sin ítems en esta nota de crédito
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+
+    </table>
+    {% if nota.motivo %}
+    <hr class="my-2 border-dashed">
+
+    <p class="text-[9px] leading-tight">
+        <strong>Motivo:</strong><br>
+        {{ nota.motivo }}
+    </p>
+    {% endif %}
+
+    <hr class="my-2 border-dashed">
+
+    <!-- Total -->
+    <p class="text-lg font-bold text-right">
+        Total: ${{ nota.total|formato_precio }}
+    </p>
+
+</div>
+{% endblock %}

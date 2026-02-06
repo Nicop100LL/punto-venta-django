@@ -13,7 +13,10 @@ urlpatterns = [
     path('clientes/historial/<int:cliente_id>/', views.historial_pagos_cliente, name='historial_pagos_cliente'),
     path('estadisticas/', views.estadisticas_ventas, name='estadisticas_ventas'),
     path('productos/buscar-por-nombre/', views.buscar_producto_por_nombre, name='buscar_producto_por_nombre'),
-
+    path('crear-nota-credito/<int:venta_id>/', views.crear_nota_credito, name='crear_nota_credito'),
     path('ajax/obtener_saldo/', views.obtener_saldo_cliente, name='obtener_saldo_cliente'),
     path('modificar-saldo-cliente/', views.modificar_saldo_cliente, name='modificar_saldo_cliente'),
+    path('nota-credito/<int:pk>/', views.detalle_nota_credito, name='detalle_nota_credito'
+),
+
 ]

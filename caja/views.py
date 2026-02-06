@@ -11,6 +11,7 @@ from decimal import Decimal
 from django.utils.timezone import now
 from ventas.models import Venta
 from django.db.models import Sum
+from ventas.models import NotaCredito
 
 
 
@@ -59,7 +60,16 @@ def cerrar_caja(request):
     ventas = Venta.objects.filter(caja=caja)
     total_ventas = ventas.aggregate(total=Sum('total'))['total'] or Decimal('0')
 
-    total_esperado = caja.monto_inicial + total_ventas
+    # Notas de crédito aplicadas a esta caja
+    notas_credito = NotaCredito.objects.filter(
+        caja=caja,
+        estado='aplicada'
+    )
+    total_notas_credito = notas_credito.aggregate(total=Sum('total'))['total'] or Decimal('0')
+
+    # Total esperado en caja
+    total_esperado = caja.monto_inicial + total_ventas - total_notas_credito
+
 
     if request.method == 'POST':
         monto_real = Decimal(request.POST.get('monto_cierre') or '0')
@@ -84,20 +94,29 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from decimal import Decimal
 
+
 @login_required
 def detalle_caja(request):
     """
     Vista de detalle de caja:
     - Muestra ventas y totales por método de pago
     - Calcula ingreso total, diferencia y saldo final
+    - Incluye las Notas de Crédito aplicadas
     """
     caja = get_caja_abierta(request.user, request.user.empresa)
-
     if not caja:
         return redirect('abrir_caja')
 
     # Todas las ventas de la caja
     ventas = caja.ventas.all().order_by('numero_empresa')
+    ventas_ids = ventas.values_list('id', flat=True)
+
+    # Notas de crédito aplicadas de esas ventas
+    notas_credito = NotaCredito.objects.filter(
+        venta_id__in=ventas_ids,
+        estado='aplicada'
+    )
+    total_notas_credito = notas_credito.aggregate(total=Sum('total'))['total'] or Decimal('0')
 
     # Totales por método de pago
     totales = {
@@ -113,15 +132,17 @@ def detalle_caja(request):
     total_ventas = sum(v.total for v in ventas)
     total_efectivo = totales['EF']
     total_no_efectivo = total_ventas - total_efectivo
-    total_caja = caja.monto_inicial + total_ventas
 
-    # Diferencia y saldo final si la caja está cerrada
+    # Total efectivo real en caja, descontando notas de crédito
+    total_caja = caja.monto_inicial + total_ventas - total_notas_credito
+
+    # Diferencia y saldo final
     if caja.fecha_cierre:
-        saldo_final = getattr(caja, 'saldo_final', total_caja)
+        saldo_final = caja.saldo_final if caja.saldo_final is not None else total_caja
         diferencia = saldo_final - total_caja
     else:
-        saldo_final = None
-        diferencia = None
+        saldo_final = total_caja
+        diferencia = Decimal('0.00')
 
     context = {
         'caja': caja,
@@ -133,6 +154,8 @@ def detalle_caja(request):
         'total_caja': total_caja,
         'saldo_final': saldo_final,
         'diferencia': diferencia,
+        'notas_credito': notas_credito,
+        'total_notas_credito': total_notas_credito,
     }
 
     return render(request, 'caja/detalle_caja.html', context)
@@ -149,7 +172,6 @@ def lista_cajas(request):
         'cajas': cajas
     })
 
-
 @login_required
 def detalle_caja_historica(request, caja_id):
     caja = get_object_or_404(
@@ -158,32 +180,63 @@ def detalle_caja_historica(request, caja_id):
         empresa=request.user.empresa
     )
 
-    ventas = Venta.objects.filter(caja=caja)
+    # Todas las ventas de la caja
+    ventas = Venta.objects.filter(caja=caja).order_by('numero_empresa')
+    ventas_ids = ventas.values_list('id', flat=True)
 
-    total_ventas = ventas.aggregate(
-        total=Sum('total')
-    )['total'] or 0
+    # Total de ventas
+    total_ventas = ventas.aggregate(total=Sum('total'))['total'] or 0
 
-    totales_por_pago = ventas.values('tipo_pago').annotate(
-        total=Sum('total')
-    )
-
-    # Inicializamos en 0
+    # Totales iniciales por tipo de pago
     totales = {
         'EF': 0,
         'MP': 0,
         'DN': 0,
         'TJ': 0,
         'TR': 0,
-        'CC': 0,  # cuenta corriente (opcional)
+        'CC': ventas.filter(cuenta_corriente=True).aggregate(t=Sum('total'))['t'] or 0,
     }
 
-    for t in totales_por_pago:
-        totales[t['tipo_pago']] = t['total'] or 0
+    # Sumamos las ventas por tipo de pago
+    for v in ventas:
+        if v.cuenta_corriente:
+            totales['CC'] += v.total
+        else:
+            totales[v.tipo_pago] += v.total
 
-    return render(request, 'caja/detalle_caja_historica.html', {
+    # Notas de crédito aplicadas a estas ventas y a la caja
+    notas_credito = NotaCredito.objects.filter(
+        venta_id__in=ventas_ids,
+        caja=caja,
+        estado='aplicada'
+    )
+
+    total_notas_credito = notas_credito.aggregate(total=Sum('total'))['total'] or 0
+
+    # Restamos las notas de crédito del total por tipo de pago correspondiente
+    for nc in notas_credito:
+        if nc.venta.cuenta_corriente:
+            totales['CC'] -= nc.total
+        else:
+            totales[nc.venta.tipo_pago] -= nc.total
+
+    # Total efectivo en caja descontando notas de crédito
+    total_caja = caja.monto_inicial + total_ventas - total_notas_credito
+
+    # Diferencia y saldo final si la caja está cerrada
+    saldo_final = getattr(caja, 'saldo_final', total_caja) if caja.fecha_cierre else total_caja
+    diferencia = saldo_final - total_caja
+
+    context = {
         'caja': caja,
         'ventas': ventas,
-        'total_ventas': total_ventas,
         'totales': totales,
-    })
+        'total_ventas': total_ventas,
+        'notas_credito': notas_credito,
+        'total_notas_credito': total_notas_credito,
+        'total_caja': total_caja,
+        'saldo_final': saldo_final,
+        'diferencia': diferencia,
+    }
+
+    return render(request, 'caja/detalle_caja_historica.html', context)

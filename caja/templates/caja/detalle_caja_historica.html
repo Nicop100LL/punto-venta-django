@@ -28,11 +28,37 @@
         <strong>Monto inicial:</strong> ${{ caja.monto_inicial|floatformat:2|formato_precio }}<br>
         <strong>Ingreso total en caja:</strong> ${{ total_ventas|floatformat:2|formato_precio }}<br>
         {% if caja.fecha_cierre %}
-       <strong>Diferencia:</strong> ${{ caja.diferencia|floatformat:2|formato_precio }}<br>
-       <strong>Saldo final:</strong> ${{ caja.saldo_final|floatformat:0|formato_precio }}
-
+        <strong>Diferencia:</strong> ${{ diferencia|floatformat:2|formato_precio }}<br>
+        <strong>Saldo final:</strong> ${{ saldo_final|floatformat:2|formato_precio }}
+        {% else %}
+        <strong>Diferencia:</strong> ${{ diferencia|floatformat:2|formato_precio }}<br>
+        <strong>Saldo final:</strong> ${{ saldo_final|floatformat:2|formato_precio }}
         {% endif %}
     </p>
+<!-- Notas de Crédito -->
+<div class="bg-white rounded shadow p-4 mb-6">
+    <h3 class="text-md font-semibold mb-2">Notas de Crédito aplicadas</h3>
+
+    {% if notas_credito.exists %}
+        <ul class="text-sm space-y-1">
+            {% for nota in notas_credito %}
+                <li>
+                    📄 Nota #{{ nota.id }} - ${{ nota.total|floatformat:2|formato_precio }}
+                    {% if nota.motivo %}
+                        - <em>{{ nota.motivo }}</em>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+        <hr class="my-2">
+        <p class="text-right font-bold">
+            Total Notas de Crédito: ${{ total_notas_credito|floatformat:2|formato_precio }}
+        </p>
+    {% else %}
+        <p class="text-sm text-gray-500">No hay notas de crédito aplicadas</p>
+    {% endif %}
+</div>
+
 </div>
 
 <!-- Ventas -->
@@ -75,7 +101,6 @@
 
 <!-- Totales por medio de pago -->
 <div class="grid md:grid-cols-2 gap-6 mb-6">
-
     <div class="bg-white rounded shadow p-4">
         <h3 class="text-md font-semibold mb-2">
             Totales por medio de pago
@@ -88,7 +113,6 @@
             <li class="text-purple-600">💳 Tarjeta: ${{ totales.TJ|default:0|floatformat:2|formato_precio }}</li>
             <li class="text-gray-800">🏦 Transferencia: ${{ totales.TR|default:0|floatformat:2|formato_precio }}</li>
             <li class="text-yellow-700">🏛️ Cuenta corriente: ${{ totales.CC|default:0|floatformat:2|formato_precio }}</li>
-
         </ul>
     </div>
 
@@ -98,10 +122,9 @@
         </h3>
 
         <p class="text-lg font-bold text-right">
-            ${{ total_ventas|floatformat:2|formato_precio }}
+            ${{ total_caja|floatformat:2|formato_precio }}
         </p>
     </div>
-
 </div>
 
 {% endblock %}

@@ -51,6 +51,9 @@ from django.urls import reverse
 from .models import Producto, DetalleVenta, Cliente
 from .forms import VentaForm, DetalleVentaForm
 from django.contrib import messages
+from .models import Venta, DetalleVenta, Cliente, NotaCredito, DetalleNotaCredito
+
+
 
 
 
@@ -346,26 +349,54 @@ def nueva_venta(request):
 
 
 
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from .models import Venta
+
 @login_required
 def lista_ventas(request):
-    ventas = Venta.objects.filter(empresa=request.user.empresa).order_by('-fecha')
+    Usuario = get_user_model()
 
     # Obtener el filtro de usuario desde GET (si existe)
     usuario_id = request.GET.get('usuario')
+
+    # Obtener el filtro de fecha desde GET (si existe)
+    fecha_str = request.GET.get('fecha')
+    
+    if fecha_str:
+        # Convertimos la fecha de string a date
+        try:
+            fecha = timezone.datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        except ValueError:
+            fecha = None
+    else:
+        fecha = None
+
+    # Filtramos ventas por empresa
+    ventas = Venta.objects.filter(empresa=request.user.empresa)
+
+    # Si no se seleccionó fecha, tomamos el último día con ventas
+    if not fecha:
+        ultima_venta = ventas.order_by('-fecha').first()
+        fecha = ultima_venta.fecha.date() if ultima_venta else timezone.localdate()
+
+    # Filtramos por fecha
+    ventas = ventas.filter(fecha__date=fecha)
+
+    # Filtramos por usuario si se seleccionó
     if usuario_id:
         ventas = ventas.filter(usuario_id=usuario_id)
 
-    # Obtener la lista de usuarios de la empresa para el selector
-    Usuario = get_user_model()
+    # Obtener usuarios de la empresa
     usuarios = Usuario.objects.filter(empresa=request.user.empresa)
 
     return render(request, 'ventas/lista_ventas.html', {
         'ventas': ventas,
         'usuarios': usuarios,
-        'usuario_seleccionado': usuario_id,
+        'usuario_seleccionado': usuario_id or '',
+        'fecha': fecha,  # enviamos la fecha al template
     })
-
-
 
 @login_required
 def detalle_venta(request, venta_id):
@@ -665,3 +696,107 @@ def buscar_producto_por_nombre(request):
         })
 
     return JsonResponse(data, safe=False)
+
+
+@login_required
+def crear_nota_credito(request, venta_id):
+    venta = get_object_or_404(
+        Venta,
+        id=venta_id,
+        empresa=request.user.empresa
+    )
+    cliente = venta.cliente
+
+    if request.method == 'POST':
+        motivo = request.POST.get('motivo', '')
+
+        caja_para_nota = getattr(venta, 'caja', None)
+        if caja_para_nota and caja_para_nota.estado != 'abierta':
+            caja_para_nota = None
+
+        nota = NotaCredito.objects.create(
+            venta=venta,
+            cliente=cliente,
+            motivo=motivo,
+            usuario=request.user,
+            caja=caja_para_nota,
+            estado='aplicada'
+        )
+
+        total_nota = Decimal('0')
+
+        for detalle in venta.detalles.all():
+            cant_str = request.POST.get(f'cantidad_{detalle.id}', '0')
+            cantidad = Decimal(cant_str or '0')
+
+            if cantidad <= 0:
+                continue
+
+            subtotal = detalle.precio_unitario * cantidad
+
+            ya_devuelto = DetalleNotaCredito.objects.filter(
+                nota_credito__venta=venta,
+                producto=detalle.producto
+            ).aggregate(total=Sum('cantidad'))['total'] or Decimal('0')
+
+            if cantidad + ya_devuelto > detalle.cantidad:
+                continue
+
+            DetalleNotaCredito.objects.create(
+                nota_credito=nota,
+                producto=detalle.producto,
+                cantidad=cantidad,
+                precio_unitario=detalle.precio_unitario,
+                subtotal=subtotal
+            )
+
+            total_nota += subtotal
+
+        nota.total = total_nota
+        nota.save()
+
+        if cliente:
+            cliente.saldo -= total_nota
+            cliente.save()
+
+        return redirect('detalle_venta', venta_id=venta.id)
+
+    detalles = []
+    for detalle in venta.detalles.all():
+        ya_devuelto = DetalleNotaCredito.objects.filter(
+            nota_credito__venta=venta,
+            producto=detalle.producto
+        ).aggregate(total=Sum('cantidad'))['total'] or Decimal('0')
+        disponible = detalle.cantidad - ya_devuelto
+
+        detalles.append({
+            'detalle': detalle,
+            'ya_devuelto': ya_devuelto,
+            'disponible': disponible
+        })
+
+    return render(request, 'ventas/crear_nota_credito.html', {
+        'venta': venta,
+        'cliente': cliente,
+        'detalles': detalles
+    })
+
+
+@login_required
+def detalle_nota_credito(request, pk):
+    nota = get_object_or_404(
+        NotaCredito,
+        pk=pk,
+        venta__empresa=request.user.empresa
+    )
+
+    
+
+    return render(
+        request,
+        'ventas/detalle_nota_credito.html',
+        {
+            'nota': nota,
+            'empresa': request.user.empresa,
+        }
+    )
