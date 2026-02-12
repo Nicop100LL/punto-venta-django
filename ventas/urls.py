@@ -16,7 +16,9 @@ urlpatterns = [
     path('crear-nota-credito/<int:venta_id>/', views.crear_nota_credito, name='crear_nota_credito'),
     path('ajax/obtener_saldo/', views.obtener_saldo_cliente, name='obtener_saldo_cliente'),
     path('modificar-saldo-cliente/', views.modificar_saldo_cliente, name='modificar_saldo_cliente'),
-    path('nota-credito/<int:pk>/', views.detalle_nota_credito, name='detalle_nota_credito'
-),
+    path('nota-credito/<int:pk>/', views.detalle_nota_credito, name='detalle_nota_credito'),
+    path('enviar-ticket/<int:venta_id>/', views.enviar_ticket, name='enviar_ticket')
+     
+
 
 ]

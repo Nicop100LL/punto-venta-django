@@ -800,3 +800,26 @@ def detalle_nota_credito(request, pk):
             'empresa': request.user.empresa,
         }
     )
+
+
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from .models import Venta
+from impresoras.models import ConfiguracionImpresoraTicket
+
+def enviar_ticket(request, venta_id):
+    venta = get_object_or_404(Venta, id=venta_id)
+
+    try:
+        config = venta.empresa.config_impresora_ticket
+    except ConfiguracionImpresoraTicket.DoesNotExist:
+        # Fallback clásico a print()
+        return JsonResponse({"status": "fallback"})
+
+    if config.microservicio_url:
+        # Aquí harías fetch al microservicio desde Django
+        # O desde JS, depende de la arquitectura
+        return JsonResponse({"status": "ok"})
+    else:
+        # No hay microservicio configurado
+        return JsonResponse({"status": "fallback"})

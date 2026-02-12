@@ -126,8 +126,10 @@
 
     <!-- Botones solo visibles fuera de impresión -->
     <div class="no-print mt-4 flex justify-between">
-        <button onclick="window.print()"
-            class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700">Imprimir</button>
+        <button onclick="imprimirVenta({{ venta.id }})"
+                class="bg-green-700 text-white px-2 py-1 rounded text-xs hover:bg-green-800">
+            Imprimir
+        </button>
         <a href="{% url 'venta_pdf' venta.id %}"
             class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700">PDF</a>
         
@@ -170,6 +172,28 @@ table {
 
 </style>
 
+<!--Imprimir con microservicio-->
+<script>
+const csrftoken = '{{ csrf_token }}';  // necesario para POST en Django
+
+function imprimirVenta(ventaId) {
+    fetch(`/ventas/enviar-ticket/${ventaId}/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrftoken},
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            alert("Ticket impreso vía microservicio");
+        } else if (data.status === 'fallback') {
+            // fallback clásico
+            window.print();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+</script>
 
 
 {% endblock %}
