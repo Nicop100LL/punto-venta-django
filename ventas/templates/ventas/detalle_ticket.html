@@ -126,10 +126,18 @@
 
     <!-- Botones solo visibles fuera de impresión -->
     <div class="no-print mt-4 flex justify-between">
-        <button onclick="imprimirVenta({{ venta.id }})"
-                class="bg-green-700 text-white px-2 py-1 rounded text-xs hover:bg-green-800">
-            Imprimir
-        </button>
+        {% if request.user.empresa.config_impresora_ticket.microservicio_url %}
+    <button onclick="imprimirVenta({{ venta.id }})"
+                    class="bg-green-700 text-white px-2 py-1 rounded text-xs hover:bg-green-800">
+                Imprimir
+            </button>
+        {% else %}
+            <button onclick="window.print()"
+                    class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700">
+                Imprimir
+            </button>
+        {% endif %}
+
         <a href="{% url 'venta_pdf' venta.id %}"
             class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700">PDF</a>
         
@@ -173,6 +181,7 @@ table {
 </style>
 
 <!--Imprimir con microservicio-->
+{% if request.user.empresa.config_impresora_ticket.microservicio_url %}
 <script>
 const csrftoken = '{{ csrf_token }}';  // necesario para POST en Django
 
@@ -194,6 +203,7 @@ function imprimirVenta(ventaId) {
     });
 }
 </script>
+{% endif %}
 
 
 {% endblock %}
