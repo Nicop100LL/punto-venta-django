@@ -81,6 +81,19 @@
     <hr class="my-2 border-dashed">
     <p class="text-lg mt-1 font-bold"><strong>Total:</strong> ${{ venta.total|floatformat:2|formato_precio }}</strong>
     </p>
+    {% if venta.tipo_pago == 'EF' and venta.importe_entregado %}
+    <hr class="my-2 border-dashed">
+
+    <p>
+        <strong>Entregado:</strong>
+        ${{ venta.importe_entregado|floatformat:2|formato_precio }}
+    </p>
+
+    <p>
+        <strong class="mr-5">Vuelto:</strong>
+        ${{ venta.vuelto|floatformat:2|formato_precio }}
+    </p>
+    {% endif %}
 
     {% if venta.nota %}
     <hr class="my-2 border-dashed">

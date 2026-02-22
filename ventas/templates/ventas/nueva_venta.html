@@ -276,6 +276,9 @@ document.addEventListener('submit', () => {
     <input type="hidden" name="tipo_pago" value="{{ tipo_pago }}">
     <input type="hidden" name="nota" id="nota-hidden-finalizar">
 
+    <input type="hidden" name="importe_entregado" id="importe-entregado-hidden">
+    <input type="hidden" name="vuelto" id="vuelto-hidden">
+
     <div class="mb-4">
         <label for="cuenta_corriente" class="inline-flex items-center">
             <input type="checkbox" name="cuenta_corriente" id="cuenta_corriente" class="form-checkbox text-blue-600" 
@@ -302,6 +305,9 @@ document.addEventListener('submit', () => {
             this.vuelto = monto - this.total;
             this.open = false;
             this.mostrarInfo = true;
+            // ✅ enviar al backend
+            document.getElementById('importe-entregado-hidden').value = monto.toFixed(2);
+            document.getElementById('vuelto-hidden').value = this.vuelto.toFixed(2);
         },
         cerrarModal() {
         this.open = false;

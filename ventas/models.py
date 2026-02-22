@@ -69,6 +69,20 @@ class Venta(models.Model):
         choices=TIPO_PAGO_CHOICES,
         default='EF'
     )
+    
+    # ✅ NUEVO – efectivo
+    importe_entregado = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    vuelto = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
         return f"Venta #{self.id} - {self.fecha.date()}"

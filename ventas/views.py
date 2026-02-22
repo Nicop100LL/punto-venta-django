@@ -222,7 +222,7 @@ def nueva_venta(request):
         # FINALIZAR VENTA
         # =========================
         elif 'finalizar' in request.POST:
-            
+            print("POST FINALIZAR:", request.POST)
              # 🔒 BLOQUEAR VENTA SIN CAJA solo para empleados
             if request.user.es_empleado and not caja_abierta:
                 abrir_modal_caja = True  # activamos modal
@@ -255,6 +255,18 @@ def nueva_venta(request):
                 venta.nota = request.POST.get('nota', '')
                 venta.usuario = request.user
                 venta.empresa = request.user.empresa
+                
+                venta.importe_entregado = (
+                    Decimal(request.POST.get('importe_entregado'))
+                    if request.POST.get('importe_entregado')
+                    else None
+                )
+
+                venta.vuelto = (
+                    Decimal(request.POST.get('vuelto'))
+                    if request.POST.get('vuelto')
+                    else None
+                )
                 
                 venta.caja = caja_abierta
                 venta.total = sum(Decimal(str(i['subtotal'])) for i in carrito)
