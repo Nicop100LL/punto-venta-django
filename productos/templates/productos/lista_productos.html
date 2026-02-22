@@ -40,7 +40,7 @@
             {{ p.stock_actual|floatformat:2 }}
             {% endif %}
           </p>
-          <p>Precio: ${{ p.precio_venta|floatformat:0|formato_precio }}</p>
+          <p>Precio: ${{ p.precio_venta|formato_precio }}</p>
           <div class="flex justify-between mt-2">
             <a href="{% url 'editar_producto' p.id %}" class="text-blue-600 hover:underline">Editar</a>
             <!-- <a href="{% url 'eliminar_producto' p.id %}" class="text-red-600 hover:underline">Eliminar</a> -->
@@ -118,18 +118,128 @@
         </div>
       </div>
 
-      <div class="mb-4">
-        <label for="precio_compra" class="block text-sm font-medium text-gray-700">
-          Precio de compra
-        </label>
-        <input type="number" name="precio_compra" id="precio_compra" step="0.01" required
-          class="w-full border px-3 py-2 rounded">
+      <div
+        x-data="{
+          precioCompra: 0,
+          precioVenta: 0,
+          usarGanancia: false,
+          porcentajeGanancia: null,
+          redondearPrecio: false,
+
+          calcularPrecio() {
+            if (!this.usarGanancia) return
+            if (this.precioCompra <= 0 || this.porcentajeGanancia === null) return
+
+            const margen = this.porcentajeGanancia / 100
+            if (margen >= 1) return
+
+            let precio = this.precioCompra / (1 - margen)
+
+            if (this.redondearPrecio) {
+              precio = Math.round(precio)
+            }
+
+            this.precioVenta = precio.toFixed(2)
+          }
+
+
+        }"
+      >
+        <!-- PRECIO COMPRA -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700">
+            Precio de compra
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            name="precio_compra"
+            required
+            class="w-full border px-3 py-2 rounded"
+            x-model.number="precioCompra"
+            @input="calcularPrecio()"
+          >
+        </div>
+
+        <!-- CHECKBOX GANANCIA -->
+        <div class="flex items-center gap-2 mb-2">
+          <input
+            type="checkbox"
+            class="rounded border-gray-300 text-blue-600 shadow-sm"
+            x-model="usarGanancia"
+            @change="calcularPrecio()"
+          >
+          <label class="text-sm font-medium text-gray-700">
+            Calcular precio con ganancia (%)
+          </label>
+        </div>
+
+        <!-- PORCENTAJE -->
+        <div x-show="usarGanancia" x-transition class="mb-4 relative">
+          <label
+            class="flex items-center gap-1 text-sm font-medium text-gray-700"
+            x-data="{ open: false }"
+            @click.outside="open = false"
+          >
+            Margen de ganancia (%)
+
+            <button
+              type="button"
+              @click.stop="open = !open"
+              class="ml-1 text-gray-400 hover:text-gray-600 focus:outline-none"
+            >
+              ❓
+            </button>
+
+            <!-- Tooltip -->
+            <div
+              x-show="open"
+              x-cloak
+              class="absolute ml-8 mt-4 top-1/2 -translate-y-1/2
+                    z-20 w-64 p-3 text-xs text-gray-700
+                    bg-white border rounded shadow"
+            >
+              El margen se calcula sobre el <b>precio de venta final</b>,
+              no sobre el costo.
+            </div>
+          </label>
+
+          <input
+            type="text"
+            class="w-full border px-3 py-2 rounded mt-1"
+            placeholder="Ej: 30"
+            x-model="porcentajeGanancia"
+            @input="calcularPrecio()"
+          >
+        </div>
+
+        <!-- REDONDEAR -->
+        <div x-show="usarGanancia" class="flex items-center gap-2 mb-4">
+          <input
+            type="checkbox"
+            class="rounded border-gray-300 text-blue-600 shadow-sm"
+            x-model="redondearPrecio"
+            @change="calcularPrecio()"
+          >
+          <label class="text-sm font-medium text-gray-700">
+            Redondear precio
+          </label>
+        </div>
+
+        <!-- PRECIO VENTA -->
+        <div class="mb-2">
+          <label class="block">Precio</label>
+          <input
+            type="number"
+            step="0.01"
+            name="precio_venta"
+            required
+            class="w-full border px-3 py-2 rounded"
+            x-model.number="precioVenta"
+          />
+        </div>
       </div>
 
-      <div class="mb-2">
-        <label class="block">Precio</label>
-        <input type="number" step="0.01" name="precio_venta" class="w-full border px-3 py-2 rounded" required />
-      </div>
 
       <div class="mb-4">
         <label class="block">Tipo de venta</label>

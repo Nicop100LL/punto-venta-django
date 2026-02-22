@@ -52,10 +52,10 @@
                 </td>
                 <td class="text-center">{{ item.cantidad }}</td>
                 <td class="text-right">
-                    ${{ item.precio_unitario|floatformat:0|formato_precio }}
+                    ${{ item.precio_unitario|floatformat:2|formato_precio }}
                 </td>
                 <td class="text-right">
-                    ${{ item.subtotal|floatformat:0|formato_precio }}
+                    ${{ item.subtotal|floatformat:2|formato_precio }}
                 </td>
             </tr>
 
@@ -76,10 +76,10 @@
     <hr class="my-2 border-dashed">
 
     <!-- Totales -->
-    <p><strong>Subtotal:</strong> ${{ venta.subtotal|default:venta.total|floatformat:0|formato_precio }}</p>
-    <p><strong>Total de productos:</strong> {{ total_productos|floatformat:0|formato_precio }}</p>
+    <p><strong>Subtotal:</strong> ${{ venta.subtotal|default:venta.total|floatformat:2|formato_precio }}</p>
+    <p><strong>Total de productos:</strong> {{ total_productos|floatformat:2|formato_precio }}</p>
     <hr class="my-2 border-dashed">
-    <p class="text-lg mt-1 font-bold"><strong>Total:</strong> ${{ venta.total|floatformat:0|formato_precio }}</strong>
+    <p class="text-lg mt-1 font-bold"><strong>Total:</strong> ${{ venta.total|floatformat:2|formato_precio }}</strong>
     </p>
 
     {% if venta.nota %}
@@ -109,7 +109,7 @@
                 <td>{{ nc.id }}</td>
                 <td>{{ nc.fecha|date:"d/m/Y H:i" }}</td>
                 <td class="text-right">
-                    ${{ nc.total|floatformat:0|formato_precio }}
+                    ${{ nc.total|floatformat:2|formato_precio }}
                 </td>
                 <td class="text-right">
                     <a href="{% url 'detalle_nota_credito' nc.id %}"

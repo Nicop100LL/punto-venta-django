@@ -406,20 +406,20 @@
         <!-- Resumen -->
         <div class="text-sm space-y-2 mb-4">
             <p><strong>Fecha apertura:</strong> {{ caja_abierta.fecha_apertura|date:"d/m/Y H:i" }}</p>
-            <p><strong>Monto inicial:</strong> ${{ caja_abierta.monto_inicial|floatformat:0|formato_precio }}</p>
+            <p><strong>Monto inicial:</strong> ${{ caja_abierta.monto_inicial|floatformat:2|formato_precio }}</p>
 
             <hr>
 
-            <p><strong>Total ventas:</strong> ${{ total_ventas|floatformat:0|formato_precio }}</p>
-            <p><strong>Ingresos efectivo:</strong> ${{ total_efectivo|floatformat:0|formato_precio }}</p>
-            <p><strong>Otros medios:</strong> ${{ total_no_efectivo|floatformat:0|formato_precio }}</p>
+            <p><strong>Total ventas:</strong> ${{ total_ventas|floatformat:2|formato_precio }}</p>
+            <p><strong>Ingresos efectivo:</strong> ${{ total_efectivo|floatformat:2|formato_precio }}</p>
+            <p><strong>Otros medios:</strong> ${{ total_no_efectivo|floatformat:2|formato_precio }}</p>
 
             <hr>
 
             <p class="text-base font-semibold">
                 Total en caja esperado:
                 <span class="float-right">
-                    ${{ total_caja|floatformat:0|formato_precio }}
+                    ${{ total_caja|floatformat:2|formato_precio }}
                 </span>
             </p>
         </div>

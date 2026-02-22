@@ -32,7 +32,7 @@
 
         <div id="saldo-cliente" class="mt-2 text-sm text-gray-700">
             {% if saldo_cliente is not None %}
-            <p><strong>Saldo actual:</strong> ${{ saldo_cliente|floatformat:0|formato_precio }}</p>
+            <p><strong>Saldo actual:</strong> ${{ saldo_cliente|formato_precio }}</p>
             {% endif %}
         </div>
 
@@ -198,12 +198,12 @@
         <tr class="border-t border-gray-300">
             <td class="p-2">{{ item.nombre }}</td>
             <td class="p-2">{{ item.cantidad }}</td>
-            <td class="p-2">{{ item.precio_unitario|floatformat:0|formato_precio }}</td>
-            <td class="p-2">{{ item.subtotal|floatformat:0|formato_precio }}
+            <td class="p-2">{{ item.precio_unitario|formato_precio }}</td>
+            <td class="p-2">{{ item.subtotal|formato_precio }}
                 {% if item.descuento > 0 %}
                 <br>
                 <small class="text-blue-600">
-                    Descuento aplicado: -{{ item.descuento|floatformat:0 }}%
+                    Descuento aplicado: -{{ item.descuento }}%
                 </small>
                      {% endif %}
             </td>
@@ -266,7 +266,7 @@ document.addEventListener('submit', () => {
 </table>
 
 <div class="text-right text-lg font-bold mt-2">
-    <p>Total: ${{ total|floatformat:0|formato_precio }}</p>
+    <p>Total: ${{ total|floatformat:2|formato_precio }}</p>
 </div>
 
 <form method="post" id="form-finalizar">
@@ -291,7 +291,7 @@ document.addEventListener('submit', () => {
         open: false,
         entregado: '',
         vuelto: 0,
-        total: {{ total|floatformat:0 }},
+        total: {{ total|floatformat:2 }},
         mostrarInfo: false,
         aceptar() {
             const monto = parseFloat(this.entregado);
@@ -1149,14 +1149,36 @@ document.addEventListener('DOMContentLoaded', () => {
     modalBuscar.classList.remove('hidden');
     inputBuscar.value = '';
     listaResultados.innerHTML = '';
-    setModalActivo('buscar_nombre', inputBuscar);
+
+    window.modalActivo = 'buscar_nombre';
+
+    setTimeout(() => {
+        inputBuscar.focus();
+        inputBuscar.select();
+    }, 80);
   }
 
-  function cerrarBuscador() {
+  function cerrarBuscadorNombre() {
+    modalBuscar.classList.add('hidden');
+    listaResultados.innerHTML = '';
+    window.modalActivo = null;
+
+    setTimeout(() => {
+        if (inputCodigo) {
+        inputCodigo.focus();
+        inputCodigo.select();
+        }
+    }, 50);
+  }
+
+
+
+  function cerrarBuscador() {   
     modal.classList.add('hidden');
     lista.innerHTML = '';
     productos = [];
     indexActivo = -1;
+    window.modalActivo = null;
     cerrarModalActivo();
   }
 
@@ -1262,6 +1284,7 @@ document.addEventListener('DOMContentLoaded', () => {
     indexActivo = -1;
     document.getElementById('codigo').focus();
   }
+  
 
   btnCancelar.addEventListener('click', cerrarBuscador);
 
@@ -1360,7 +1383,8 @@ function render() {
       cerrarBuscador();
     }
   });
-
+  
+  
   // 👉 seleccionar producto
   function seleccionar(prod) {
     cerrarBuscador();
@@ -1385,6 +1409,7 @@ function render() {
         mostrarModalVarios();
         return;
     }
+    
 
 
     document.querySelector('button[name="agregar"]').click();

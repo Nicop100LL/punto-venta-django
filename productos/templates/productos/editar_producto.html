@@ -62,21 +62,134 @@
             </div>
 
 
-            <!-- Precio venta -->
-            <div>
-                <label for="precio_venta" class="block text-sm font-medium">Precio de Venta</label>
-                <input type="text" id="precio_venta" name="precio_venta"
-                    value="{{ producto.precio_venta|formato_precio }}"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
-            </div>
+            <div
+                x-data="{
+                    precioCompraTexto: '{{ producto.precio_compra|formato_precio }}',
+                    precioVentaTexto: '{{ producto.precio_venta|formato_precio }}',
+                    usarGanancia: false,
+                    porcentajeGanancia: '',
+                    redondear: false,
 
-            <!-- Precio compra -->
-            <div>
-                <label for="precio_compra" class="block text-sm font-medium">Precio de Compra</label>
-                <input type="text" id="precio_compra" name="precio_compra"
-                    value="{{ producto.precio_compra|formato_precio }}"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
-            </div>
+                    normalizar(valor) {
+                    if (!valor) return 0
+                    return Number(valor.replace(/\./g, '').replace(',', '.'))
+                    },
+
+                    formatear(valor) {
+                    return valor.toLocaleString('es-AR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    })
+                    },
+
+                    calcularPrecio() {
+                    if (!this.usarGanancia) return
+                    const compra = this.normalizar(this.precioCompraTexto)
+                    const porcentaje = this.normalizar(this.porcentajeGanancia)
+
+                    if (compra <= 0 || porcentaje <= 0) return
+
+                    const margen = porcentaje / 100
+                    let precio = compra / (1 - margen)
+
+                    if (this.redondear) {
+                        precio = Math.round(precio)
+                    } else {
+                        precio = Math.round(precio * 100) / 100
+                    }
+
+                    this.precioVentaTexto = this.formatear(precio)
+                    }
+                }"
+                class="space-y-3"
+                >
+
+                <!-- PRECIO COMPRA -->
+                <div>
+                    <label class="block text-sm font-medium">Precio de Compra</label>
+                    <input
+                    type="text"
+                    name="precio_compra"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    x-model="precioCompraTexto"
+                    @input="calcularPrecio()"
+                    required
+                    >
+                </div>
+
+                <!-- CHECKBOX GANANCIA -->
+                <div class="flex items-center gap-2">
+                    <input
+                    type="checkbox"
+                    class="rounded border-gray-300 text-blue-600 shadow-sm"
+                    x-model="usarGanancia"
+                    @change="calcularPrecio()"
+                    >
+                    <label class="text-sm font-medium text-gray-700">
+                    Calcular precio con ganancia (%)
+                    </label>
+                </div>
+
+                <!-- PORCENTAJE -->
+                <div x-show="usarGanancia" x-transition>
+                    <label class="flex items-center gap-1 text-sm font-medium"
+                        x-data="{ open: false }"
+                        @click.outside="open = false">
+
+                        Margen de ganancia (%)
+
+                        <button type="button"
+                                @click="open = !open"
+                                class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                            ❓
+                        </button>
+
+                        <div x-show="open"
+                            x-cloak
+                            class="absolute z-20 ml-8 mt-2 w-64 p-3 text-xs text-gray-700
+                                    bg-white border rounded shadow">
+                            El margen se calcula sobre el precio de venta final,
+                            no sobre el costo.
+                        </div>
+                    </label>
+
+
+                    <input
+                    type="text"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    x-model="porcentajeGanancia"
+                    @input="calcularPrecio()"
+                    placeholder="Ej: 30"
+                    >
+                </div>
+
+                <!-- REDONDEAR -->
+                <div x-show="usarGanancia" class="flex items-center gap-2">
+                    <input
+                    type="checkbox"
+                    class="rounded border-gray-300 text-blue-600 shadow-sm"
+                    x-model="redondear"
+                    @change="calcularPrecio()"
+                    >
+                    <label class="text-sm font-medium text-gray-700">
+                    Redondear precio
+                    </label>
+                </div>
+
+                <!-- PRECIO VENTA -->
+                <div>
+                    <label class="block text-sm font-medium">Precio de Venta</label>
+                    <input
+                    type="text"
+                    name="precio_venta"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    x-model="precioVentaTexto"
+                    required
+                    >
+                </div>
+
+                </div>
+
 
             <!-- Aplicar descuento -->
             <div class="flex items-center gap-2">
