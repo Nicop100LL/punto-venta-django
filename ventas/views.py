@@ -878,10 +878,12 @@ def ticket_pdf_prueba(request, venta_id):
         id=venta_id,
         empresa=request.user.empresa
     )
+    
+    MARGEN_IZQ = 1 * mm
 
     # Tamaño 80mm x alto dinámico
     ancho = 80 * mm
-    alto = 160 * mm  # alto grande, luego "se corta solo"
+    alto = 300 * mm  # alto grande, luego "se corta solo"
 
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = "inline; filename=ticket_prueba.pdf"
@@ -914,30 +916,30 @@ def ticket_pdf_prueba(request, venta_id):
     y -= 6 * mm
 
     # ===== DATOS =====
-    c.drawString(5 * mm, y, f"Fecha: {venta.fecha:%d/%m/%Y %H:%M}")
+    c.drawString(MARGEN_IZQ, y, f"Fecha: {venta.fecha:%d/%m/%Y %H:%M}")
     y -= 4 * mm
 
     vendedor = venta.usuario.get_full_name() or venta.usuario.username
-    c.drawString(5 * mm, y, f"Vendedor: {vendedor}")
+    c.drawString(MARGEN_IZQ, y, f"Vendedor: {vendedor}")
     y -= 4 * mm
 
     cliente = venta.cliente.nombre if venta.cliente else "Consumidor Final"
-    c.drawString(5 * mm, y, f"Cliente: {cliente}")
+    c.drawString(MARGEN_IZQ, y, f"Cliente: {cliente}")
     y -= 6 * mm
 
     # ===== LINEA =====
-    c.line(5 * mm, y, 75 * mm, y)
+    c.line(MARGEN_IZQ, y, 75 * mm, y)
     y -= 4 * mm
 
     # ===== CABECERA PRODUCTOS =====
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(5 * mm, y, "Prod.")
+    c.drawString(MARGEN_IZQ, y, "Prod.")
     c.drawRightString(35 * mm, y, "Cant")
     c.drawRightString(55 * mm, y, "P.Unit")
     c.drawRightString(75 * mm, y, "Subt")
     y -= 4 * mm
 
-    c.line(5 * mm, y, 75 * mm, y)
+    c.line(MARGEN_IZQ, y, 75 * mm, y)
     y -= 3 * mm
 
     # ===== ITEMS =====
@@ -950,7 +952,7 @@ def ticket_pdf_prueba(request, venta_id):
         y = draw_wrapped_text(
             c,
             nombre,
-            x=5 * mm,
+            x=MARGEN_IZQ,
             y=y,
             max_width=23 * mm,  # ancho real columna producto
             font="Helvetica",
@@ -966,7 +968,7 @@ def ticket_pdf_prueba(request, venta_id):
 
     # ===== TOTALES =====
     y -= 4 * mm
-    c.line(5 * mm, y, 75 * mm, y)
+    c.line(MARGEN_IZQ, y, 75 * mm, y)
     y -= 4 * mm
 
     c.setFont("Helvetica-Bold", 9)
