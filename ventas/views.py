@@ -14,6 +14,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from django.utils.timezone import now
 from reportlab.lib.units import cm
+import os
 from .models import Venta
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
@@ -889,23 +890,33 @@ def ticket_pdf_prueba(request, venta_id):
     response["Content-Disposition"] = "inline; filename=ticket_prueba.pdf"
 
     c = canvas.Canvas(response, pagesize=(ancho, alto))
-    y = alto - 4 * mm
+    y = alto - 10 * mm
 
     # ===== ENCABEZADO =====
     empresa = venta.empresa
+    from reportlab.lib.utils import ImageReader
 
-    if empresa.logo:
+    if empresa.logo and os.path.exists(empresa.logo.path):
         try:
+            img = ImageReader(empresa.logo.path)
+
+            logo_width = 26 * mm
+            logo_height = 16 * mm
+
             c.drawImage(
-                empresa.logo.path,
-                25 * mm, y - 20 * mm,
-                width=30 * mm,
+                img,
+                (ancho - logo_width) / 2,
+                y - logo_height,
+                width=logo_width,
+                height=logo_height,
                 preserveAspectRatio=True,
                 mask='auto'
             )
-            y -= 22 * mm
-        except:
-            pass
+
+            y -= logo_height + 3 * mm
+
+        except Exception as e:
+            print("Error logo:", e)
 
     c.setFont("Helvetica-Bold", 10)
     c.drawCentredString(40 * mm, y, empresa.nombre)
