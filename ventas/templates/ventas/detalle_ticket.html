@@ -151,9 +151,15 @@
             </button>
         {% endif %}
 
+        <!--
         <a href="{% url 'venta_pdf' venta.id %}"
             class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700">PDF</a>
-        
+            -->
+        <a href="{% url 'ticket_pdf_prueba' venta.id %}"
+        target="_blank"
+        class="bg-blue-600 text-white px-2 mx-4 py-1 rounded text-xs">
+        Imprimir prueba
+        </a>
             <!-- NUEVO: botón Nota de Crédito -->
         <a href="{% url 'crear_nota_credito' venta.id %}"
             class="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600">

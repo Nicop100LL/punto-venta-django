@@ -835,3 +835,151 @@ def enviar_ticket(request, venta_id):
     else:
         # No hay microservicio configurado
         return JsonResponse({"status": "fallback"})
+
+
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.decorators import login_required
+from reportlab.lib.pagesizes import mm
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import mm as mm_unit
+
+from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.pdfbase import pdfdoc
+
+def draw_wrapped_text(canvas, text, x, y, max_width, font="Helvetica", size=8, leading=3):
+    canvas.setFont(font, size)
+
+    words = text.split(" ")
+    line = ""
+    lines = []
+
+    for word in words:
+        test = f"{line} {word}".strip()
+        if stringWidth(test, font, size) <= max_width:
+            line = test
+        else:
+            lines.append(line)
+            line = word
+
+    if line:
+        lines.append(line)
+
+    for l in lines:
+        canvas.drawString(x, y, l)
+        y -= leading * mm
+
+    return y
+
+@login_required
+def ticket_pdf_prueba(request, venta_id):
+    venta = get_object_or_404(
+        Venta,
+        id=venta_id,
+        empresa=request.user.empresa
+    )
+
+    # Tamaño 80mm x alto dinámico
+    ancho = 80 * mm
+    alto = 160 * mm  # alto grande, luego "se corta solo"
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = "inline; filename=ticket_prueba.pdf"
+
+    c = canvas.Canvas(response, pagesize=(ancho, alto))
+    y = alto - 4 * mm
+
+    # ===== ENCABEZADO =====
+    empresa = venta.empresa
+
+    if empresa.logo:
+        try:
+            c.drawImage(
+                empresa.logo.path,
+                25 * mm, y - 20 * mm,
+                width=30 * mm,
+                preserveAspectRatio=True,
+                mask='auto'
+            )
+            y -= 22 * mm
+        except:
+            pass
+
+    c.setFont("Helvetica-Bold", 10)
+    c.drawCentredString(40 * mm, y, empresa.nombre)
+    y -= 6 * mm
+
+    c.setFont("Helvetica", 8)
+    c.drawCentredString(40 * mm, y, f"Venta #{venta.numero_empresa}")
+    y -= 6 * mm
+
+    # ===== DATOS =====
+    c.drawString(5 * mm, y, f"Fecha: {venta.fecha:%d/%m/%Y %H:%M}")
+    y -= 4 * mm
+
+    vendedor = venta.usuario.get_full_name() or venta.usuario.username
+    c.drawString(5 * mm, y, f"Vendedor: {vendedor}")
+    y -= 4 * mm
+
+    cliente = venta.cliente.nombre if venta.cliente else "Consumidor Final"
+    c.drawString(5 * mm, y, f"Cliente: {cliente}")
+    y -= 6 * mm
+
+    # ===== LINEA =====
+    c.line(5 * mm, y, 75 * mm, y)
+    y -= 4 * mm
+
+    # ===== CABECERA PRODUCTOS =====
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(5 * mm, y, "Prod.")
+    c.drawRightString(35 * mm, y, "Cant")
+    c.drawRightString(55 * mm, y, "P.Unit")
+    c.drawRightString(75 * mm, y, "Subt")
+    y -= 4 * mm
+
+    c.line(5 * mm, y, 75 * mm, y)
+    y -= 3 * mm
+
+    # ===== ITEMS =====
+    c.setFont("Helvetica", 8)
+
+    for item in venta.detalles.all():
+        nombre = item.producto.nombre if item.producto else "Producto eliminado"
+        y_inicial = y
+
+        y = draw_wrapped_text(
+            c,
+            nombre,
+            x=5 * mm,
+            y=y,
+            max_width=23 * mm,  # ancho real columna producto
+            font="Helvetica",
+            size=8,
+            leading=3
+        )
+
+        c.drawRightString(35 * mm, y_inicial, str(item.cantidad))
+        c.drawRightString(55 * mm, y_inicial, f"{item.precio_unitario:.2f}")
+        c.drawRightString(75 * mm, y_inicial, f"{item.subtotal():.2f}")
+
+        y -= 2 * mm  # espacio entre productos
+
+    # ===== TOTALES =====
+    y -= 4 * mm
+    c.line(5 * mm, y, 75 * mm, y)
+    y -= 4 * mm
+
+    c.setFont("Helvetica-Bold", 9)
+    c.drawRightString(75 * mm, y, f"TOTAL: ${venta.total:.2f}")
+
+    # ===== FIN =====
+    c.showPage()
+
+    # METADATA (esto sí es válido)
+    c.setAuthor("POS")
+    c.setTitle("Ticket de venta")
+    
+
+    c.save()
+
+    return response
