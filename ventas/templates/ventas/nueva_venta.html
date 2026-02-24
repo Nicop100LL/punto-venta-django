@@ -274,8 +274,8 @@ document.addEventListener('submit', () => {
     <input type="hidden" name="tipo_comprobante" value="{{ tipo_comprobante }}">
     <input type="hidden" name="cliente" id="cliente-hidden-finalizar">
     <input type="hidden" name="tipo_pago" value="{{ tipo_pago }}">
-    <input type="hidden" name="nota" id="nota-hidden-finalizar">
-
+    
+    <input type="hidden" id="nota-hidden-finalizar" name="nota" value="">
     <input type="hidden" name="importe_entregado" id="importe-entregado-hidden">
     <input type="hidden" name="vuelto" id="vuelto-hidden">
 
@@ -526,9 +526,12 @@ document.addEventListener('submit', () => {
 document.addEventListener('DOMContentLoaded', function () {
     const selectCliente = document.getElementById('id_cliente');
     const clienteHiddenFinalizar = document.getElementById('cliente-hidden-finalizar');
+    const selectTipoPago = document.getElementById('tipo_pago');
+    const tipoPagoHiddenFinalizar = document.querySelector('form#form-finalizar input[name="tipo_pago"]');
 
     // sincronizar al cargar
     clienteHiddenFinalizar.value = selectCliente.value;
+    tipoPagoHiddenFinalizar.value = selectTipoPago.value;
 
         // ===============================
         // SINCRONIZAR NOTA CON FORM FINALIZAR
@@ -568,6 +571,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // sincronizar cada vez que cambia el cliente
     selectCliente.addEventListener('change', () => {
         clienteHiddenFinalizar.value = selectCliente.value;
+    });
+    // sincronizar cada vez que cambia la forma de pago
+    selectTipoPago.addEventListener('change', () => {
+        tipoPagoHiddenFinalizar.value = selectTipoPago.value;
     });
 
 

@@ -3,6 +3,8 @@ from .models import ModeloImpresion
 from productos.models import Producto
 from .barcodes import code128_svg_base64
 from django.contrib.auth.decorators import login_required
+from reportlab.platypus import Paragraph
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 
 
@@ -13,16 +15,20 @@ from django.http import HttpResponse
 @login_required
 def configurar_impresion(request):
     empresa = request.user.empresa  # o como la obtengas
-    modelos = ModeloImpresion.objects.filter(empresa=empresa, activo=True)
-
+    
+    # Modelos de hoja (A4 / A5)
+    modelos_hoja = ModeloImpresion.objects.filter(empresa=empresa, activo=True)
+    
+    # Modelos de etiqueta (58mm / 80mm)
+    modelos_etiqueta = ModeloEtiqueta.objects.filter(empresa=empresa, activo=True)
+    
     productos = Producto.objects.filter(empresa=empresa)
 
     return render(request, "impresion/configurar.html", {
-        "modelos": modelos,
+        "modelos_hoja": modelos_hoja,
+        "modelos_etiqueta": modelos_etiqueta,
         "productos": productos,
     })
-
-
 
 @login_required
 def imprimir_etiquetas(request):
@@ -123,7 +129,84 @@ from .models import ModeloEtiqueta
 def draw_centered(c, text, y, ancho, font_name, font_size):
     c.setFont(font_name, font_size)
     c.drawCentredString(ancho/2, y, text)
+    
+def calcular_alto_etiqueta_mm(modelo, producto):
+    alto_pt = 0
 
+    # Márgenes (mm → pt)
+    alto_pt += modelo.margen_superior * mm
+    alto_pt += modelo.margen_inferior * mm
+
+    ancho_util = (
+        modelo.ancho_mm
+        - modelo.margen_izquierdo
+        - modelo.margen_derecho
+    ) * mm
+
+    # Nombre (multilínea real)
+    if modelo.mostrar_nombre:
+        h_nombre = medir_paragraph(
+            producto.nombre,
+            ancho_util,
+            modelo.nombre_tamano,
+            bold=modelo.nombre_negrita
+        )
+        alto_pt += h_nombre + 2 * mm
+
+    # Precio (línea simple)
+    if modelo.mostrar_precio:
+        alto_pt += modelo.precio_tamano * 1.4
+
+    # Barcode
+    if modelo.mostrar_barcode:
+        alto_pt += modelo.barcode_alto * 0.264 * mm
+        if modelo.barcode_mostrar_texto:
+            alto_pt += 4 * mm
+
+    # Padding
+    alto_pt += modelo.padding * 2 * 0.264 * mm
+
+    # Seguridad mínima
+    alto_pt = max(alto_pt, 20 * mm)
+
+    # Convertimos a mm para coherencia
+    return alto_pt / mm
+def draw_paragraph_centered(c, text, x, y, width, font_size, bold=False):
+    styles = getSampleStyleSheet()
+    
+    style = ParagraphStyle(
+        name="Etiqueta",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold" if bold else "Helvetica",
+        fontSize=font_size,
+        leading=font_size * 1.2,
+        alignment=1,  # center
+        spaceAfter=0,
+        spaceBefore=0,
+    )
+
+    p = Paragraph(text, style)
+    w, h = p.wrap(width, 1000)  # 1000 = alto máximo ficticio
+    p.drawOn(c, x, y - h)
+
+    return h  # 🔥 devolvemos la altura real
+
+
+def medir_paragraph(text, width, font_size, bold=False):
+    styles = getSampleStyleSheet()
+
+    style = ParagraphStyle(
+        name="Medicion",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold" if bold else "Helvetica",
+        fontSize=font_size,
+        leading=font_size * 1.2,
+        alignment=1,
+    )
+
+    p = Paragraph(text, style)
+    _, h = p.wrap(width, 10_000)
+    return h  # POINTS
 @login_required
 def imprimir_etiquetas_pdf(request):
     modelo_id = request.GET.get("modelo")
@@ -167,74 +250,77 @@ def imprimir_etiquetas_pdf(request):
     response["Content-Disposition"] = 'inline; filename="etiquetas.pdf"'
 
     ancho = modelo.ancho_mm * mm
-    alto = modelo.alto_mm * mm
-    c = canvas.Canvas(response, pagesize=(ancho, alto))
-
     PT_PER_MM = 2.83464567  # Puntos por mm
 
+    c = canvas.Canvas(response)
+
     for producto in productos:
+
+        # ===== CALCULAR ALTO REAL DE ESTA ETIQUETA =====
+        if modelo.alto_mm > 0:
+            alto_mm = modelo.alto_mm
+        else:
+            alto_mm = calcular_alto_etiqueta_mm(modelo, producto)
+
+        alto = alto_mm * mm
+        c.setPageSize((ancho, alto))
+
         y = alto - modelo.margen_superior * mm
+
+        ancho_util = ancho - (modelo.margen_izquierdo + modelo.margen_derecho) * mm
 
         # ===== NOMBRE =====
         if modelo.mostrar_nombre:
-            draw_centered(
+            h_nombre = draw_paragraph_centered(
                 c,
                 producto.nombre,
+                modelo.margen_izquierdo * mm,
                 y,
-                ancho,
-                "Helvetica-Bold" if modelo.nombre_negrita else "Helvetica",
-                modelo.nombre_tamano
+                ancho_util,
+                modelo.nombre_tamano,
+                bold=modelo.nombre_negrita
             )
-            y -= (modelo.nombre_tamano + 2) * mm / PT_PER_MM  # convertir px a mm aprox
+            # Actualizamos y para que lo siguiente quede debajo del nombre
+            y -= h_nombre + 2 * mm
 
         # ===== PRECIO =====
         if modelo.mostrar_precio:
-            draw_centered(
-                c,
-                f"$ {producto.precio_venta}",
-                y,
-                ancho,
+            c.setFont(
                 "Helvetica-Bold" if modelo.precio_negrita else "Helvetica",
                 modelo.precio_tamano
             )
-            y -= (modelo.precio_tamano + 2) * mm / PT_PER_MM
-
+            precio_texto = f"${producto.precio_venta:,.0f}".replace(",", ".")
+            # Dibujar centrado **en la posición actual de y**
+            c.drawCentredString(ancho / 2, y - modelo.precio_tamano, precio_texto)
+            # Reducimos y para el siguiente elemento
+            y -= modelo.precio_tamano * 1.4 + 2*mm
+            
         # ===== CODIGO DE BARRAS =====
-       
         if modelo.mostrar_barcode:
-            barcode_height_pt = modelo.barcode_alto * PT_PER_MM  # mm → pt
+            # Ajustar alto si nos pasamos del límite
+            max_barcode_y = y - modelo.margen_inferior * mm
+            barcode_height_pt = modelo.barcode_alto * PT_PER_MM
+            if barcode_height_pt > max_barcode_y:
+                barcode_height_pt = max_barcode_y
+
             barcode = code128.Code128(
                 producto.codigo,
                 barHeight=barcode_height_pt,
                 barWidth=0.6
             )
 
-            # Escalar horizontalmente para que encaje en ancho definido
             scale_x = (modelo.barcode_ancho * mm) / barcode.width
             c.saveState()
             c.translate((ancho - barcode.width * scale_x)/2, y - barcode_height_pt)
-            c.scale(scale_x, 1)  # solo escala horizontal
+            c.scale(scale_x, 1)
             barcode.drawOn(c, 0, 0)
             c.restoreState()
 
-            # ===== Actualizar y para el texto debajo =====
-            y -= modelo.barcode_alto * mm  # mover y hacia abajo según alto real del barcode en mm
-            y -= 4*mm  # un pequeño padding entre barcode y texto
+            y -= barcode_height_pt + 2*mm
 
-            # Mostrar texto debajo del barcode si corresponde
             if modelo.barcode_mostrar_texto:
-                draw_centered(
-                    c,
-                    producto.codigo,
-                    y,
-                    ancho,
-                    "Helvetica",
-                    8
-                )
-                y -= 10  # separación extra para que no se encime con lo siguiente
-
-        # ===== BORDE DEBUG OPCIONAL =====
-        # c.rect(0, 0, ancho, alto)
+                draw_centered(c, producto.codigo, y, ancho, "Helvetica", 8)
+                y -= 10
 
         c.showPage()
 

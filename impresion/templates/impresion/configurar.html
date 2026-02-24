@@ -7,119 +7,153 @@
 
 <div
     x-data="{
-        seleccionados: [],
-        modeloSeleccionado: null,
-        busqueda: '',
+    seleccionados: [],
+    modeloSeleccionado: null,
+    busqueda: '',
 
-        productos: [
-            {% for producto in productos %}
-            {
-                id: {{ producto.id }},
-                nombre: '{{ producto.nombre|escapejs }}',
-                codigo: '{{ producto.codigo|escapejs }}',
-                precio: {{ producto.precio_venta }},
-                tipo: '{{ producto.get_tipo_venta_display }}'
-            },
-            {% endfor %}
-        ],
-
-        modelos: {
-            {% for modelo in modelos %}
-            {{ modelo.id }}: {
-                columnas: {{ modelo.columnas }},
-                filas: {{ modelo.filas }},
-                mostrar_codigo: {{ modelo.mostrar_codigo|yesno:'true,false' }},
-                mostrar_precio: {{ modelo.mostrar_precio|yesno:'true,false' }},
-                mostrar_barcode: {{ modelo.mostrar_barcode|yesno:'true,false' }}, 
-                tamano_hoja: '{{ modelo.tamano_hoja }}',
-                orientacion: '{{ modelo.orientacion }}'
-            },
-            {% endfor %}
+    /* ================= PRODUCTOS ================= */
+    productos: [
+        {% for producto in productos %}
+        {
+            id: {{ producto.id }},
+            nombre: '{{ producto.nombre|escapejs }}',
+            codigo: '{{ producto.codigo|escapejs }}',
+            precio: {{ producto.precio_venta }},
+            tipo: '{{ producto.get_tipo_venta_display }}'
         },
+        {% endfor %}
+    ],
 
-        getProducto(id) {
-            return this.productos.find(p => p.id === Number(id)) || null
+    /* ================= MODELOS ================= */
+    modelos: {
+        /* ---- HOJA (A4 / A5) ---- */
+        {% for modelo in modelos_hoja %}
+        'hoja-{{ modelo.id }}': {
+            tipo: 'hoja',
+            columnas: {{ modelo.columnas }},
+            filas: {{ modelo.filas }},
+            mostrar_codigo: {{ modelo.mostrar_codigo|yesno:'true,false' }},
+            mostrar_precio: {{ modelo.mostrar_precio|yesno:'true,false' }},
+            mostrar_barcode: {{ modelo.mostrar_barcode|yesno:'true,false' }},
+            tamano_hoja: '{{ modelo.tamano_hoja }}',
+            orientacion: '{{ modelo.orientacion }}'
         },
+        {% endfor %}
 
-        maxEtiquetas() {
-            if (!this.modeloSeleccionado) return 0
-            const m = this.modelos[Number(this.modeloSeleccionado)]
-            return m ? m.columnas * m.filas : 0
+        /* ---- ETIQUETA (58mm / 80mm) ---- */
+        {% for modelo in modelos_etiqueta %}
+        'etiqueta-{{ modelo.id }}': {
+            tipo: 'etiqueta',
+            ancho_mm: {{ modelo.ancho_mm }},
+            mostrar_precio: {{ modelo.mostrar_precio|yesno:'true,false' }},
+            mostrar_barcode: {{ modelo.mostrar_barcode|yesno:'true,false' }}
         },
+        {% endfor %}
+    },
 
-        hojaStyle() {
-            if (!this.modeloSeleccionado) return ''
+    /* ================= HELPERS ================= */
+    getProducto(id) {
+        return this.productos.find(p => p.id === Number(id)) || null
+    },
 
-            const m = this.modelos[Number(this.modeloSeleccionado)]
+    esHoja() {
+        return this.modeloSeleccionado
+            && this.modelos[this.modeloSeleccionado]?.tipo === 'hoja'
+    },
 
-            let width = 70
-            let height = 99
+    /* ================= HOJAS ================= */
+    maxEtiquetas() {
+        if (!this.esHoja()) return 0
+        const m = this.modelos[this.modeloSeleccionado]
+        return m.columnas * m.filas
+    },
 
-            if (m.tamano_hoja === 'A5') {
-                width = 148
-                height = 210
-            }
+    hojaStyle() {
+        if (!this.esHoja()) return ''
 
-            if (m.orientacion === 'landscape') {
-                [width, height] = [height, width]
-            }
+        const m = this.modelos[this.modeloSeleccionado]
 
-            return `
-                width: ${width}mm;
-                height: ${height}mm;
-                padding: 10mm;
-                display: grid;
-                grid-template-columns: repeat(${m.columnas}, 1fr);
-                gap: 6mm;
-                align-items: stretch;
-            `
-        },
+        let width = 70
+        let height = 99
 
-        paginas() {
-            const max = this.maxEtiquetas()
-            if (!max) return []
-
-            const pages = []
-            for (let i = 0; i < this.seleccionados.length; i += max) {
-                pages.push(this.seleccionados.slice(i, i + max))
-            }
-            return pages
-        },
-
-        clasesEtiqueta() {
-            if (!this.modeloSeleccionado) return {}
-
-            const m = this.modelos[Number(this.modeloSeleccionado)]
-            const total = m.columnas * m.filas
-
-            if (total <= 4) {
-                return { nombre: 'text-lg', precio: 'text-2xl', codigo: 'text-sm' }
-            }
-            if (total <= 6) {
-                return { nombre: 'text-base', precio: 'text-xl', codigo: 'text-xs' }
-            }
-            if (total <= 8) {
-                return { nombre: 'text-sm', precio: 'text-lg', codigo: 'text-xs' }
-            }
-            return { nombre: 'text-xs', precio: 'text-base', codigo: 'text-[10px]' }
-        },
-
-        imprimirEtiquetas() {
-            if (!this.modeloSeleccionado) {
-                alert('Seleccioná un modelo de impresión')
-                return
-            }
-
-            if (!this.seleccionados.length) {
-                alert('Seleccioná al menos un producto')
-                return
-            }
-
-            const url = `/impresion/imprimir-etiquetas/?modelo=${this.modeloSeleccionado}&productos=${this.seleccionados.join(',')}`
-            window.open(url, '_blank')
+        if (m.tamano_hoja === 'A5') {
+            width = 148
+            height = 210
         }
-    }"
-    class="max-w-7xl mx-auto"
+
+        if (m.orientacion === 'landscape') {
+            [width, height] = [height, width]
+        }
+
+        return `
+            width: ${width}mm;
+            height: ${height}mm;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(${m.columnas}, 1fr);
+            grid-template-rows: repeat(${m.filas}, 1fr);
+            gap: 6px;
+            align-items: stretch;
+            overflow: hidden;
+        `
+    },
+
+    paginas() {
+        if (!this.esHoja()) return []
+        const max = this.maxEtiquetas()
+        if (!max) return []
+
+        const pages = []
+        for (let i = 0; i < this.seleccionados.length; i += max) {
+            pages.push(this.seleccionados.slice(i, i + max))
+        }
+        return pages
+    },
+
+    clasesEtiqueta() {
+        if (!this.esHoja()) return {}
+
+        const m = this.modelos[this.modeloSeleccionado]
+        const total = m.columnas * m.filas
+
+        if (total <= 4) {
+            return { nombre: 'text-lg', precio: 'text-2xl', codigo: 'text-sm' }
+        }
+        if (total <= 6) {
+            return { nombre: 'text-base', precio: 'text-xl', codigo: 'text-xs' }
+        }
+        if (total <= 8) {
+            return { nombre: 'text-sm', precio: 'text-lg', codigo: 'text-xs' }
+        }
+        return { nombre: 'text-xs', precio: 'text-base', codigo: 'text-[10px]' }
+    },
+
+    /* ================= IMPRIMIR ================= */
+    imprimirEtiquetas() {
+        if (!this.modeloSeleccionado) {
+            alert('Seleccioná un modelo de impresión')
+            return
+        }
+
+        if (!this.seleccionados.length) {
+            alert('Seleccioná al menos un producto')
+            return
+        }
+
+        let url = ''
+
+        if (this.esHoja()) {
+            const id = this.modeloSeleccionado.replace('hoja-', '')
+            url = `/impresion/imprimir-etiquetas/?modelo=${id}&productos=${this.seleccionados.join(',')}`
+        } else {
+            const id = this.modeloSeleccionado.replace('etiqueta-', '')
+            url = `/impresion/etiquetas/pdf/?modelo=${id}&productos=${this.seleccionados.join(',')}`
+        }
+
+        window.open(url, '_blank')
+    }
+}"
+class="max-w-7xl mx-auto"
 >
 
     <!-- MODELO -->
@@ -127,8 +161,15 @@
         <label class="block mb-1 font-semibold">Modelo de impresión</label>
         <select class="border rounded px-3 py-2 w-full" x-model="modeloSeleccionado">
             <option value="">-- Seleccionar modelo --</option>
-            {% for modelo in modelos %}
-                <option value="{{ modelo.id }}">{{ modelo.nombre }}</option>
+            
+            <!-- modelos de hoja -->
+            {% for modelo in modelos_hoja %}
+                <option value="hoja-{{ modelo.id }}">{{ modelo.nombre }} ({{ modelo.tamano_hoja }})</option>
+            {% endfor %}
+
+            <!-- modelos de etiqueta -->
+            {% for modelo in modelos_etiqueta %}
+                <option value="etiqueta-{{ modelo.id }}">{{ modelo.nombre }} ({{ modelo.ancho_mm }} mm)</option>
             {% endfor %}
         </select>
     </div>
@@ -186,86 +227,87 @@
         <template x-if="modeloSeleccionado && seleccionados.length">
             <div class="space-y-10">
 
-                <template x-for="(pagina, index) in paginas()" :key="index">
+                <!-- HOJA A4/A5 (grid) -->
+                <template x-if="esHoja()">
+                    <template x-for="(pagina, index) in paginas()" :key="index">
+                        <div class="bg-gray-300 p-4 inline-block print-page">
+                            <div class="preview-scale">
+                                <div class="bg-white shadow mx-auto" :style="hojaStyle()">
+                                    <template x-for="id in pagina" :key="id">
+                                        <template x-if="getProducto(id)">
+                                            <div class="border p-3 flex flex-col text-center"
+                                                :style="` overflow: hidden;`">
+                                                <div class="w-full flex flex-col justify-center items-center"
+                                                    :style="`transform: scale(${escalaEtiqueta()}); transform-origin: top center;`">
+                                                    <div class="font-bold line-clamp-2" :class="clasesEtiqueta().nombre" x-text="getProducto(id).nombre"></div>
+
+                                                    <template x-if="modelos[Number(modeloSeleccionado)].mostrar_barcode">
+                                                        <div class="my-2 flex flex-col items-center">
+                                                            <div class="bg-black" style="width:120px; height:40px;"></div>
+                                                            <div class="text-xs mt-1 text-gray-600" x-text="getProducto(id).codigo"></div>
+                                                        </div>
+                                                    </template>
+
+                                                    <template x-if="!modelos[Number(modeloSeleccionado)].mostrar_barcode
+                                                                    && modelos[Number(modeloSeleccionado)].mostrar_codigo">
+                                                        <div class="truncate text-gray-600" :class="clasesEtiqueta().codigo"
+                                                            x-text="getProducto(id).codigo"></div>
+                                                    </template>
+
+                                                    <template x-if="modelos[Number(modeloSeleccionado)].mostrar_precio">
+                                                        <div class="font-extrabold" :class="clasesEtiqueta().precio">
+                                                            $ <span x-text="getProducto(id).precio.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })"></span>
+                                                        </div>
+                                                    </template>
+
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </template>
+                                </div>
+                                <div class="text-center text-xs text-gray-500 mt-2">Hoja <span x-text="index + 1"></span></div>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+
+                <!-- HOJA TÉRMICA 58/80mm -->
+                <template x-if="!esHoja()">
                     <div class="bg-gray-300 p-4 inline-block print-page">
                         <div class="preview-scale">
-                        <div
-                            class="bg-white shadow mx-auto"
-                            
-                            :style="hojaStyle()"
-                        >
+                            <div class="bg-white shadow mx-auto"
+                                :style="`width: ${modelos[modeloSeleccionado].ancho_mm}mm; min-height: 300px; padding: 4mm; display: flex; flex-direction: column; gap: 4mm;`">
 
-                            <template x-for="id in pagina" :key="id">
-                                <template x-if="getProducto(id)">
-                                    <div
-                                        class="border p-3 flex flex-col text-center"
-                                        style="height: 100%; overflow: hidden;"
-                                    >
-                                        <div
-                                            class="w-full h-full flex flex-col justify-center items-center"
-                                            :style="`transform: scale(${escalaEtiqueta()}); transform-origin: center;`"
-                                        >
+                                <template x-for="id in seleccionados" :key="id">
+                                    <template x-if="getProducto(id)">
+                                        <div class="border p-2 flex flex-col text-center">
+                                            <div class="font-bold truncate" :class="clasesEtiqueta().nombre"
+                                                x-text="getProducto(id).nombre"></div>
 
+                                            <template x-if="modelos[modeloSeleccionado].mostrar_barcode">
+                                                <div class="my-1 flex flex-col items-center">
+                                                    <div class="bg-black" style="width:120px; height:40px;"></div>
+                                                    <div class="text-xs mt-1 text-gray-600" x-text="getProducto(id).codigo"></div>
+                                                </div>
+                                            </template>
 
-                                        <!-- NOMBRE -->
-                                        <div
-                                            class="font-bold truncate"
-                                            :class="clasesEtiqueta().nombre"
-                                            x-text="getProducto(id).nombre">
+                                            <template x-if="!modelos[modeloSeleccionado].mostrar_barcode
+                                                            && modelos[modeloSeleccionado].mostrar_codigo">
+                                                <div class="truncate text-gray-600" :class="clasesEtiqueta().codigo"
+                                                    x-text="getProducto(id).codigo"></div>
+                                            </template>
+
+                                            <template x-if="modelos[modeloSeleccionado].mostrar_precio">
+                                                <div class="font-extrabold" :class="clasesEtiqueta().precio">
+                                                    $ <span x-text="getProducto(id).precio.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })"></span>
+                                                </div>
+                                            </template>
+
                                         </div>
-
-                                        <!-- BARCODE (PREVIEW) -->
-                                        <template x-if="modelos[Number(modeloSeleccionado)].mostrar_barcode">
-                                            <div class="my-2 flex flex-col items-center">
-                                                <!-- Simulación visual del barcode -->
-                                                <div class="bg-black"
-                                                    style="width:120px; height:40px;">
-                                                </div>
-
-                                                <!-- Texto del código (opcional, solo visual) -->
-                                                <div class="text-xs mt-1 text-gray-600"
-                                                    x-text="getProducto(id).codigo">
-                                                </div>
-                                            </div>
-                                        </template>
-
-                                        <!-- CÓDIGO (solo si NO hay barcode) -->
-                                        <template
-                                            x-if="!modelos[Number(modeloSeleccionado)].mostrar_barcode
-                                                && modelos[Number(modeloSeleccionado)].mostrar_codigo">
-                                            <div
-                                                class="truncate text-gray-600"
-                                                :class="clasesEtiqueta().codigo"
-                                                x-text="getProducto(id).codigo">
-                                            </div>
-
-                                        </template>
-
-                                        <!-- PRECIO -->
-                                        <template x-if="modelos[Number(modeloSeleccionado)].mostrar_precio">
-                                            <div
-                                                class="font-extrabold"
-                                                :class="clasesEtiqueta().precio">
-                                                $ <span
-                                                    x-text="getProducto(id).precio.toLocaleString(
-                                                        'es-AR',
-                                                        { minimumFractionDigits: 0, maximumFractionDigits: 0 }
-                                                    )">
-                                                </span>
-                                            </div>
-                                        </template>
-
-                                    </div>
-                                    </div>
-
+                                    </template>
                                 </template>
-                            </template>
 
-                        </div>
-
-                        <div class="text-center text-xs text-gray-500 mt-2">
-                            Hoja <span x-text="index + 1"></span>
-                        </div>
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -273,11 +315,7 @@
             </div>
         </template>
 
-        <template x-if="seleccionados.length > maxEtiquetas()">
-            <p class="text-sm text-orange-600 mt-2">
-                ⚠️ Hay más productos seleccionados que espacios disponibles.
-            </p>
-        </template>
+        
     </div>
 
 </div>
@@ -289,6 +327,18 @@
     .preview-scale {
     transform: scale(1);        /* 🔧 ajustá: 0.5 / 0.6 / 0.7 */
     transform-origin: top center;
+}
+    .line-clamp-2 {
+    display: -webkit-box;          /* compatibilidad WebKit */
+    -webkit-box-orient: vertical;  /* orienta el box vertical */
+    -webkit-line-clamp: 2;         /* máximo 2 líneas en WebKit */
+    
+    display: box;                  /* estándar antiguo */
+    box-orient: vertical;
+    line-clamp: 2;                 /* estándar moderno */
+    
+    overflow: hidden;              /* corta el texto que excede */
+    text-overflow: ellipsis;       /* agrega "..." si se corta */
 }
 
 @media print {
