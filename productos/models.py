@@ -30,6 +30,9 @@ class Producto(models.Model):
     cantidad_minima_descuento = models.PositiveIntegerField(null=True, blank=True)
     porcentaje_descuento = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 
+    alerta_stock_bajo = models.BooleanField(default=False)
+    stock_minimo_alerta = models.PositiveIntegerField(null=True, blank=True)
+    
     class Meta:
         unique_together = ('codigo', 'empresa')
 

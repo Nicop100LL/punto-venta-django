@@ -57,6 +57,13 @@ def nuevo_producto(request):
             cantidad_minima_descuento = None
             porcentaje_descuento = None
 
+        alerta_stock_bajo = 'alerta_stock_bajo' in request.POST
+        if alerta_stock_bajo:
+            stock_minimo_alerta = request.POST.get('stock_minimo_alerta')
+            stock_minimo_alerta = int(stock_minimo_alerta) if stock_minimo_alerta else 0
+        else:
+            stock_minimo_alerta = None
+            
         if Producto.objects.filter(codigo=codigo, empresa=request.user.empresa).exists():
             return JsonResponse({'success': False, 'message': 'El código de producto ya existe para esta empresa.'})
 
@@ -74,6 +81,8 @@ def nuevo_producto(request):
             aplica_descuento=aplica_descuento,
             cantidad_minima_descuento=int(cantidad_minima_descuento) if cantidad_minima_descuento else 0,
             porcentaje_descuento=porcentaje_descuento,
+            alerta_stock_bajo=alerta_stock_bajo,
+            stock_minimo_alerta=stock_minimo_alerta,
         )
 
         return JsonResponse({
@@ -87,6 +96,8 @@ def nuevo_producto(request):
                 'precio_venta': float(producto.precio_venta),
                 'stock_actual': float(producto.stock_actual),
                 'tipo_venta': producto.tipo_venta,
+                'alerta_stock_bajo': producto.alerta_stock_bajo,
+                'stock_minimo_alerta': producto.stock_minimo_alerta,
             }
         })
 
@@ -216,6 +227,20 @@ def editar_producto(request, id):
             producto.cantidad_minima_descuento = 0
             producto.porcentaje_descuento = None
 
+        # --- ALERTA STOCK BAJO ---
+        producto.alerta_stock_bajo = 'alerta_stock_bajo' in request.POST
+        if producto.alerta_stock_bajo:
+            raw_min_alerta = request.POST.get('stock_minimo_alerta')
+            min_alerta_str = _clean_number_string(raw_min_alerta)
+            try:
+                producto.stock_minimo_alerta = (
+                    int(Decimal(min_alerta_str)) if min_alerta_str else 0
+                )
+            except (InvalidOperation, ValueError, TypeError):
+                producto.stock_minimo_alerta = 0
+        else:
+            producto.stock_minimo_alerta = None
+        
         producto.save()
         messages.success(request, 'Producto actualizado correctamente.')
         return redirect('lista_productos')

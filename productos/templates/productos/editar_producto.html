@@ -222,6 +222,28 @@
 
             </div>
 
+            <!-- Alerta stock bajo -->
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="alerta_stock_bajo" name="alerta_stock_bajo"
+                    class="rounded border-gray-300 text-blue-600 shadow-sm"
+                    {% if producto.alerta_stock_bajo %}checked{% endif %}>
+                <label for="alerta_stock_bajo" class="text-sm font-medium text-gray-700">
+                    ⚠️ Alertar cuando quede poco stock
+                </label>
+            </div>
+
+            <div id="campos-alerta-stock" class="{% if not producto.alerta_stock_bajo %}hidden{% endif %} space-y-2">
+                <div>
+                    <label for="stock_minimo_alerta" class="block text-sm font-medium">
+                        Avisar cuando el stock sea menor o igual a:
+                    </label>
+                    <input type="number" id="stock_minimo_alerta" name="stock_minimo_alerta"
+                        value="{{ producto.stock_minimo_alerta|default:'' }}"
+                        min="0" step="1"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+            </div>
+
             <!-- Categoría -->
             <div>
                 <label for="categoria" class="block text-sm font-medium">Categoría</label>
@@ -258,6 +280,11 @@
 
     checkbox.addEventListener('change', function () {
         camposDescuento.classList.toggle('hidden', !this.checked);
+    });
+    const checkAlerta = document.getElementById('alerta_stock_bajo');
+    const camposAlerta = document.getElementById('campos-alerta-stock');
+    checkAlerta.addEventListener('change', function () {
+        camposAlerta.classList.toggle('hidden', !this.checked);
     });
 </script>
 

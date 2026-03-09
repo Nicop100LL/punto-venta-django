@@ -272,6 +272,26 @@
         </div>
       </div>
 
+      <!-- Alerta stock bajo -->
+      <div class="flex items-center gap-2">
+          <input type="checkbox" id="modal-alerta_stock_bajo" name="alerta_stock_bajo"
+              class="rounded border-gray-300 text-blue-600 shadow-sm">
+          <label for="modal-alerta_stock_bajo" class="text-sm font-medium text-gray-700">
+              ⚠️ Alertar cuando quede poco stock
+          </label>
+      </div>
+
+      <div id="modal-campos-alerta-stock" class="hidden space-y-2">
+          <div>
+              <label for="modal-stock_minimo_alerta" class="block text-sm font-medium">
+                  Avisar cuando el stock sea menor o igual a:
+              </label>
+              <input type="number" id="modal-stock_minimo_alerta" name="stock_minimo_alerta"
+                  min="0" step="1"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+          </div>
+      </div>
+
       <div class="flex justify-end gap-2 mt-4">
         <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-300 rounded">Cancelar</button>
         <button id="btn-guardar-producto" type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Guardar</button>
@@ -454,6 +474,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     check.addEventListener("change", toggle);
     toggle();
+  });
+</script>
+
+<!-- Alerta stock bajo - mostrar/ocultar campo -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const checkAlerta = document.getElementById("modal-alerta_stock_bajo");
+    const camposAlerta = document.getElementById("modal-campos-alerta-stock");
+
+    checkAlerta.addEventListener("change", function () {
+      camposAlerta.classList.toggle("hidden", !this.checked);
+    });
   });
 </script>
 

@@ -6,7 +6,53 @@
 
 {% block content %}
 <h2 class="text-xl font-bold mb-4">Nueva Venta</h2>
+<!-- ⚠️ Alertas de stock bajo -->
+{% if alertas_stock %}
+<div id="toast-stock-container" class="fixed top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+</div>
+<script>
+    const alertasStock = {{ alertas_stock|safe }};
 
+    function mostrarAlertaStock(nombre, stock) {
+        const container = document.getElementById('toast-stock-container');
+        const toast = document.createElement('div');
+        toast.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(16px)';
+        toast.className = 'flex items-start gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium bg-orange-500 text-white max-w-xs pointer-events-auto';
+        toast.innerHTML = `
+            <span class="text-lg leading-none">⚠️</span>
+            <div>
+                <div class="font-bold">${nombre}</div>
+                <div class="text-orange-100">Stock bajo: quedan <strong>${stock}</strong> unidades</div>
+            </div>
+        `;
+        container.appendChild(toast);
+
+        // Animar entrada
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateX(0)';
+            });
+        });
+
+        // Auto-cerrar a los 5 segundos
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(16px)';
+            setTimeout(() => toast.remove(), 500);
+        }, 5000);
+    }
+
+    // Mostrar cada alerta con 400ms de separación para que no aparezcan todas juntas
+    alertasStock.forEach((alerta, i) => {
+        setTimeout(() => {
+            mostrarAlertaStock(alerta.nombre, alerta.stock);
+        }, i * 400);
+    });
+</script>
+{% endif %}
 {% if error %}
 <p class="text-red-600 font-semibold mb-2">{{ error }}</p>
 {% endif %}

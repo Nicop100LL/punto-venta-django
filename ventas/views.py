@@ -309,6 +309,8 @@ def nueva_venta(request):
                     
                
                 # Detalle y stock
+                alertas_stock = []
+
                 for item in carrito:
                     producto = Producto.objects.get(id=item['producto_id'])
 
@@ -319,10 +321,24 @@ def nueva_venta(request):
                         precio_unitario=item['precio_unitario']
                     )
 
-                # 🔥 NO descontar stock para VARIOS
-                if producto.codigo != PRODUCTO_VARIOS_CODIGO:
-                    producto.stock_actual -= Decimal(str(item['cantidad']))
-                    producto.save()
+                    # 🔥 NO descontar stock para VARIOS
+                    if producto.codigo != PRODUCTO_VARIOS_CODIGO:
+                        producto.stock_actual -= Decimal(str(item['cantidad']))
+                        producto.save()
+
+                        # ⚠️ Verificar alerta de stock bajo
+                        if (
+                            producto.alerta_stock_bajo and
+                            producto.stock_minimo_alerta is not None and
+                            producto.stock_actual <= producto.stock_minimo_alerta
+                        ):
+                            alertas_stock.append({
+                                'nombre': producto.nombre,
+                                'stock': float(producto.stock_actual),
+                            })
+
+                # Guardar alertas en sesión para mostrarlas en el redirect
+                request.session['alertas_stock'] = alertas_stock
 
 
 
@@ -330,7 +346,7 @@ def nueva_venta(request):
                 for key in ('carrito', 'cliente_id', 'tipo_pago', 'tipo_comprobante', 'cuenta_corriente'):
                     request.session.pop(key, None)
                 request.session.pop('nota', None)
-                
+                # alertas_stock NO se borra acá, se lee y borra en nueva_venta GET
 
                 return redirect(
                     f"{reverse('detalle_venta', args=[venta.id])}?tipo={tipo_comprobante}"
@@ -353,6 +369,7 @@ def nueva_venta(request):
     venta_form.fields['cliente'].queryset = Cliente.objects.filter(
         empresa=request.user.empresa
     )
+    
 
     return render(request, 'ventas/nueva_venta.html', {
         'venta_form': venta_form,
@@ -366,7 +383,7 @@ def nueva_venta(request):
         'tipo_pago': tipo_pago,
         'abrir_modal_caja': abrir_modal_caja,
         'caja_abierta': caja_abierta,
-
+        
     })
 
 
@@ -424,6 +441,9 @@ def lista_ventas(request):
 def detalle_venta(request, venta_id):
     venta = get_object_or_404(Venta, id=venta_id, empresa=request.user.empresa)
 
+    # ⚠️ Leer y limpiar alertas de stock de la sesión
+    alertas_stock = request.session.pop('alertas_stock', [])
+    
     if venta.tipo_comprobante == 'factura_afip':
         total = float(venta.total)
         neto = round(total / 1.21, 2)
@@ -443,6 +463,7 @@ def detalle_venta(request, venta_id):
         'iva': iva,
         'total_productos': total_productos,
         'empresa': request.user.empresa,
+        'alertas_stock': alertas_stock, 
     })
 
 @login_required
