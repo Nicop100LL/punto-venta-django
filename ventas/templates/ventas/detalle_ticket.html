@@ -100,6 +100,51 @@
     <p><strong>Nota:</strong> {{ venta.nota }}</p>
     {% endif %}
 
+    {% if venta.comprobante_arca %}
+<hr class="my-2 border-dashed">
+<p>
+    <strong class="no-print">ARCA:</strong>
+    {% if venta.comprobante_arca.estado == "pendiente" %}
+        <span class="text-yellow-600 font-bold no-print">
+            Pendiente de envío
+        </span>
+    {% elif venta.comprobante_arca.estado == "aprobado" %}
+        <span class="text-green-600 font-bold">
+            Aprobado
+        </span>
+    {% elif venta.comprobante_arca.estado == "error" %}
+        <span class="text-red-600 font-bold">
+            Error
+        </span>
+    {% endif %}
+</p>
+
+{% if venta.comprobante_arca.cae %}
+<p class="">
+    <strong>CAE:</strong> {{ venta.comprobante_arca.cae }}
+</p>
+{% endif %}
+
+{# 🚀 BOTÓN REINTENTAR #}
+{% if venta.comprobante_arca.estado != "aprobado" %}
+<form method="post" action="{% url 'reintentar_arca' venta.id %}" class="mt-2 no-print">
+    {% csrf_token %}
+    <button type="submit"
+        class="bg-orange-500 text-white px-2 py-1 rounded text-xs hover:bg-orange-600">
+        Reintentar ARCA
+    </button>
+</form>
+{% endif %}
+
+
+
+{% else %}
+<hr class="my-2 border-dashed no-print">
+<p class="text-gray-500 no-print">
+    <strong>ARCA:</strong> No aplica
+</p>
+{% endif %}
+
     {% if venta.notas_credito.exists %}
     <hr class="my-2 border-dashed">
 
@@ -165,6 +210,7 @@
             class="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600">
             Crear Nota de Crédito
         </a>
+        
     </div>
 
 </div>

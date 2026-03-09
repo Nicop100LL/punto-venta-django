@@ -53,6 +53,7 @@
                 <th class="px-4 py-2 text-left">Cliente</th>
                 <th class="px-4 py-2 text-left">Total</th>
                 <th class="px-4 py-2 text-center">NC</th>
+                <th class="px-4 py-2 text-center">ARCA</th>
             </tr>
         </thead>
         <tbody>
@@ -99,6 +100,19 @@
                         <span class="text-green-600 font-bold">Sí</span>
                     {% else %}
                         <span class="text-gray-400">—</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-2 text-center">
+                    {% if v.comprobante_arca %}
+                        {% if v.comprobante_arca.estado == "pendiente" %}
+                            <span title="Pendiente ARCA">🟡</span>
+                        {% elif v.comprobante_arca.estado == "aprobado" %}
+                            <span title="Aprobado ARCA">🟢</span>
+                        {% elif v.comprobante_arca.estado == "error" %}
+                            <span title="Error ARCA">🔴</span>
+                        {% endif %}
+                    {% else %}
+                        <span title="No aplica ARCA">—</span>
                     {% endif %}
                 </td>
             </tr>

@@ -9,6 +9,38 @@ class Empresa(models.Model):
     logo = models.ImageField(upload_to='logos/', blank=True, null=True)  # logo opcional
     activo = models.BooleanField(default=True)  # empresa activa o no
     
+    # --- CONFIGURACIÓN ARCA ---
+    usa_arca = models.BooleanField(
+        default=False,
+        help_text="Indica si la empresa factura con ARCA"
+    )
+
+    arca_punto_venta = models.IntegerField(
+        blank=True,
+        null=True
+    )
+
+    arca_certificado = models.FileField(
+        upload_to="arca/",
+        blank=True,
+        null=True
+    )
+
+    arca_clave_privada = models.FileField(
+        upload_to="arca/",
+        blank=True,
+        null=True
+    )
+
+    arca_modo = models.CharField(
+        max_length=20,
+        choices=[
+            ("homologacion", "Homologación"),
+            ("produccion", "Producción"),
+        ],
+        default="homologacion"
+    )
+    
     def __str__(self):
         return self.nombre
 

@@ -163,3 +163,82 @@ class DetalleNotaCredito(models.Model):
     cantidad = models.DecimalField(max_digits=10, decimal_places=2)
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+
+class ComprobanteArca(models.Model):
+
+    venta = models.OneToOneField(
+        Venta,
+        on_delete=models.CASCADE,
+        related_name="comprobante_arca"
+    )
+
+    tipo = models.CharField(
+        max_length=30,
+        choices=[
+            ("cf", "Consumidor Final"),
+            ("boleta", "Boleta Común"),
+            ("factura_a", "Factura A"),
+            ("factura_b", "Factura B"),
+        ]
+    )
+
+    numero = models.IntegerField(blank=True, null=True)
+
+    estado = models.CharField(
+        max_length=20,
+        db_index=True,
+        choices=[
+            ("pendiente", "Pendiente"),
+            ("aprobado", "Aprobado"),
+            ("error", "Error"),
+        ],
+        default="pendiente"
+    )
+
+    cae = models.CharField(max_length=50, blank=True, null=True)
+    vencimiento_cae = models.DateField(blank=True, null=True)
+
+    mensaje_error = models.TextField(blank=True, null=True)
+    
+    procesando = models.BooleanField(default=False)
+    
+    intentos = models.IntegerField(default=0)
+    ultimo_intento = models.DateTimeField(blank=True, null=True)
+
+    enviado_en = models.DateTimeField(blank=True, null=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    raw_response = models.JSONField(blank=True, null=True)
+    
+    def puede_reintentar(self):
+        return self.intentos < 3
+
+
+
+class ReglaArcaPago(models.Model):
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
+
+    tipo_pago = models.CharField(
+        max_length=2,
+        choices=Venta.TIPO_PAGO_CHOICES
+    )
+
+    subir_a_arca = models.BooleanField(default=False)
+
+    tipo_comprobante = models.CharField(
+        max_length=30,
+        choices=[
+            ("cf", "Consumidor Final"),
+            ("boleta", "Boleta Común"),
+            ("factura_a", "Factura A"),
+            ("factura_b", "Factura B"),
+        ],
+        blank=True,
+        null=True
+    )
+
+    obligatorio = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ("empresa", "tipo_pago")    

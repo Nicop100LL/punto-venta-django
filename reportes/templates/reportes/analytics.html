@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load custom_filters %}
+
+{% block content %}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<div class="bg-white shadow rounded-xl p-6 space-y-8">
+
+    <!-- ENCABEZADO -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold">📊 Analytics</h1>
+            <p class="text-sm text-gray-500 mt-0.5">{{ label_actual }} vs {{ label_anterior }}</p>
+        </div>
+        <button onclick="window.print()"
+                class="bg-gray-700 text-white px-3 py-1 rounded text-sm">
+            Imprimir
+        </button>
+    </div>
+
+    <!-- SELECTOR DE COMPARATIVA -->
+    <!-- El form se envía automáticamente al cambiar el radio,
+         excepto en modo rango donde hay que presionar Aplicar -->
+    <form method="GET" id="form-analytics">
+
+        <div class="flex flex-wrap gap-2 items-center mb-4">
+            <span class="text-sm font-semibold text-gray-600">Comparar:</span>
+            {% for valor, etiqueta in comparativas_opciones %}
+            <label class="cursor-pointer">
+                <input type="radio" name="comparativa" value="{{ valor }}"
+                       class="sr-only peer"
+                       {% if comparativa == valor %}checked{% endif %}
+                       onchange="onModoChange(this.value)">
+                <span class="peer-checked:bg-blue-600 peer-checked:text-white
+                             bg-white border border-gray-300 text-gray-700
+                             px-4 py-1.5 rounded-full text-sm select-none transition-colors">
+                    {{ etiqueta }}
+                </span>
+            </label>
+            {% endfor %}
+        </div>
+
+        <!-- Controles de RANGO LIBRE (ocultos si no es modo rango) -->
+        <div id="ctrl-rango"
+             class="{% if comparativa != 'rango' %}hidden{% endif %}
+                    bg-gray-50 border rounded-xl p-4 flex flex-wrap gap-4 items-end">
+
+            <div>
+                <p class="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                    Período A — desde
+                </p>
+                <input type="date" name="a_desde" value="{{ actual_desde }}"
+                       class="border rounded px-2 py-1 text-sm">
+            </div>
+            <div>
+                <p class="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                    Período A — hasta
+                </p>
+                <input type="date" name="a_hasta" value="{{ actual_hasta }}"
+                       class="border rounded px-2 py-1 text-sm">
+            </div>
+
+            <div class="text-gray-300 self-center text-lg font-light">vs</div>
+
+            <div>
+                <p class="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                    Período B — desde
+                </p>
+                <input type="date" name="b_desde" value="{{ anterior_desde }}"
+                       class="border rounded px-2 py-1 text-sm">
+            </div>
+            <div>
+                <p class="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                    Período B — hasta
+                </p>
+                <input type="date" name="b_hasta" value="{{ anterior_hasta }}"
+                       class="border rounded px-2 py-1 text-sm">
+            </div>
+
+            <div class="self-end">
+                <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-1.5 rounded text-sm transition-colors">
+                    Aplicar →
+                </button>
+            </div>
+        </div>
+
+    </form>
+
+    <!-- TARJETAS COMPARATIVAS -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+        <!-- Ventas totales -->
+        <div class="border rounded-xl p-4 bg-gray-50">
+            <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Ventas totales</p>
+            <p class="text-3xl font-bold mt-1">${{ ventas_actual|floatformat:0|formato_precio }}</p>
+            <div class="flex items-center gap-2 mt-2">
+                <span class="text-xs text-gray-400">vs ${{ ventas_anterior|floatformat:0|formato_precio }}</span>
+                {% if var_ventas is not None %}
+                    {% if var_ventas >= 0 %}
+                    <span class="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">↑ {{ var_ventas }}%</span>
+                    {% else %}
+                    <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">↓ {{ var_ventas|stringformat:".1f" }}%</span>
+                    {% endif %}
+                {% else %}
+                    <span class="text-xs text-gray-400">sin dato anterior</span>
+                {% endif %}
+            </div>
+            <p class="text-xs text-gray-400 mt-1">{{ label_actual }} vs {{ label_anterior }}</p>
+        </div>
+        <!-- Tickets -->
+        <div class="border rounded-xl p-4 bg-gray-50">
+            <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Tickets</p>
+            <p class="text-3xl font-bold mt-1">{{ tickets_actual }}</p>
+            <div class="flex items-center gap-2 mt-2">
+                <span class="text-xs text-gray-400">vs {{ tickets_anterior }}</span>
+                {% if var_tickets is not None %}
+                    {% if var_tickets >= 0 %}
+                    <span class="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">↑ {{ var_tickets }}%</span>
+                    {% else %}
+                    <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">↓ {{ var_tickets|stringformat:".1f" }}%</span>
+                    {% endif %}
+                {% else %}
+                    <span class="text-xs text-gray-400">sin dato anterior</span>
+                {% endif %}
+            </div>
+            <p class="text-xs text-gray-400 mt-1">{{ label_actual }} vs {{ label_anterior }}</p>
+        </div>
+
+        <!-- Ticket promedio -->
+        <div class="border rounded-xl p-4 bg-gray-50">
+            <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Ticket promedio</p>
+            <p class="text-3xl font-bold mt-1">${{ ticket_promedio_actual|floatformat:0|formato_precio }}</p>
+            <div class="flex items-center gap-2 mt-2">
+                <span class="text-xs text-gray-400">vs ${{ ticket_promedio_anterior|floatformat:0|formato_precio }}</span>
+                {% if var_ticket is not None %}
+                    {% if var_ticket >= 0 %}
+                    <span class="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">↑ {{ var_ticket }}%</span>
+                    {% else %}
+                    <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">↓ {{ var_ticket|stringformat:".1f" }}%</span>
+                    {% endif %}
+                {% else %}
+                    <span class="text-xs text-gray-400">sin dato anterior</span>
+                {% endif %}
+            </div>
+            <p class="text-xs text-gray-400 mt-1">{{ label_actual }} vs {{ label_anterior }}</p>
+        </div>
+
+
+    </div>
+
+    <!-- GRÁFICO 1: Evolución — barras agrupadas -->
+    <div class="border rounded-xl p-4">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="font-semibold text-gray-800">Evolución de ventas</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Comparación día a día entre ambos períodos</p>
+            </div>
+        </div>
+        <canvas id="chartEvolucion" height="100"></canvas>
+    </div>
+
+    <!-- GRÁFICOS 2 y 3 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- GRÁFICO 2: Tipo de pago -->
+        <div class="border rounded-xl p-4">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="font-semibold text-gray-800">Distribución por tipo de pago</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ label_actual }}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="togglePago('doughnut')" id="btn-pago-dona"
+                            class="text-xs border rounded-full px-3 py-1 bg-blue-600 text-white transition-colors">
+                        Dona
+                    </button>
+                    <button onclick="togglePago('bar')" id="btn-pago-barra"
+                            class="text-xs border rounded-full px-3 py-1 bg-white text-gray-600 border-gray-300 transition-colors">
+                        Barras
+                    </button>
+                </div>
+            </div>
+            <canvas id="chartPago" height="200"></canvas>
+        </div>
+
+        <!-- GRÁFICO 3: Top 5 productos -->
+        <div class="border rounded-xl p-4">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="font-semibold text-gray-800">Top 5 productos</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ label_actual }} — por monto</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="toggleTop5('bar')" id="btn-top5-barra"
+                            class="text-xs border rounded-full px-3 py-1 bg-blue-600 text-white transition-colors">
+                        Barras
+                    </button>
+                    <button onclick="toggleTop5('pie')" id="btn-top5-torta"
+                            class="text-xs border rounded-full px-3 py-1 bg-white text-gray-600 border-gray-300 transition-colors">
+                        Torta
+                    </button>
+                </div>
+            </div>
+            <canvas id="chartTop5" height="200"></canvas>
+        </div>
+
+    </div>
+
+</div><!-- /card -->
+
+<script>
+// ── Datos desde Django ───────────────────────────────────────────
+const labelsEvolucion    = {{ labels_evolucion|safe }};
+const datosActualLinea   = {{ datos_actual_linea|safe }};
+const datosAnteriorLinea = {{ datos_anterior_linea|safe }};
+const labelActual        = {{ label_actual_json|safe }};
+const labelAnterior      = {{ label_anterior_json|safe }};
+const labelsPagos        = {{ labels_pagos|safe }};
+const datosPagos         = {{ datos_pagos|safe }};
+const labelsTop5         = {{ labels_top5|safe }};
+const datosTop5          = {{ datos_top5|safe }};
+
+const COLORS = [
+    '#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6',
+    '#8b5cf6','#06b6d4','#f97316','#14b8a6','#ec4899',
+];
+
+// Formatea números como pesos argentinos
+function formatPeso(v) {
+    return '$' + Math.round(v).toLocaleString('es-AR');
+}
+
+// ── GRÁFICO 1: Barras agrupadas (actual vs anterior) ─────────────
+new Chart(document.getElementById('chartEvolucion').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: labelsEvolucion,
+        datasets: [
+            {
+                label: labelActual,
+                data: datosActualLinea,
+                backgroundColor: 'rgba(99,102,241,0.75)',
+                borderRadius: 4,
+                borderSkipped: false,
+            },
+            {
+                label: labelAnterior,
+                data: datosAnteriorLinea,
+                backgroundColor: 'rgba(209,213,219,0.75)',
+                borderRadius: 4,
+                borderSkipped: false,
+            },
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ' ' + formatPeso(ctx.parsed.y)
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { callback: v => formatPeso(v) }
+            },
+            x: {
+                ticks: { maxRotation: 45 }
+            }
+        }
+    }
+});
+
+// ── GRÁFICO 2: Tipo de pago (dona / barras) ──────────────────────
+const ctxPago = document.getElementById('chartPago').getContext('2d');
+
+function crearChartPago(tipo) {
+    if (window._chartPago) window._chartPago.destroy();
+    window._chartPago = new Chart(ctxPago, {
+        type: tipo,
+        data: {
+            labels: labelsPagos,
+            datasets: [{
+                data: datosPagos,
+                backgroundColor: COLORS,
+                borderWidth: tipo === 'doughnut' ? 2 : 0,
+                borderColor: '#fff',
+                borderRadius: tipo === 'bar' ? 4 : 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: tipo === 'doughnut' ? 'right' : 'top' },
+                tooltip: { callbacks: { label: ctx => ' ' + formatPeso(ctx.parsed) } }
+            },
+            scales: tipo === 'bar' ? {
+                y: { beginAtZero: true, ticks: { callback: v => formatPeso(v) } }
+            } : {}
+        }
+    });
+}
+crearChartPago('doughnut');
+
+function togglePago(tipo) {
+    crearChartPago(tipo);
+    document.getElementById('btn-pago-dona').className  = tipo === 'doughnut'
+        ? 'text-xs border rounded-full px-3 py-1 bg-blue-600 text-white transition-colors'
+        : 'text-xs border rounded-full px-3 py-1 bg-white text-gray-600 border-gray-300 transition-colors';
+    document.getElementById('btn-pago-barra').className = tipo === 'bar'
+        ? 'text-xs border rounded-full px-3 py-1 bg-blue-600 text-white transition-colors'
+        : 'text-xs border rounded-full px-3 py-1 bg-white text-gray-600 border-gray-300 transition-colors';
+}
+
+// ── GRÁFICO 3: Top 5 productos (barras horizontales / torta) ─────
+const ctxTop5 = document.getElementById('chartTop5').getContext('2d');
+
+function crearChartTop5(tipo) {
+    if (window._chartTop5) window._chartTop5.destroy();
+    window._chartTop5 = new Chart(ctxTop5, {
+        type: tipo,
+        data: {
+            labels: labelsTop5,
+            datasets: [{
+                label: 'Monto $',
+                data: datosTop5,
+                backgroundColor: COLORS,
+                borderWidth: tipo === 'pie' ? 2 : 0,
+                borderColor: '#fff',
+                borderRadius: tipo === 'bar' ? 4 : 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            indexAxis: tipo === 'bar' ? 'y' : 'x',
+            plugins: {
+                legend: { display: tipo === 'pie' },
+                tooltip: { callbacks: { label: ctx => ' ' + formatPeso(ctx.parsed) } }
+            },
+            scales: tipo === 'bar' ? {
+                x: { beginAtZero: true, ticks: { callback: v => formatPeso(v) } }
+            } : {}
+        }
+    });
+}
+crearChartTop5('bar');
+
+function toggleTop5(tipo) {
+    crearChartTop5(tipo);
+    document.getElementById('btn-top5-barra').className = tipo === 'bar'
+        ? 'text-xs border rounded-full px-3 py-1 bg-blue-600 text-white transition-colors'
+        : 'text-xs border rounded-full px-3 py-1 bg-white text-gray-600 border-gray-300 transition-colors';
+    document.getElementById('btn-top5-torta').className = tipo === 'pie'
+        ? 'text-xs border rounded-full px-3 py-1 bg-blue-600 text-white transition-colors'
+        : 'text-xs border rounded-full px-3 py-1 bg-white text-gray-600 border-gray-300 transition-colors';
+}
+
+// ── Mostrar/ocultar controles de rango ───────────────────────────
+function onModoChange(modo) {
+    const ctrl = document.getElementById('ctrl-rango');
+    if (modo === 'rango') {
+        ctrl.classList.remove('hidden');
+        // En modo rango NO enviamos el form automáticamente,
+        // el usuario llena las fechas y presiona Aplicar
+    } else {
+        ctrl.classList.add('hidden');
+        // Para los otros modos enviamos el form al instante
+        document.getElementById('form-analytics').submit();
+    }
+}
+</script>
+
+{% endblock %}

@@ -1,30 +1,275 @@
 {% extends "base.html" %}
+{% load humanize %}
+{% load custom_filters %}
 
 {% block content %}
- <!-- TOP 5 (debajo de la tabla principal, en pantallas pequeñas aparece bajo la tabla) -->
-            <h2 class="text-xl font-bold mt-6 mb-2">Top 5 productos más vendidos</h2>
-            <div class="overflow-x-auto">
-                <table class="w-full border-collapse text-sm">
-                    <thead class="bg-gray-200">
-                        <tr>
-                            <th class="border px-2 py-2 text-left">Producto</th>
-                            <th class="border px-2 py-2 text-right">Cantidad</th>
-                            <th class="border px-2 py-2 text-right">%</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in top5 %}
-                        <tr>
-                            <td class="border px-2 py-2">{{ item.producto__nombre }}</td>
-                            <td class="border px-2 py-2 text-right">{{ item.cantidad }}</td>
-                            <td class="border px-2 py-2 text-right">{{ item.porcentaje|floatformat:1 }}%</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="3" class="text-center py-4 text-gray-500">No hay datos suficientes.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+
+<div class="bg-white shadow rounded-xl p-6">
+
+    <!-- ENCABEZADO -->
+    <div class="flex items-center justify-between mb-4">
+        <div>
+            <h1 class="text-2xl font-bold">🏆 Ranking de Productos</h1>
+            <p class="text-sm text-gray-500 mt-0.5">{{ label_periodo }}</p>
+        </div>
+        <button onclick="window.print()"
+                class="bg-gray-700 text-white px-3 py-1 rounded text-sm">
+            Imprimir
+        </button>
+    </div>
+
+    <!-- FILTROS -->
+    <form method="GET" class="mb-6 bg-gray-50 border rounded-xl p-4">
+        <div class="flex flex-wrap gap-4 items-end">
+
+            <!-- Modo período -->
+            <div>
+                <p class="text-xs font-semibold text-gray-600 mb-1">Período</p>
+                <div class="flex gap-2">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="modo" value="semanal" class="sr-only peer"
+                               {% if modo == 'semanal' %}checked{% endif %}>
+                        <span class="peer-checked:bg-blue-600 peer-checked:text-white
+                                     bg-white border border-gray-300 text-gray-700
+                                     px-3 py-1 rounded-full text-sm select-none transition-colors">
+                            Semanal
+                        </span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="modo" value="mensual" class="sr-only peer"
+                               {% if modo == 'mensual' %}checked{% endif %}>
+                        <span class="peer-checked:bg-blue-600 peer-checked:text-white
+                                     bg-white border border-gray-300 text-gray-700
+                                     px-3 py-1 rounded-full text-sm select-none transition-colors">
+                            Mensual
+                        </span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="modo" value="rango" class="sr-only peer"
+                               {% if modo == 'rango' %}checked{% endif %}>
+                        <span class="peer-checked:bg-blue-600 peer-checked:text-white
+                                     bg-white border border-gray-300 text-gray-700
+                                     px-3 py-1 rounded-full text-sm select-none transition-colors">
+                            Rango
+                        </span>
+                    </label>
+                </div>
             </div>
+
+            <!-- Controles SEMANAL -->
+            <div id="ctrl-semanal" class="{% if modo != 'semanal' %}hidden{% endif %}">
+                <p class="text-xs font-semibold text-gray-600 mb-1">Semana que contiene</p>
+                <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"
+                       class="border rounded px-2 py-1 text-sm">
+            </div>
+
+            <!-- Controles MENSUAL -->
+            <div id="ctrl-mensual" class="flex gap-2 {% if modo != 'mensual' %}hidden{% endif %}">
+                <div>
+                    <p class="text-xs font-semibold text-gray-600 mb-1">Mes</p>
+                    <select name="mes" class="border rounded px-2 py-1 text-sm">
+                        {% for num, nombre in meses %}
+                        <option value="{{ num }}" {% if num == mes %}selected{% endif %}>{{ nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-gray-600 mb-1">Año</p>
+                    <select name="anio" class="border rounded px-2 py-1 text-sm">
+                        {% for a in anios_disponibles %}
+                        <option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Controles RANGO -->
+            <div id="ctrl-rango" class="flex gap-2 items-end {% if modo != 'rango' %}hidden{% endif %}">
+                <div>
+                    <p class="text-xs font-semibold text-gray-600 mb-1">Desde</p>
+                    <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"
+                           class="border rounded px-2 py-1 text-sm">
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-gray-600 mb-1">Hasta</p>
+                    <input type="date" name="fecha_fin" value="{{ fecha_fin }}"
+                           class="border rounded px-2 py-1 text-sm">
+                </div>
+            </div>
+
+            <!-- Separador visual -->
+            <div class="hidden lg:block w-px bg-gray-300 self-stretch"></div>
+
+            <!-- Criterio de ranking -->
+            <div>
+                <p class="text-xs font-semibold text-gray-600 mb-1">Rankear por</p>
+                <div class="flex gap-2">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="criterio" value="cantidad" class="sr-only peer"
+                               {% if criterio == 'cantidad' %}checked{% endif %}>
+                        <span class="peer-checked:bg-green-600 peer-checked:text-white
+                                     bg-white border border-gray-300 text-gray-700
+                                     px-3 py-1 rounded-full text-sm select-none transition-colors">
+                            Cantidad
+                        </span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="criterio" value="monto" class="sr-only peer"
+                               {% if criterio == 'monto' %}checked{% endif %}>
+                        <span class="peer-checked:bg-green-600 peer-checked:text-white
+                                     bg-white border border-gray-300 text-gray-700
+                                     px-3 py-1 rounded-full text-sm select-none transition-colors">
+                            Monto $
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Separador visual -->
+            <div class="hidden lg:block w-px bg-gray-300 self-stretch"></div>
+
+            <!-- Filtro por categoría -->
+            <div>
+                <p class="text-xs font-semibold text-gray-600 mb-1">Categoría</p>
+                <select name="categoria" class="border rounded px-2 py-1 text-sm">
+                    <option value="">Todas</option>
+                    {% for cat in categorias %}
+                    <option value="{{ cat.id }}" {% if categoria_filtrada == cat.id|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Separador visual -->
+            <div class="hidden lg:block w-px bg-gray-300 self-stretch"></div>
+
+            <!-- Límite del ranking -->
+            <div>
+                <p class="text-xs font-semibold text-gray-600 mb-1">Mostrar</p>
+                <select name="limite" class="border rounded px-2 py-1 text-sm">
+                    <option value="5"  {% if limite == 5  %}selected{% endif %}>Top 5</option>
+                    <option value="10" {% if limite == 10 %}selected{% endif %}>Top 10</option>
+                    <option value="20" {% if limite == 20 %}selected{% endif %}>Top 20</option>
+                    <option value="0"  {% if limite == 0  %}selected{% endif %}>Todos</option>
+                </select>
+            </div>
+
+            <!-- Botón -->
+            <div class="self-end">
+                <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-1.5 rounded text-sm transition-colors">
+                    Filtrar
+                </button>
+            </div>
+
+        </div>
+    </form>
+
+    <!-- RANKING -->
+    {% if ranking %}
+    <div class="overflow-x-auto">
+        <table class="w-full border-collapse text-sm">
+            <thead class="bg-gray-200">
+                <tr>
+                    <th class="border px-2 py-2 text-center w-12">#</th>
+                    <th class="border px-2 py-2 text-left">Producto</th>
+                    <th class="border px-2 py-2 text-left text-gray-500">Categoría</th>
+                    <th class="border px-2 py-2 text-right">Cantidad</th>
+                    <th class="border px-2 py-2 text-right">Monto Total</th>
+                    <th class="border px-2 py-2 text-right">%</th>
+                    <th class="border px-2 py-2 text-left w-40">Participación</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in ranking %}
+                <tr class="hover:bg-gray-50">
+
+                    <!-- Posición con medalla top 3 -->
+                    <td class="border px-2 py-2 text-center font-bold">
+                        {% if forloop.counter == 1 %}
+                            <span title="1°">🥇</span>
+                        {% elif forloop.counter == 2 %}
+                            <span title="2°">🥈</span>
+                        {% elif forloop.counter == 3 %}
+                            <span title="3°">🥉</span>
+                        {% else %}
+                            <span class="text-gray-500">{{ forloop.counter }}</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Nombre del producto -->
+                    <td class="border px-2 py-2 font-medium">{{ item.nombre }}</td>
+
+                    <!-- Categoría -->
+                    <td class="border px-2 py-2 text-gray-500">{{ item.categoria }}</td>
+
+                    <!-- Cantidad en bultos -->
+                    <td class="border px-2 py-2 text-right">{{ item.cantidad }}</td>
+
+                    <!-- Monto total -->
+                    <td class="border px-2 py-2 text-right">${{ item.total|floatformat:0|formato_precio }}</td>
+
+                    <!-- Porcentaje -->
+                    <td class="border px-2 py-2 text-right">{{ item.porcentaje|floatformat:1 }}%</td>
+
+                    <!-- Barra de progreso proporcional al 1er puesto -->
+                    <td class="border px-2 py-2">
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="h-3 rounded-full transition-all
+                                        {% if forloop.counter == 1 %}bg-yellow-400
+                                        {% elif forloop.counter == 2 %}bg-gray-400
+                                        {% elif forloop.counter == 3 %}bg-orange-400
+                                        {% else %}bg-blue-400{% endif %}"
+                                 style="width: {{ item.barra_pct }}%">
+                            </div>
+                        </div>
+                    </td>
+
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="bg-gray-100 font-bold">
+                <tr>
+                    <td class="border px-2 py-2" colspan="3">TOTAL</td>
+                    <td class="border px-2 py-2 text-right">{{ total_cantidad }}</td>
+                    <td class="border px-2 py-2 text-right">${{ total_ventas|floatformat:0|formato_precio }}</td>
+                    <td class="border px-2 py-2 text-right">100%</td>
+                    <td class="border px-2 py-2"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12 text-gray-500">
+        No hay ventas para el período y filtros seleccionados.
+    </div>
+    {% endif %}
+
+</div><!-- /card -->
+
+<!-- JS: mostrar/ocultar controles de período -->
+<script>
+(function () {
+    var bloques = {
+        semanal: document.getElementById('ctrl-semanal'),
+        mensual: document.getElementById('ctrl-mensual'),
+        rango:   document.getElementById('ctrl-rango'),
+    };
+
+    function mostrarSolo(modoActivo) {
+        Object.keys(bloques).forEach(function (key) {
+            var el = bloques[key];
+            if (el) el.classList.toggle('hidden', key !== modoActivo);
+        });
+    }
+
+    document.querySelectorAll('input[name="modo"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            mostrarSolo(this.value);
+        });
+    });
+})();
+</script>
+
 {% endblock %}

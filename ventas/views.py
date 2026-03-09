@@ -15,6 +15,7 @@ from reportlab.lib.pagesizes import A4
 from django.utils.timezone import now
 from reportlab.lib.units import cm
 import os
+from ventas.services.arca import decidir_arca
 from .models import Venta
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
@@ -53,7 +54,14 @@ from .models import Producto, DetalleVenta, Cliente
 from .forms import VentaForm, DetalleVentaForm
 from django.contrib import messages
 from .models import Venta, DetalleVenta, Cliente, NotaCredito, DetalleNotaCredito
+from ventas.services.arca import decidir_arca
+from ventas.models import ComprobanteArca
 
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect
+from django.views.decorators.http import require_POST
+
+from ventas.models import Venta, ComprobanteArca
 
 
 
@@ -298,7 +306,8 @@ def nueva_venta(request):
                 if cuenta_corriente and cliente:
                     cliente.saldo += venta.total
                     cliente.save()
-
+                    
+               
                 # Detalle y stock
                 for item in carrito:
                     producto = Producto.objects.get(id=item['producto_id'])
@@ -996,3 +1005,78 @@ def ticket_pdf_prueba(request, venta_id):
     c.save()
 
     return response
+
+
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+
+from ventas.models import Venta, ComprobanteArca
+from ventas.services.arca import decidir_arca
+
+
+@require_POST
+@login_required
+def arca_enviar(request, venta_id):
+    venta = get_object_or_404(Venta, id=venta_id)
+
+    decision = decidir_arca(venta)
+
+    if not decision.get("subir_a_arca"):
+        messages.warning(request, "Esta venta no requiere ARCA.")
+        return redirect("detalle_venta", venta_id=venta.id)
+
+    # ✅ Verificar si ya existe el comprobante
+    comprobante, created = ComprobanteArca.objects.get_or_create(
+        venta=venta,
+        defaults={
+            "tipo": decision["tipo"],
+            "estado": "pendiente",
+        }
+    )
+
+    if created:
+        messages.success(
+            request,
+            "Comprobante creado. Pendiente de envío a ARCA."
+        )
+    else:
+        messages.info(
+            request,
+            "La venta ya tiene un comprobante ARCA. No se creó uno nuevo."
+        )
+
+    return redirect("detalle_venta", venta_id=venta.id)
+
+
+
+@login_required
+@require_POST
+def reintentar_arca(request, venta_id):
+
+    venta = get_object_or_404(Venta, id=venta_id)
+
+    if not hasattr(venta, "comprobante_arca"):
+        messages.error(request, "La venta no tiene comprobante ARCA.")
+        return redirect("detalle_venta", venta_id=venta.id)
+
+    comprobante = venta.comprobante_arca
+
+    if comprobante.estado != "error":
+        messages.error(request, "El comprobante no está en estado error.")
+        return redirect("detalle_venta", venta_id=venta.id)
+
+    # 👇 AQUÍ VA EL CONTROL DE REINTENTOS
+    if not comprobante.puede_reintentar():
+        messages.error(request, "Se alcanzó el máximo de intentos.")
+        return redirect("detalle_venta", venta_id=venta.id)
+
+    # 🔁 Reset controlado
+    comprobante.estado = "pendiente"
+    comprobante.mensaje_error = None
+    comprobante.save(update_fields=["estado", "mensaje_error"])
+
+    messages.success(request, "Comprobante marcado como pendiente para reintento.")
+
+    return redirect("detalle_venta", venta_id=venta.id)

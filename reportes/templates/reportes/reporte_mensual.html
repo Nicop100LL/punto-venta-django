@@ -1,8 +1,268 @@
 {% extends "base.html" %}
+{% load humanize %}
+{% load custom_filters %}
 
 {% block content %}
-<div class="p-4">
-    <h1 class="text-2xl font-bold mb-4">Reporte mensual</h1>
-    <p>Aquí va el contenido del reporte mensual 😉</p>
-</div>
+
+<div class="bg-white shadow rounded-xl p-6">
+
+    <!-- ENCABEZADO -->
+    <div class="flex items-center justify-between mb-4">
+        <div>
+            <h1 class="text-2xl font-bold">Reporte de Período</h1>
+            <p class="text-sm text-gray-500 mt-0.5">{{ label_periodo }}</p>
+        </div>
+        <button onclick="window.print()"
+                class="bg-gray-700 text-white px-3 py-1 rounded text-sm">
+            Imprimir
+        </button>
+    </div>
+
+    <!-- FILTROS -->
+    <form method="GET" class="mb-6 bg-gray-50 border rounded-xl p-4">
+
+        <!-- Selector de modo -->
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+            <span class="text-sm font-semibold text-gray-700 mr-1">Ver por:</span>
+
+            <label class="cursor-pointer">
+                <input type="radio" name="modo" value="semanal" class="sr-only peer"
+                       {% if modo == 'semanal' %}checked{% endif %}>
+                <span class="peer-checked:bg-blue-600 peer-checked:text-white
+                             bg-white border border-gray-300 text-gray-700
+                             px-4 py-1 rounded-full text-sm select-none transition-colors">
+                    📅 Semanal
+                </span>
+            </label>
+
+            <label class="cursor-pointer">
+                <input type="radio" name="modo" value="mensual" class="sr-only peer"
+                       {% if modo == 'mensual' %}checked{% endif %}>
+                <span class="peer-checked:bg-blue-600 peer-checked:text-white
+                             bg-white border border-gray-300 text-gray-700
+                             px-4 py-1 rounded-full text-sm select-none transition-colors">
+                    📆 Mensual
+                </span>
+            </label>
+
+            <label class="cursor-pointer">
+                <input type="radio" name="modo" value="rango" class="sr-only peer"
+                       {% if modo == 'rango' %}checked{% endif %}>
+                <span class="peer-checked:bg-blue-600 peer-checked:text-white
+                             bg-white border border-gray-300 text-gray-700
+                             px-4 py-1 rounded-full text-sm select-none transition-colors">
+                    🗓 Rango de fechas
+                </span>
+            </label>
+        </div>
+
+        <!-- Controles SEMANAL -->
+        <div id="ctrl-semanal"
+             class="flex flex-wrap items-center gap-3 {% if modo != 'semanal' %}hidden{% endif %}">
+            <label class="text-sm text-gray-600">Semana que contiene:</label>
+            <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"
+                   class="border rounded px-2 py-1 text-sm">
+        </div>
+
+        <!-- Controles MENSUAL -->
+        <div id="ctrl-mensual"
+             class="flex flex-wrap items-center gap-3 {% if modo != 'mensual' %}hidden{% endif %}">
+            <label class="text-sm text-gray-600">Mes:</label>
+            <select name="mes" class="border rounded px-2 py-1 text-sm">
+                {% for num, nombre in meses %}
+                <option value="{{ num }}" {% if num == mes %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <label class="text-sm text-gray-600">Año:</label>
+            <select name="anio" class="border rounded px-2 py-1 text-sm">
+                {% for a in anios_disponibles %}
+                <option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Controles RANGO -->
+        <div id="ctrl-rango"
+             class="flex flex-wrap items-center gap-3 {% if modo != 'rango' %}hidden{% endif %}">
+            <label class="text-sm text-gray-600">Desde:</label>
+            <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"
+                   class="border rounded px-2 py-1 text-sm">
+            <label class="text-sm text-gray-600">Hasta:</label>
+            <input type="date" name="fecha_fin" value="{{ fecha_fin }}"
+                   class="border rounded px-2 py-1 text-sm">
+        </div>
+
+        <div class="mt-4">
+            <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-1.5 rounded text-sm">
+                Filtrar
+            </button>
+        </div>
+    </form>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Columna principal: tablas -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Tabla de productos -->
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-sm">
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th class="border px-2 py-2 text-left">
+                                <a href="?modo={{ modo }}&mes={{ mes }}&anio={{ anio }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&orden=producto"
+                                   class="hover:underline">
+                                    Producto {% if orden == 'producto' %}▲{% endif %}
+                                </a>
+                            </th>
+                            <th class="border px-2 py-2 text-right">
+                                <a href="?modo={{ modo }}&mes={{ mes }}&anio={{ anio }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&orden=cantidad"
+                                   class="hover:underline">
+                                    Cantidad {% if orden == 'cantidad' %}▼{% endif %}
+                                </a>
+                            </th>
+                            <th class="border px-2 py-2 text-right">
+                                <a href="?modo={{ modo }}&mes={{ mes }}&anio={{ anio }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&orden=total"
+                                   class="hover:underline">
+                                    Monto Total {% if orden == 'total' %}▼{% endif %}
+                                </a>
+                            </th>
+                            <th class="border px-2 py-2 text-right">%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in ventas %}
+                        <tr class="{% if forloop.first %}bg-yellow-50{% endif %} hover:bg-gray-50">
+                            <td class="border px-2 py-2">{{ item.producto__nombre }}</td>
+                            <td class="border px-2 py-2 text-right">{{ item.cantidad }}</td>
+                            <td class="border px-2 py-2 text-right">${{ item.total|floatformat:0|formato_precio }}</td>
+                            <td class="border px-2 py-2 text-right">{{ item.porcentaje|floatformat:1 }}%</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-6 text-gray-500">
+                                No hay ventas para el período seleccionado.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-gray-100 font-bold">
+                        <tr>
+                            <td class="border px-2 py-2">TOTAL</td>
+                            <td class="border px-2 py-2 text-right">{{ total_productos }}</td>
+                            <td class="border px-2 py-2 text-right">${{ total_ventas|floatformat:0|formato_precio }}</td>
+                            <td class="border px-2 py-2 text-right">100%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- Desglose día a día -->
+            {% if desglose_diario %}
+            <div>
+                <h3 class="font-semibold text-gray-700 mb-2 text-sm">Detalle por día</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse text-sm">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="border px-2 py-2 text-left">Fecha</th>
+                                <th class="border px-2 py-2 text-right">Tickets</th>
+                                <th class="border px-2 py-2 text-right">Total del día</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in desglose_diario %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="border px-2 py-1">{{ d.dia }}</td>
+                                <td class="border px-2 py-1 text-right">{{ d.tickets }}</td>
+                                <td class="border px-2 py-1 text-right">${{ d.total_dia|floatformat:0|formato_precio }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-gray-100 font-bold">
+                            <tr>
+                                <td class="border px-2 py-2">TOTAL</td>
+                                <td class="border px-2 py-2 text-right">{{ cantidad_tickets }}</td>
+                                <td class="border px-2 py-2 text-right">${{ total_ventas|floatformat:0|formato_precio }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Panel lateral: KPIs -->
+        <aside class="space-y-4">
+
+            <div class="p-4 bg-gray-50 rounded border">
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Total vendido</p>
+                <p class="text-2xl font-bold mt-1">${{ total_ventas|floatformat:0|formato_precio }}</p>
+                <p class="text-xs text-gray-400 mt-1">{{ label_periodo }}</p>
+            </div>
+
+            <div class="p-4 bg-gray-50 rounded border">
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Ticket promedio</p>
+                <p class="text-2xl font-bold mt-1">${{ ticket_promedio|floatformat:0|formato_precio }}</p>
+            </div>
+
+            <div class="p-4 bg-gray-50 rounded border">
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Cantidad de tickets</p>
+                <p class="text-2xl font-bold mt-1">{{ cantidad_tickets }}</p>
+            </div>
+
+            <div class="p-4 bg-white rounded border">
+                <h3 class="font-semibold text-sm mb-2">Totales por tipo de pago</h3>
+                <table class="w-full text-sm">
+                    <tbody>
+                        {% for pago in totales_pago %}
+                        <tr class="border-b last:border-0">
+                            <td class="py-1.5">{{ pago.tipo_pago }}</td>
+                            <td class="py-1.5 text-right font-medium">${{ pago.total|floatformat:0|formato_precio }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="2" class="text-center py-2 text-gray-500 text-sm">
+                                No hay pagos registrados.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </aside>
+
+    </div><!-- /grid -->
+
+</div><!-- /card -->
+
+<!-- JS: mostrar/ocultar controles según modo -->
+<script>
+(function () {
+    var bloques = {
+        semanal: document.getElementById('ctrl-semanal'),
+        mensual: document.getElementById('ctrl-mensual'),
+        rango:   document.getElementById('ctrl-rango'),
+    };
+
+    function mostrarSolo(modoActivo) {
+        Object.keys(bloques).forEach(function (key) {
+            var el = bloques[key];
+            if (el) el.classList.toggle('hidden', key !== modoActivo);
+        });
+    }
+
+    document.querySelectorAll('input[name="modo"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            mostrarSolo(this.value);
+        });
+    });
+})();
+</script>
+
 {% endblock %}

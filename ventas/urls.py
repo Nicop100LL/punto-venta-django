@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from ventas.views import reintentar_arca, arca_enviar
 
 urlpatterns = [
     path('', views.lista_ventas, name='lista_ventas'),
@@ -19,6 +20,6 @@ urlpatterns = [
     path('nota-credito/<int:pk>/', views.detalle_nota_credito, name='detalle_nota_credito'),
     path('enviar-ticket/<int:venta_id>/', views.enviar_ticket, name='enviar_ticket'),
     path('ticket-pdf-prueba/<int:venta_id>/',views.ticket_pdf_prueba,name="ticket_pdf_prueba"), 
-
-
+    path('reintentar-arca/<int:venta_id>/', reintentar_arca, name='reintentar_arca'),
+    path("arca/enviar/<int:venta_id>/", arca_enviar, name="arca_enviar"),
 ]
