@@ -5,7 +5,7 @@ from .barcodes import code128_svg_base64
 from django.contrib.auth.decorators import login_required
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-
+from reportlab.lib.pagesizes import portrait
 
 
 from .models import ModeloEtiqueta
@@ -263,7 +263,7 @@ def imprimir_etiquetas_pdf(request):
             alto_mm = calcular_alto_etiqueta_mm(modelo, producto)
 
         alto = alto_mm * mm
-        c.setPageSize((ancho, alto))
+        c.setPageSize(portrait((ancho, alto)))
 
         y = alto - modelo.margen_superior * mm
 
