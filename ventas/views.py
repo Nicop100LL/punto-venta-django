@@ -194,6 +194,7 @@ def nueva_venta(request):
                     # 🔹 Agregamos codigo_unico solo para VARIOS
                     if producto.codigo == PRODUCTO_VARIOS_CODIGO:
                         item_dict['codigo_unico'] = request.POST.get('codigo_unico_varios')
+                        item_dict['detalle'] = request.POST.get('detalle_varios', '') 
 
                     carrito.append(item_dict)
 
@@ -318,7 +319,8 @@ def nueva_venta(request):
                         venta=venta,
                         producto=producto,
                         cantidad=item['cantidad'],
-                        precio_unitario=item['precio_unitario']
+                        precio_unitario=item['precio_unitario'],
+                        detalle=item.get('detalle', ''),
                     )
 
                     # 🔥 NO descontar stock para VARIOS

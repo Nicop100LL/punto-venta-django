@@ -49,6 +49,9 @@
             <tr class="text-[10px] align-top">
                 <td class="max-w-[120px] break-words whitespace-normal leading-tight">
                     {{ item.producto.nombre }}
+                    {% if item.detalle %}
+                        <br><small class=" italic">{{ item.detalle }}</small>
+                    {% endif %}
                 </td>
                 <td class="text-center">{{ item.cantidad }}</td>
                 <td class="text-right">

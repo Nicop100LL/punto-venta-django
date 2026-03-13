@@ -61,52 +61,56 @@
     {% csrf_token %}
     <input type="hidden" name="precio_unitario" id="precio_unitario">
     <input type="hidden" id="codigo_unico_varios" name="codigo_unico_varios">
+    <input type="hidden" id="detalle-varios-hidden" name="detalle_varios">
 
      <!-- Guardar el cliente actual -->
     <input type="hidden" name="cliente" value="{{ cliente_id|default_if_none:'' }}">
-    <div class="mb-4">
-        <label for="id_cliente" class="block text-gray-700 font-bold mb-2">Cliente:</label>
-        <select name="cliente" id="id_cliente" class="w-full border border-gray-300 rounded px-3 py-2">
-            <option value="" {% if not cliente_id %}selected{% endif %}>---------</option>
-            {% for cliente in venta_form.fields.cliente.queryset %}
-            <option value="{{ cliente.id }}" {% if cliente.id|stringformat:"s" == cliente_id|stringformat:"s" %}
-            selected{% endif %}>
-                {{ cliente.nombre }}
-            </option>
-            {% endfor %}
-        </select>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
 
-        <div id="saldo-cliente" class="mt-2 text-sm text-gray-700">
-            {% if saldo_cliente is not None %}
-            <p><strong>Saldo actual:</strong> ${{ saldo_cliente|formato_precio }}</p>
-            {% endif %}
+    <!-- Cliente -->
+    <div class="md:col-span-1">
+        <label for="id_cliente" class="block text-gray-700 font-bold mb-1 text-sm">Cliente:</label>
+        <select name="cliente" id="id_cliente" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+        <option value="" {% if not cliente_id %}selected{% endif %}>---------</option>
+        {% for cliente in venta_form.fields.cliente.queryset %}
+        <option value="{{ cliente.id }}" {% if cliente.id|stringformat:"s" == cliente_id|stringformat:"s" %}selected{% endif %}>
+            {{ cliente.nombre }}
+        </option>
+        {% endfor %}
+        </select>
+        <div id="saldo-cliente" class="mt-1 text-xs text-gray-600">
+        {% if saldo_cliente is not None %}
+        <p><strong>Saldo:</strong> ${{ saldo_cliente|formato_precio }}</p>
+        {% endif %}
         </div>
-
-
-        
     </div>
-    <div class="mb-4">
-        <label for="tipo_pago" class="block text-sm font-medium text-gray-700">Tipo de pago</label>
-        <select name="tipo_pago" id="tipo_pago" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm">
-            <option value="EF" {% if tipo_pago == 'EF' %}selected{% endif %}>Efectivo</option>
-            <option value="MP" {% if tipo_pago == 'MP' %}selected{% endif %}>QR (Mercado Pago)</option>
-            <option value="DN" {% if tipo_pago == 'DN' %}selected{% endif %}>QR (Cuenta DNI)</option>
-            <option value="TJ" {% if tipo_pago == 'TJ' %}selected{% endif %}>Tarjeta</option>
-            <option value="TR" {% if tipo_pago == 'TR' %}selected{% endif %}>Transferencia</option>
-        </select>        
-    </div>
-    <div class="mb-4">
-        <label for="tipo_comprobante" class="block text-gray-700 font-bold mb-2">Tipo de Comprobante:</label>
-        <select name="tipo_comprobante" id="tipo_comprobante" class="w-full border border-gray-300 rounded px-3 py-2">
-            <option value="ticket" {% if tipo_comprobante|stringformat:"s" == "ticket" %}selected{% endif %}>
-                Consumidor Final (Ticket)
-            </option>
-            <option value="factura_afip" {% if tipo_comprobante|stringformat:"s" == "factura_afip" %}selected{% endif %}>
-                Factura AFIP
-            </option>
+
+    <!-- Tipo de pago -->
+    <div>
+        <label for="tipo_pago" class="block text-gray-700 font-bold mb-1 text-sm">Tipo de pago</label>
+        <select name="tipo_pago" id="tipo_pago" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+        <option value="EF" {% if tipo_pago == 'EF' %}selected{% endif %}>Efectivo</option>
+        <option value="MP" {% if tipo_pago == 'MP' %}selected{% endif %}>QR (Mercado Pago)</option>
+        <option value="DN" {% if tipo_pago == 'DN' %}selected{% endif %}>QR (Cuenta DNI)</option>
+        <option value="TJ" {% if tipo_pago == 'TJ' %}selected{% endif %}>Tarjeta</option>
+        <option value="TR" {% if tipo_pago == 'TR' %}selected{% endif %}>Transferencia</option>
         </select>
     </div>
 
+    <!-- Tipo de comprobante -->
+    <div>
+        <label for="tipo_comprobante" class="block text-gray-700 font-bold mb-1 text-sm">Comprobante</label>
+        <select name="tipo_comprobante" id="tipo_comprobante" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+        <option value="ticket" {% if tipo_comprobante|stringformat:"s" == "ticket" %}selected{% endif %}>
+            Consumidor Final (Ticket)
+        </option>
+        <option value="factura_afip" {% if tipo_comprobante|stringformat:"s" == "factura_afip" %}selected{% endif %}>
+            Factura AFIP
+        </option>
+        </select>
+    </div>
+
+    </div>
 
     <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
 
@@ -242,7 +246,11 @@
     <tbody>
         {% for item in carrito %}
         <tr class="border-t border-gray-300">
-            <td class="p-2">{{ item.nombre }}</td>
+            <td class="p-2">{{ item.nombre }}
+                {% if item.detalle %}
+                    <br><small class="text-gray-500 italic">{{ item.detalle }}</small>
+                {% endif %}
+            </td>
             <td class="p-2">{{ item.cantidad }}</td>
             <td class="p-2">{{ item.precio_unitario|formato_precio }}</td>
             <td class="p-2">{{ item.subtotal|formato_precio }}
@@ -538,6 +546,28 @@ document.addEventListener('submit', () => {
     </div>
 </div>
 
+<!-- Modal Detalle VARIOS -->
+<div id="modal-detalle-varios" 
+     class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 hidden">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+        <h2 class="text-lg font-semibold mb-1">Detalle (opcional)</h2>
+        <p class="text-sm text-gray-500 mb-3">Ej: Queso para rallar, Fiambre, etc.</p>
+        <input type="text" id="input-detalle-varios"
+               class="w-full border rounded px-3 py-2 mb-4"
+               placeholder="Dejar vacío si no aplica" />
+        <div class="flex justify-end gap-2">
+            <button onclick="cerrarDetalleVarios()" 
+                    class="bg-gray-300 px-4 py-2 rounded">
+                Cancelar (Esc)
+            </button>
+            <button onclick="confirmarDetalleVarios()" 
+                    class="bg-blue-600 text-white px-4 py-2 rounded">
+                Aceptar (Enter)
+            </button>
+        </div>
+    </div>
+</div>
+
 
 <button
     type="button"
@@ -677,6 +707,8 @@ document.addEventListener('DOMContentLoaded', function () {
         cerrarModalActivo();
     }
   
+    let _importeVariosPendiente = null;
+
     function confirmarModalVarios() {
         const importe = parseFloat(inputVarios.value);
         if (isNaN(importe) || importe <= 0) {
@@ -684,25 +716,49 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        inputPrecio.value = importe.toFixed(2);
-        inputCantidad.value = 1;
+        _importeVariosPendiente = importe;
 
-        // Código para el backend
+        // Cerrar modal importe y abrir modal detalle
+        modalVarios.classList.add('hidden');
+        // NO llamamos cerrarModalActivo() para no devolver foco todavía
+
+        const modalDetalle = document.getElementById('modal-detalle-varios');
+        const inputDetalle = document.getElementById('input-detalle-varios');
+        inputDetalle.value = '';
+        modalDetalle.classList.remove('hidden');
+        setModalActivo('detalle_varios', inputDetalle);
+    }
+
+    function confirmarDetalleVarios() {
+        if (_importeVariosPendiente === null) return;
+
+        const detalle = document.getElementById('input-detalle-varios').value.trim();
+        document.getElementById('detalle-varios-hidden').value = detalle;
+
+        inputPrecio.value = _importeVariosPendiente.toFixed(2);
+        inputCantidad.value = 1;
         inputCodigo.value = CODIGO_VARIOS;
 
-        // Código único temporal para diferenciar cada varios
         const codigoUnico = '_' + Date.now();
         document.getElementById('codigo_unico_varios').value = codigoUnico;
+        inputPrecioUnitarioHidden.value = _importeVariosPendiente.toFixed(2);
 
-        inputPrecioUnitarioHidden.value = importe.toFixed(2);
+        _importeVariosPendiente = null;
 
-        // 🔹 disparar submit
+        document.getElementById('modal-detalle-varios').classList.add('hidden');
+        window.modalActivo = null;
+
         document.querySelector('button[name="agregar"]').click();
-
-        // ❌ QUITAMOS LA LIMPIEZA DEL CÓDIGO ÚNICO
-
-        cerrarModalVarios();
     }
+
+    function cerrarDetalleVarios() {
+        document.getElementById('modal-detalle-varios').classList.add('hidden');
+        _importeVariosPendiente = null;
+        cerrarModalActivo();
+    }
+
+    window.confirmarDetalleVarios = confirmarDetalleVarios;
+    window.cerrarDetalleVarios = cerrarDetalleVarios;
 
     function setModalActivo(nombreModal, inputAFocar) {
         window.modalActivo = nombreModal;
@@ -746,6 +802,16 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (e.key === 'Escape') {
             e.preventDefault();
             cerrarModalVarios();
+        }
+    });
+
+    document.getElementById('input-detalle-varios').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            confirmarDetalleVarios();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cerrarDetalleVarios();
         }
     });
 
