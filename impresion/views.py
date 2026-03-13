@@ -5,7 +5,7 @@ from .barcodes import code128_svg_base64
 from django.contrib.auth.decorators import login_required
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.pagesizes import portrait
+
 
 
 from .models import ModeloEtiqueta
@@ -255,68 +255,66 @@ def imprimir_etiquetas_pdf(request):
     c = canvas.Canvas(response)
 
     for producto in productos:
-
-        # ===== CALCULAR ALTO REAL DE ESTA ETIQUETA =====
         if modelo.alto_mm > 0:
             alto_mm = modelo.alto_mm
         else:
-            alto_mm = calcular_alto_etiqueta_mm(modelo, producto)
+            alto_mm = 44
 
+        ancho = modelo.ancho_mm * mm
         alto = alto_mm * mm
-        c.setPageSize(portrait((ancho, alto)))
 
+        c.setPageSize((ancho, alto))
+
+        # y arranca desde arriba menos margen
         y = alto - modelo.margen_superior * mm
 
+        # ancho útil con márgenes izquierdo y derecho
         ancho_util = ancho - (modelo.margen_izquierdo + modelo.margen_derecho) * mm
+        x_izq = modelo.margen_izquierdo * mm
 
         # ===== NOMBRE =====
         if modelo.mostrar_nombre:
             h_nombre = draw_paragraph_centered(
                 c,
                 producto.nombre,
-                modelo.margen_izquierdo * mm,
+                x_izq,
                 y,
                 ancho_util,
                 modelo.nombre_tamano,
                 bold=modelo.nombre_negrita
             )
-            # Actualizamos y para que lo siguiente quede debajo del nombre
             y -= h_nombre + 2 * mm
 
         # ===== PRECIO =====
         if modelo.mostrar_precio:
-            c.setFont(
-                "Helvetica-Bold" if modelo.precio_negrita else "Helvetica",
-                modelo.precio_tamano
-            )
+            font_name = "Helvetica-Bold" if modelo.precio_negrita else "Helvetica"
             precio_texto = f"${producto.precio_venta:,.0f}".replace(",", ".")
-            # Dibujar centrado **en la posición actual de y**
-            c.drawCentredString(ancho / 2, y - modelo.precio_tamano, precio_texto)
-            # Reducimos y para el siguiente elemento
-            y -= modelo.precio_tamano * 1.4 + 2*mm
             
-        # ===== CODIGO DE BARRAS =====
-        if modelo.mostrar_barcode:
-            # Ajustar alto si nos pasamos del límite
-            max_barcode_y = y - modelo.margen_inferior * mm
-            barcode_height_pt = modelo.barcode_alto * PT_PER_MM
-            if barcode_height_pt > max_barcode_y:
-                barcode_height_pt = max_barcode_y
+            font_size = modelo.precio_tamano
+            c.setFont(font_name, font_size)
+            while c.stringWidth(precio_texto, font_name, font_size) > ancho_util and font_size > 6:
+                font_size -= 1
+                c.setFont(font_name, font_size)
 
+            y -= font_size
+            c.drawCentredString(ancho / 2, y, precio_texto)
+            y -= 2 * mm
+
+        # ===== BARCODE =====
+        if modelo.mostrar_barcode:
+            barcode_height_pt = modelo.barcode_alto * mm / 25.4 * 72
             barcode = code128.Code128(
                 producto.codigo,
                 barHeight=barcode_height_pt,
                 barWidth=0.6
             )
-
             scale_x = (modelo.barcode_ancho * mm) / barcode.width
             c.saveState()
-            c.translate((ancho - barcode.width * scale_x)/2, y - barcode_height_pt)
+            c.translate((ancho - barcode.width * scale_x) / 2, y - barcode_height_pt)
             c.scale(scale_x, 1)
             barcode.drawOn(c, 0, 0)
             c.restoreState()
-
-            y -= barcode_height_pt + 2*mm
+            y -= barcode_height_pt + 2 * mm
 
             if modelo.barcode_mostrar_texto:
                 draw_centered(c, producto.codigo, y, ancho, "Helvetica", 8)
