@@ -261,7 +261,9 @@ def imprimir_etiquetas_pdf(request):
             alto_mm = 44
 
         ancho = modelo.ancho_mm * mm
-        alto = alto_mm * mm
+        alto = max(alto_mm * mm, ancho + 1)  # fuerza que alto > ancho = portrait
+
+        c.setPageSize((ancho, alto))
 
         c.setPageSize((ancho, alto))
 
