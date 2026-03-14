@@ -1005,34 +1005,49 @@
             <span></span><span></span><span></span>
         </div>
     </nav>
-
     <!-- HERO -->
     <section class="hero">
-        <div class="hero-grid-bg"></div>
+    <div class="hero-grid-bg"></div>
+
+    <!-- VIDEO DE FONDO -->
+    <video autoplay muted loop playsinline id="heroBgVid"
+        style="position:absolute;top:0;right:0;height:100%;width:75%;object-fit:cover;pointer-events:none;z-index:0;opacity:0.35;transform:scaleX(-1);">
+        <source src="/media/landing/videos/fondo.mp4" type="video/mp4"/>
+    </video>
+    <!-- degradé que va del negro (izquierda) al transparente (derecha) -->
+    <div style="position:absolute;top:0;left:0;height:100%;width:75%;
+        background: linear-gradient(to right, #000 0%, #000 40%, transparent 100%);
+        z-index:1;pointer-events:none;"></div>
+    <!-- degradé superior e inferior para suavizar -->
+    <div style="position:absolute;inset:0;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.8) 100%);
+        z-index:1;pointer-events:none;"></div>
+
+    <!-- CONTENIDO -->
+    <div style="position:relative;z-index:2;">
         <div class="hero-eyebrow">Sistema de gestión comercial</div>
-        <h1>TU NEGOCIO,<br /><em>BAJO CONTROL</em></h1>
-        <p class="hero-sub">Ventas, stock e inventario al estilo supermercado. Rápido, preciso y siempre disponible
-            desde tu navegador.</p>
+        <h1>TU NEGOCIO,<br/><em>BAJO CONTROL</em></h1>
+        <p class="hero-sub">Ventas, stock e inventario al estilo supermercado. Rápido, preciso y siempre disponible desde tu navegador.</p>
         <div class="hero-actions">
-            <a href="#demo" class="btn-primary">Ver demo en vivo</a>
-            <a href="#tutorials" class="btn-outline">Ver tutoriales</a>
+        <a href="#demo" class="btn-primary">Ver demo en vivo</a>
+        <a href="#tutorials" class="btn-outline">Ver tutoriales</a>
         </div>
         <div class="hero-stats">
-            <div class="stat-item">
-                <span class="stat-num">100%</span>
-                <span class="stat-label">Web — sin instalar nada</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-num">REST</span>
-                <span class="stat-label">API moderna</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-num">24/7</span>
-                <span class="stat-label">Disponible en el servidor</span>
-            </div>
+        <div class="stat-item">
+            <span class="stat-num">100%</span>
+            <span class="stat-label">Web — sin instalar nada</span>
         </div>
+        <div class="stat-item">
+            <span class="stat-num">REST</span>
+            <span class="stat-label">API moderna</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-num">24/7</span>
+            <span class="stat-label">Disponible en el servidor</span>
+        </div>
+        </div>
+    </div>
     </section>
-
     <div class="gold-line"></div>
 
     <!-- FEATURES -->
@@ -1375,7 +1390,7 @@
             </div>
             <div class="shot-card" onclick="openCarousel([
         '/media/landing/images/Reporte_mensual.png',
-        '/media/landing/images/Analitic.png',
+        '/media/landing/images/Analityc.png',
         '/media/landing/images/Ranking_productos.png'
       ], 'Reportes de ventas')">
                 <div class="shot-img">
