@@ -24,7 +24,8 @@ urlpatterns = [
     path('impresion/', include('impresion.urls')),
     path('caja/', include('caja.urls')),
     path("impresoras/", include("impresoras.urls")),
-
+    
+    path('landing/', views.landing, name='landing'),
 
 
 ]

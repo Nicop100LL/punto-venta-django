@@ -1103,3 +1103,10 @@ def reintentar_arca(request, venta_id):
     messages.success(request, "Comprobante marcado como pendiente para reintento.")
 
     return redirect("detalle_venta", venta_id=venta.id)
+
+
+
+
+
+def landing(request):
+    return render(request, 'landing/index.html')
