@@ -680,10 +680,9 @@
       <div class="dot dot-g"></div>
       <span>Demo general — SystemsBucha</span>
     </div>
-    <div class="video-placeholder" onclick="openModal('{% static 'landing/videos/demo_general.mp4' %}', 'Demo general del sistema')">
-      <!-- Reemplazá el poster con una captura del video si querés thumbnail -->
+<div class="video-placeholder" onclick="openModal('/media/landing/videos/agregar_producto.mp4', 'Demo general del sistema')">      <!-- Reemplazá el poster con una captura del video si querés thumbnail -->
       <video muted loop preload="metadata" id="heroVid">
-        <source src="{% static 'landing/videos/demo_general.mp4' %}" type="video/mp4"/>
+        <source src="/media/landing/videos/agregar_producto.mp4" type="video/mp4"/>
       </video>
       <div class="video-overlay">
         <div class="play-btn">
@@ -715,9 +714,9 @@
 
   <div class="tutorials-grid reveal" id="tutGrid">
     <!-- Tarjetas de tutorial — reemplazá src con las rutas reales de tus videos -->
-    <div class="tut-card" data-cat="productos" onclick="openModal('{% static 'landing/videos/tut_agregar_producto.mp4' %}', 'Cómo agregar un producto')">
+    <div class="tut-card" data-cat="productos" onclick="openModal('{% static '/media/landing/videos/agregar_producto.mp4' %}', 'Cómo agregar un producto')">
       <div class="tut-thumb">
-        <video muted preload="metadata"><source src="{% static 'landing/videos/tut_agregar_producto.mp4' %}" type="video/mp4"/></video>
+            <source src="/media/landing/videos/agregar_producto.mp4" type="video/mp4"/>
         <div class="tut-overlay"><div class="tut-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div>
         <div class="tut-badge">Productos</div>
       </div>
