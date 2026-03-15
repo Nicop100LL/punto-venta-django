@@ -791,6 +791,8 @@ document.addEventListener('DOMContentLoaded', function () {
     window.mostrarModalVarios = mostrarModalVarios;
     window.cerrarModalVarios = cerrarModalVarios;
     window.confirmarModalVarios = confirmarModalVarios;
+    window.cerrarModalKilos = cerrarModalKilos; 
+    window.buscarProducto = buscarProducto; 
 
     // ================================
     // Atajos de teclado para modal Varios
@@ -1515,30 +1517,21 @@ function render() {
     cerrarBuscador();
 
     const inputCodigo = document.getElementById('codigo');
-    const inputCantidad = document.getElementById('cantidad');
-    const inputPrecio = document.getElementById('precio');
-    // 🔹 guardar la cantidad que ya estaba
-    const cantidadActual = parseFloat(inputCantidad.value) || 1;
-
     inputCodigo.value = prod.codigo;
 
-    inputPrecio.value = prod.precio.toFixed(2);
-
     if (prod.tipo_venta === 'kilo') {
-      mostrarModalKilos(prod);
-      return;
-    }
-    // 🔥 VARIOS
-    if (prod.codigo === CODIGO_VARIOS) {
-        cerrarBuscador();
-        mostrarModalVarios();
+        window.mostrarModalKilos(prod);
         return;
     }
-    
+    if (prod.codigo === '1010') {
+        window.mostrarModalVarios();
+        return;
+    }
 
-
-    document.querySelector('button[name="agregar"]').click();
-  }
+    setTimeout(() => {
+        window.buscarProducto(prod.codigo);
+    }, 50);
+}
 });
 </script>
 

@@ -121,7 +121,10 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
 from reportlab.pdfgen import canvas
-from reportlab.graphics.barcode import code128
+import barcode
+from barcode.writer import ImageWriter
+from io import BytesIO
+from reportlab.lib.utils import ImageReader
 from reportlab.lib.units import mm
 from productos.models import Producto
 from .models import ModeloEtiqueta
@@ -302,24 +305,32 @@ def imprimir_etiquetas_pdf(request):
             c.drawCentredString(ancho / 2, y, precio_texto)
             y -= 2 * mm
 
+       
         # ===== BARCODE =====
         if modelo.mostrar_barcode:
             barcode_height_pt = modelo.barcode_alto * mm / 25.4 * 72
-            barcode = code128.Code128(
-                producto.codigo,
-                barHeight=barcode_height_pt,
-                barWidth=0.6
-            )
-            scale_x = (modelo.barcode_ancho * mm) / barcode.width
-            c.saveState()
-            c.translate((ancho - barcode.width * scale_x) / 2, y - barcode_height_pt)
-            c.scale(scale_x, 1)
-            barcode.drawOn(c, 0, 0)
-            c.restoreState()
+            codigo_limpio = producto.codigo.strip()
+
+            # Generar barcode como imagen PNG en memoria
+            buffer = BytesIO()
+            code = barcode.get('code128', codigo_limpio, writer=ImageWriter())
+            code.write(buffer, options={
+                "write_text": False,
+                "module_height": 10,
+                "quiet_zone": 1,
+            })
+            buffer.seek(0)
+
+            img = ImageReader(buffer)
+            img_ancho = modelo.barcode_ancho * mm
+            img_x = (ancho - img_ancho) / 2
+            c.drawImage(img, img_x, y - barcode_height_pt, 
+                        width=img_ancho, height=barcode_height_pt, 
+                        mask='auto')
             y -= barcode_height_pt + 2 * mm
 
             if modelo.barcode_mostrar_texto:
-                draw_centered(c, producto.codigo, y, ancho, "Helvetica", 8)
+                draw_centered(c, codigo_limpio, y, ancho, "Helvetica", 8)
                 y -= 10
 
         c.showPage()

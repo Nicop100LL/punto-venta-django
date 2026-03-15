@@ -394,7 +394,7 @@ def generar_codigo_producto(request):
 
     qs = Producto.objects.filter(
         empresa=empresa,
-        codigo__startswith="INT-"
+        codigo__startswith="INT"
     )
 
     if producto_id:
@@ -402,13 +402,13 @@ def generar_codigo_producto(request):
 
     # ⬇️ EXTRAER PARTE NUMÉRICA DEL CÓDIGO
     qs = qs.annotate(
-        numero_codigo=Cast(Substr("codigo", 5), IntegerField())
+        numero_codigo=Cast(Substr("codigo", 4), IntegerField())
     )
 
     max_numero = qs.aggregate(max_num=Max("numero_codigo"))["max_num"]
 
     siguiente = (max_numero or 0) + 1
-    codigo = f"INT-{siguiente:06d}"
+    codigo = f"INT{siguiente:06d}"
 
     return JsonResponse({
         "success": True,
