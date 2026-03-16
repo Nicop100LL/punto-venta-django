@@ -1200,7 +1200,7 @@
                 <span>Demo general — SystemsBucha</span>
             </div>
             <div class="video-placeholder"
-                onclick="openModal('/media/landing/videos/agregar_producto.mp4', 'Demo general del sistema')">
+                onclick="openModal('/media/landing/videos/Venta.mp4', 'Demo general del sistema')">
                 <!-- Reemplazá el poster con una captura del video si querés thumbnail -->
                 <video muted loop preload="metadata" id="heroVid">
                     <source src="/media/landing/videos/Venta.mp4" type="video/mp4" />
@@ -1258,7 +1258,7 @@
                 onclick="openModal('/media/landing/videos/Editar_producto.mp4', 'Modificar un producto existente')">
                 <div class="tut-thumb">
                     <video muted preload="metadata">
-                        <source src="/media/landing/videos/agregar_producto.mp4" type="video/mp4" />
+                        <source src="/media/landing/videos/Editar_producto.mp4" type="video/mp4" />
                     </video>
                     <div class="tut-overlay">
                         <div class="tut-play"><svg viewBox="0 0 24 24">
@@ -1273,7 +1273,7 @@
                 </div>
             </div>
             <div class="tut-card" data-cat="ventas"
-                onclick="openModal('/media/landing/videos/agregar_producto.mp4', 'Registrar una venta')">
+                onclick="openModal('/media/landing/videos/Venta.mp4', 'Registrar una venta')">
                 <div class="tut-thumb">
                     <video muted preload="metadata">
                         <source src="/media/landing/videos/Venta.mp4" type="video/mp4" />
@@ -1312,7 +1312,7 @@
                 onclick="openModal('/media/landing/videos/Cliente_cc.mp4', 'Clientes y cuentas corrientes')">
                 <div class="tut-thumb">
                     <video muted preload="metadata">
-                        <source src="/media/landing/videos/agregar_producto.mp4" type="video/mp4" />
+                        <source src="/media/landing/videos/Cliente_cc.mp4" type="video/mp4" />
                     </video>
                     <div class="tut-overlay">
                         <div class="tut-play"><svg viewBox="0 0 24 24">
@@ -1323,14 +1323,14 @@
                 </div>
                 <div class="tut-info">
                     <div class="tut-title">Crear y gestionar Clientes</div>
-                    <div class="tut-meta">Pagos parciales o torales, historial de pago</div>
+                    <div class="tut-meta">Pagos parciales o totales, historial de pago</div>
                 </div>
             </div>
             <div class="tut-card" data-cat="ventas"
                 onclick="openModal('/media/landing/videos/Dashboard.mp4', 'Ver reportes de ventas')">
                 <div class="tut-thumb">
                     <video muted preload="metadata">
-                        <source src="/media/landing/videos/agregar_producto.mp4" type="video/mp4" />
+                        <source src="/media/landing/videos/Dashboard.mp4" type="video/mp4" />
                     </video>
                     <div class="tut-overlay">
                         <div class="tut-play"><svg viewBox="0 0 24 24">
@@ -1358,22 +1358,27 @@
             <p class="section-sub">Interfaz limpia, intuitiva y pensada para el uso diario.</p>
         </div>
         <div class="screenshots-grid reveal">
-            <div class="shot-card featured" onclick="openImgModal('/media/landing/images/Dashboard.png', 'Gestión de productos')">
+            <div class="shot-card featured" onclick="openCarousel([
+        '/media/landing/images/Productos.png',
+        '/media/landing/images/Nuevo_producto.png'
+      ], 'Gestión de productos')">
                 <div class="shot-img" style="aspect-ratio:4/3;">
-                    <img src="/media/landing/images/Dashboard.png" alt="Dashboard"/>
+                    <img src="/media/landing/images/Productos.png" alt="Productos"/>
                 </div>
                 <div class="shot-caption">Gestión de productos</div>
                 </div>
-                <div class="shot-card" onclick="openImgModal('/media/landing/images/Productos.png', 'Vista general del panel de control')">
+                <div class="shot-card" onclick="openImgModal('/media/landing/images/Dashboard.png', 'Vista general del panel de control')">
                 <div class="shot-img">
-                    <img src="/media/landing/images/Productos.png" alt="Productos"/>
+                    <img src="/media/landing/images/Dashboard.png" alt="Dashboard"/>
                 </div>
                 <div class="shot-caption">Vista general del panel de control</div>
                 </div>
             <div class="shot-card"
-                onclick="openImgModal('/media/landing/images/Imagen_Nueva_venta.png', 'Pantalla de caja')">
+                onclick="openImgModal(['/media/landing/images/Venta_2.png', 
+                    '/media/landing/images/Imagen_Nueva_venta.png'
+                ], 'Pantalla de caja')">
                 <div class="shot-img">
-                    <img src="/media/landing/images/Imagen_Nueva_venta.png" alt="Caja" />
+                    <img src="/media/landing/images/Venta_2.png" alt="Caja" />
                 </div>
                 <div class="shot-caption">Pantalla de caja</div>
             </div>
