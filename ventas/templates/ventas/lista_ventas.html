@@ -11,34 +11,91 @@
         + Nueva Venta
     </a>
 </div>
-<form method="get" class="mb-4 flex flex-wrap items-end space-x-4 space-y-2">
-    <!-- Filtro principal: Fecha -->
-    <div class="flex flex-col">
-        <label for="fecha" class="text-gray-700">Fecha:</label>
-        <input type="date" name="fecha" id="fecha" value="{{ fecha }}" class="border border-gray-300 rounded px-2 py-1">
-    </div>
+<form method="get" class="mb-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+    <div class="flex flex-wrap items-end gap-4">
 
+        <!-- Desde -->
+        <div class="flex flex-col">
+            <label for="fecha_desde" class="text-sm text-gray-600 mb-1">Desde:</label>
+            <input type="date" name="fecha_desde" id="fecha_desde" value="{{ fecha_desde }}"
+                class="border border-gray-300 rounded px-2 py-1 text-sm">
+        </div>
 
-    <!-- Filtro secundario: Usuario -->
-    <div class="flex flex-col">
-        <label for="usuario" class="text-gray-700">Vendedor:</label>
-        <select name="usuario" id="usuario" class="border border-gray-300 rounded px-2 py-1">
-            <option value="">Todos</option>
-            {% for u in usuarios %}
-            <option value="{{ u.id }}" {% if usuario_seleccionado|stringformat:"s" == u.id|stringformat:"s" %}selected{% endif %}>
-                {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-        </select>
-    </div>
+        <!-- Hasta -->
+        <div class="flex flex-col">
+            <label for="fecha_hasta" class="text-sm text-gray-600 mb-1">Hasta:</label>
+            <input type="date" name="fecha_hasta" id="fecha_hasta" value="{{ fecha_hasta }}"
+                class="border border-gray-300 rounded px-2 py-1 text-sm">
+        </div>
 
-    <div>
-        <button type="submit" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
-            Filtrar
-        </button>
+        <!-- Vendedor -->
+        <div class="flex flex-col">
+            <label for="usuario" class="text-sm text-gray-600 mb-1">Vendedor:</label>
+            <select name="usuario" id="usuario" class="border border-gray-300 rounded px-2 py-1 text-sm">
+                <option value="">Todos</option>
+                {% for u in usuarios %}
+                <option value="{{ u.id }}"
+                    {% if usuario_seleccionado|stringformat:"s" == u.id|stringformat:"s" %}selected{% endif %}>
+                    {{ u.get_full_name|default:u.username }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Tipo de pago -->
+        <div class="flex flex-col">
+            <label for="tipo_pago" class="text-sm text-gray-600 mb-1">Tipo de pago:</label>
+            <select name="tipo_pago" id="tipo_pago" class="border border-gray-300 rounded px-2 py-1 text-sm">
+                <option value="">Todos</option>
+                {% for codigo, etiqueta in tipo_pago_choices %}
+                <option value="{{ codigo }}" {% if tipo_pago == codigo %}selected{% endif %}>
+                    {{ etiqueta }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Tipo de comprobante -->
+        <div class="flex flex-col">
+            <label for="tipo_comprobante" class="text-sm text-gray-600 mb-1">Comprobante:</label>
+            <select name="tipo_comprobante" id="tipo_comprobante" class="border border-gray-300 rounded px-2 py-1 text-sm">
+                <option value="">Todos</option>
+                <option value="ticket"       {% if tipo_comprobante == "ticket" %}selected{% endif %}>Ticket</option>
+                <option value="factura_afip" {% if tipo_comprobante == "factura_afip" %}selected{% endif %}>Factura AFIP</option>
+            </select>
+        </div>
+
+        <!-- Estado ARCA -->
+        <div class="flex flex-col">
+            <label for="estado_arca" class="text-sm text-gray-600 mb-1">Estado ARCA:</label>
+            <select name="estado_arca" id="estado_arca" class="border border-gray-300 rounded px-2 py-1 text-sm">
+                <option value="">Todos</option>
+                <option value="pendiente" {% if estado_arca == "pendiente" %}selected{% endif %}>🟡 Pendiente</option>
+                <option value="aprobado"  {% if estado_arca == "aprobado" %}selected{% endif %}>🟢 Aprobado</option>
+                <option value="error"     {% if estado_arca == "error" %}selected{% endif %}>🔴 Error</option>
+            </select>
+        </div>
+
+        <!-- Solo con NC -->
+        <div class="flex flex-col justify-end pb-1">
+            <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input type="checkbox" name="con_nc" value="1" {% if con_nc %}checked{% endif %}
+                    class="rounded border-gray-300">
+                Solo con NC
+            </label>
+        </div>
+
+        <!-- Botones -->
+        <div class="flex gap-2 items-end pb-1">
+            <button type="submit" class="bg-blue-500 text-white px-4 py-1.5 rounded hover:bg-blue-600 text-sm">
+                Filtrar
+            </button>
+            <a href="{% url 'lista_ventas' %}" class="bg-gray-200 text-gray-700 px-4 py-1.5 rounded hover:bg-gray-300 text-sm">
+                Limpiar
+            </a>
+        </div>
     </div>
 </form>
-
 
 
 {% if ventas %}

@@ -56,39 +56,57 @@ def cerrar_caja(request):
         messages.warning(request, 'No hay una caja abierta.')
         return redirect('nueva_venta')
 
-    # Ventas asociadas a ESTA caja
     ventas = Venta.objects.filter(caja=caja)
+
+    # Separar totales por tipo
     total_ventas = ventas.aggregate(total=Sum('total'))['total'] or Decimal('0')
+    
+    # Solo efectivo para el control físico
+    total_efectivo_ventas = ventas.filter(
+        tipo_pago='EF', cuenta_corriente=False
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0')
 
-    # Notas de crédito aplicadas a esta caja
-    notas_credito = NotaCredito.objects.filter(
-        caja=caja,
-        estado='aplicada'
-    )
-    total_notas_credito = notas_credito.aggregate(total=Sum('total'))['total'] or Decimal('0')
+    # Notas de crédito — solo las de efectivo afectan la caja física
+    notas_credito = NotaCredito.objects.filter(caja=caja, estado='aplicada')
+    nc_efectivo = notas_credito.filter(
+        venta__tipo_pago='EF'
+    ).aggregate(total=Sum('total'))['total'] or Decimal('0')
 
-    # Total esperado en caja
-    total_esperado = caja.monto_inicial + total_ventas - total_notas_credito
-
+    # Lo que debería haber en caja (solo efectivo)
+    efectivo_sistema = caja.monto_inicial + total_efectivo_ventas - nc_efectivo
 
     if request.method == 'POST':
         monto_real = Decimal(request.POST.get('monto_cierre') or '0')
 
-        total_ventas = ventas.aggregate(total=Sum('total'))['total'] or 0
-        efectivo_sistema = caja.monto_inicial + total_ventas
-
         caja.fecha_cierre = now()
-        caja.efectivo_sistema = efectivo_sistema
+        caja.efectivo_sistema = efectivo_sistema   # solo EF
         caja.efectivo_real = monto_real
         caja.saldo_final = monto_real
-        caja.diferencia = monto_real - efectivo_sistema
+        caja.diferencia = monto_real - efectivo_sistema  # diferencia real
         caja.estado = 'cerrada'
-
         caja.save()
-
 
         messages.success(request, 'Caja cerrada correctamente.')
         return redirect('lista_cajas')
+
+    # Totales informativos para mostrar en el formulario
+    totales_digitales = {
+        'MP': ventas.filter(tipo_pago='MP').aggregate(t=Sum('total'))['t'] or Decimal('0'),
+        'DN': ventas.filter(tipo_pago='DN').aggregate(t=Sum('total'))['t'] or Decimal('0'),
+        'TJ': ventas.filter(tipo_pago='TJ').aggregate(t=Sum('total'))['t'] or Decimal('0'),
+        'TR': ventas.filter(tipo_pago='TR').aggregate(t=Sum('total'))['t'] or Decimal('0'),
+    }
+
+    context = {
+        'caja': caja,
+        'efectivo_sistema': efectivo_sistema,
+        'total_ventas': total_ventas,
+        'totales_digitales': totales_digitales,
+        'total_efectivo_ventas': total_efectivo_ventas,
+    }
+
+    return render(request, 'caja/cerrar_caja.html', context)
+
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
@@ -172,6 +190,7 @@ def lista_cajas(request):
         'cajas': cajas
     })
 
+
 @login_required
 def detalle_caja_historica(request, caja_id):
     caja = get_object_or_404(
@@ -180,52 +199,56 @@ def detalle_caja_historica(request, caja_id):
         empresa=request.user.empresa
     )
 
-    # Todas las ventas de la caja
     ventas = Venta.objects.filter(caja=caja).order_by('numero_empresa')
     ventas_ids = ventas.values_list('id', flat=True)
+    total_ventas = ventas.aggregate(total=Sum('total'))['total'] or Decimal('0')
 
-    # Total de ventas
-    total_ventas = ventas.aggregate(total=Sum('total'))['total'] or 0
+    # Totales por método (informativos, sin CC duplicado)
+    totales = {'EF': Decimal('0'), 'MP': Decimal('0'), 'DN': Decimal('0'),
+               'TJ': Decimal('0'), 'TR': Decimal('0'), 'CC': Decimal('0')}
 
-    # Totales iniciales por tipo de pago
-    totales = {
-        'EF': 0,
-        'MP': 0,
-        'DN': 0,
-        'TJ': 0,
-        'TR': 0,
-        'CC': ventas.filter(cuenta_corriente=True).aggregate(t=Sum('total'))['t'] or 0,
-    }
-
-    # Sumamos las ventas por tipo de pago
     for v in ventas:
         if v.cuenta_corriente:
             totales['CC'] += v.total
         else:
             totales[v.tipo_pago] += v.total
 
-    # Notas de crédito aplicadas a estas ventas y a la caja
+    # Notas de crédito
     notas_credito = NotaCredito.objects.filter(
         venta_id__in=ventas_ids,
         caja=caja,
         estado='aplicada'
-    )
+    ).select_related('venta')
 
-    total_notas_credito = notas_credito.aggregate(total=Sum('total'))['total'] or 0
+    total_notas_credito = notas_credito.aggregate(total=Sum('total'))['total'] or Decimal('0')
 
-    # Restamos las notas de crédito del total por tipo de pago correspondiente
+    # Descontar NC de cada método
     for nc in notas_credito:
         if nc.venta.cuenta_corriente:
             totales['CC'] -= nc.total
         else:
             totales[nc.venta.tipo_pago] -= nc.total
 
-    # Total efectivo en caja descontando notas de crédito
-    total_caja = caja.monto_inicial + total_ventas - total_notas_credito
+    # ✅ Efectivo físico esperado:
+    #    Solo ventas EF no-CC, menos NC de ventas EF no-CC
+    ventas_ef = sum(v.total for v in ventas
+                    if v.tipo_pago == 'EF' and not v.cuenta_corriente)
 
-    # Diferencia y saldo final si la caja está cerrada
-    saldo_final = getattr(caja, 'saldo_final', total_caja) if caja.fecha_cierre else total_caja
-    diferencia = saldo_final - total_caja
+    nc_ef = sum(nc.total for nc in notas_credito
+                if nc.venta.tipo_pago == 'EF' and not nc.venta.cuenta_corriente)
+
+    efectivo_esperado = caja.monto_inicial + ventas_ef - nc_ef
+
+    # Para el historial usamos efectivo_sistema guardado al cierre
+    # Si no existe (cajas viejas), calculamos como fallback
+    if caja.fecha_cierre:
+        saldo_final = caja.efectivo_real if caja.efectivo_real is not None else efectivo_esperado
+        # efectivo_sistema guardado > calculado (para cajas nuevas)
+        base_diferencia = caja.efectivo_sistema if caja.efectivo_sistema else efectivo_esperado
+        diferencia = saldo_final - base_diferencia
+    else:
+        saldo_final = efectivo_esperado
+        diferencia = Decimal('0')
 
     context = {
         'caja': caja,
@@ -234,9 +257,13 @@ def detalle_caja_historica(request, caja_id):
         'total_ventas': total_ventas,
         'notas_credito': notas_credito,
         'total_notas_credito': total_notas_credito,
-        'total_caja': total_caja,
+        # Renombramos para claridad en el template
+        'efectivo_esperado': efectivo_esperado,
         'saldo_final': saldo_final,
         'diferencia': diferencia,
+        # Informativos para mostrar en tarjetas
+        'ventas_ef': ventas_ef,
+        'nc_ef': nc_ef,
     }
 
     return render(request, 'caja/detalle_caja_historica.html', context)

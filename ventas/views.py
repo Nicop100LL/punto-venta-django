@@ -372,6 +372,34 @@ def nueva_venta(request):
         empresa=request.user.empresa
     )
     
+    if caja_abierta:
+        _ventas_caja = Venta.objects.filter(caja=caja_abierta)
+        _notas = NotaCredito.objects.filter(
+            caja=caja_abierta, estado='aplicada'
+        ).select_related('venta')
+
+        _total_ef = _ventas_caja.filter(
+            tipo_pago='EF', cuenta_corriente=False
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0')
+
+        _nc_ef = sum(
+            nc.total for nc in _notas
+            if nc.venta.tipo_pago == 'EF' and not nc.venta.cuenta_corriente
+        )
+
+        efectivo_esperado  = caja_abierta.monto_inicial + _total_ef - Decimal(str(_nc_ef))
+        total_ventas_caja  = _ventas_caja.aggregate(t=Sum('total'))['t'] or Decimal('0')
+        total_mp = _ventas_caja.filter(tipo_pago='MP').aggregate(t=Sum('total'))['t'] or Decimal('0')
+        total_dn = _ventas_caja.filter(tipo_pago='DN').aggregate(t=Sum('total'))['t'] or Decimal('0')
+        total_tj = _ventas_caja.filter(tipo_pago='TJ').aggregate(t=Sum('total'))['t'] or Decimal('0')
+        total_tr = _ventas_caja.filter(tipo_pago='TR').aggregate(t=Sum('total'))['t'] or Decimal('0')
+        total_cc = _ventas_caja.filter(cuenta_corriente=True).aggregate(t=Sum('total'))['t'] or Decimal('0')
+        total_ef_modal = _total_ef
+    else:
+        efectivo_esperado = total_ventas_caja = Decimal('0')
+        total_mp = total_dn = total_tj = total_tr = total_cc = total_ef_modal = Decimal('0')
+
+    
 
     return render(request, 'ventas/nueva_venta.html', {
         'venta_form': venta_form,
@@ -385,6 +413,15 @@ def nueva_venta(request):
         'tipo_pago': tipo_pago,
         'abrir_modal_caja': abrir_modal_caja,
         'caja_abierta': caja_abierta,
+        # ✅ Variables para el modal de cierre
+        'efectivo_esperado': efectivo_esperado,
+        'total_ventas_caja': total_ventas_caja,
+        'total_ef_modal': total_ef_modal,
+        'total_mp': total_mp,
+        'total_dn': total_dn,
+        'total_tj': total_tj,
+        'total_tr': total_tr,
+        'total_cc': total_cc,
         
     })
 
@@ -398,45 +435,54 @@ from .models import Venta
 @login_required
 def lista_ventas(request):
     Usuario = get_user_model()
+    hoy = timezone.localdate()
 
-    # Obtener el filtro de usuario desde GET (si existe)
-    usuario_id = request.GET.get('usuario')
+    # Fechas — por defecto hoy
+    fecha_desde = request.GET.get('fecha_desde') or str(hoy)
+    fecha_hasta = request.GET.get('fecha_hasta') or str(hoy)
 
-    # Obtener el filtro de fecha desde GET (si existe)
-    fecha_str = request.GET.get('fecha')
-    
-    if fecha_str:
-        # Convertimos la fecha de string a date
-        try:
-            fecha = timezone.datetime.strptime(fecha_str, '%Y-%m-%d').date()
-        except ValueError:
-            fecha = None
-    else:
-        fecha = None
+    tipo_pago        = request.GET.get('tipo_pago', '')
+    tipo_comprobante = request.GET.get('tipo_comprobante', '')
+    estado_arca      = request.GET.get('estado_arca', '')
+    usuario_id       = request.GET.get('usuario', '')
+    con_nc           = request.GET.get('con_nc', '')
 
-    # Filtramos ventas por empresa
-    ventas = Venta.objects.filter(empresa=request.user.empresa)
+    ventas = Venta.objects.filter(
+        empresa=request.user.empresa
+    ).select_related(
+        'usuario', 'cliente', 'comprobante_arca'
+    ).prefetch_related(
+        'notas_credito'
+    ).order_by('-fecha')
 
-    # Si no se seleccionó fecha, tomamos el último día con ventas
-    if not fecha:
-        ultima_venta = ventas.order_by('-fecha').first()
-        fecha = ultima_venta.fecha.date() if ultima_venta else timezone.localdate()
-
-    # Filtramos por fecha
-    ventas = ventas.filter(fecha__date=fecha)
-
-    # Filtramos por usuario si se seleccionó
+    if fecha_desde:
+        ventas = ventas.filter(fecha__date__gte=fecha_desde)
+    if fecha_hasta:
+        ventas = ventas.filter(fecha__date__lte=fecha_hasta)
+    if tipo_pago:
+        ventas = ventas.filter(tipo_pago=tipo_pago)
+    if tipo_comprobante:
+        ventas = ventas.filter(tipo_comprobante=tipo_comprobante)
+    if estado_arca:
+        ventas = ventas.filter(comprobante_arca__estado=estado_arca)
     if usuario_id:
         ventas = ventas.filter(usuario_id=usuario_id)
+    if con_nc:
+        ventas = ventas.filter(notas_credito__isnull=False).distinct()
 
-    # Obtener usuarios de la empresa
     usuarios = Usuario.objects.filter(empresa=request.user.empresa)
 
     return render(request, 'ventas/lista_ventas.html', {
         'ventas': ventas,
         'usuarios': usuarios,
-        'usuario_seleccionado': usuario_id or '',
-        'fecha': fecha,  # enviamos la fecha al template
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'tipo_pago': tipo_pago,
+        'tipo_comprobante': tipo_comprobante,
+        'estado_arca': estado_arca,
+        'usuario_seleccionado': usuario_id,
+        'con_nc': con_nc,
+        'tipo_pago_choices': Venta.TIPO_PAGO_CHOICES,  # para el select del template
     })
 
 @login_required

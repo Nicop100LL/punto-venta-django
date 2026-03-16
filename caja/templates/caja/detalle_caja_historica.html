@@ -82,7 +82,9 @@
                 <tr class="border-b hover:bg-gray-50">
                     <td class="p-2">{{ venta.numero_empresa }}</td>
                     <td class="p-2">{{ venta.fecha|date:"d/m/Y H:i" }}</td>
-                    <td class="p-2">{{ venta.get_tipo_pago_display }}</td>
+                    <td class="p-2">
+                        {{ venta.get_tipo_pago_display }}{% if venta.cuenta_corriente %} (CC){% endif %}
+                    </td>
                     <td class="p-2 text-right font-semibold">
                         ${{ venta.total|floatformat:2|formato_precio }}
                     </td>
@@ -115,16 +117,29 @@
             <li class="text-yellow-700">🏛️ Cuenta corriente: ${{ totales.CC|default:0|floatformat:2|formato_precio }}</li>
         </ul>
     </div>
+        <div class="bg-white rounded shadow p-4">
+    <h3 class="text-md font-semibold mb-2">
+        Totales generales
+    </h3>
 
-    <div class="bg-white rounded shadow p-4">
-        <h3 class="text-md font-semibold mb-2">
-            Totales generales
-        </h3>
+    <ul class="text-sm space-y-1 mb-3">
+        <li class="flex justify-between">
+            <span class="text-gray-600">Total vendido:</span>
+            <span class="font-semibold">${{ total_ventas|floatformat:2|formato_precio }}</span>
+        </li>
+        <li class="flex justify-between text-red-500">
+            <span>Notas de crédito:</span>
+            <span>- ${{ total_notas_credito|floatformat:2|formato_precio }}</span>
+        </li>
+    </ul>
 
-        <p class="text-lg font-bold text-right">
-            ${{ total_caja|floatformat:2|formato_precio }}
-        </p>
+    <hr class="mb-3">
+
+    <div class="flex justify-between text-green-700">
+        <span class="font-semibold">💵 Efectivo en caja:</span>
+        <span class="text-lg font-bold">${{ efectivo_esperado|floatformat:2|formato_precio }}</span>
     </div>
+</div>
 </div>
 
 {% endblock %}
