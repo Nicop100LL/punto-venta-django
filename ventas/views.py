@@ -320,6 +320,7 @@ def nueva_venta(request):
                         producto=producto,
                         cantidad=item['cantidad'],
                         precio_unitario=item['precio_unitario'],
+                        precio_compra=producto.precio_compra, 
                         detalle=item.get('detalle', ''),
                     )
 

@@ -93,6 +93,7 @@ class DetalleVenta(models.Model):
     cantidad = models.DecimalField(max_digits=10, decimal_places=3)
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     detalle = models.CharField(max_length=255, blank=True, default='')
+    precio_compra = models.DecimalField(max_digits=10, decimal_places=3, default=0)
 
     def subtotal(self):
         return self.cantidad * self.precio_unitario

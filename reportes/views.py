@@ -713,3 +713,230 @@ def analytics(request):
         ],
     }
     return render(request, 'reportes/analytics.html', context)
+
+
+
+@login_required
+def reporte_ganancias(request):
+    import calendar
+    from django.db.models.functions import TruncDate
+    from django.db.models import Count
+
+    empresa = request.user.empresa
+    hoy = timezone.localdate()
+
+    # Código del producto especial que no tiene precio de costo
+    PRODUCTO_VARIOS_CODIGO = '1010'
+
+    modo = request.GET.get('modo', 'mensual')
+
+    try:
+        mes = int(request.GET.get('mes', hoy.month))
+    except ValueError:
+        mes = hoy.month
+    try:
+        anio = int(request.GET.get('anio', hoy.year))
+    except ValueError:
+        anio = hoy.year
+
+    def parse_date(param, default):
+        raw = request.GET.get(param)
+        if raw:
+            try:
+                return datetime.date.fromisoformat(raw)
+            except ValueError:
+                pass
+        return default
+
+    fecha_inicio_raw = parse_date('fecha_inicio', None)
+    fecha_fin_raw    = parse_date('fecha_fin', None)
+
+    if modo == 'semanal':
+        base         = fecha_inicio_raw or hoy
+        fecha_inicio = base - datetime.timedelta(days=base.weekday())
+        fecha_fin    = fecha_inicio + datetime.timedelta(days=6)
+        label_periodo = f"Semana del {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}"
+    elif modo == 'rango':
+        fecha_inicio = fecha_inicio_raw or hoy.replace(day=1)
+        fecha_fin    = fecha_fin_raw or hoy
+        if fecha_inicio > fecha_fin:
+            fecha_inicio, fecha_fin = fecha_fin, fecha_inicio
+        label_periodo = f"{fecha_inicio.strftime('%d/%m/%Y')} → {fecha_fin.strftime('%d/%m/%Y')}"
+    else:
+        fecha_inicio = datetime.date(anio, mes, 1)
+        _, ultimo_dia = calendar.monthrange(anio, mes)
+        fecha_fin     = datetime.date(anio, mes, ultimo_dia)
+        label_periodo = f"{calendar.month_name[mes].capitalize()} {anio}"
+
+    ventas_qs = Venta.objects.filter(
+        empresa=empresa,
+        fecha__date__gte=fecha_inicio,
+        fecha__date__lte=fecha_fin
+    )
+
+    # detalles_qs excluye VARIOS: ese producto no tiene precio de costo
+    # porque el precio se carga manualmente en cada venta desde el modal,
+    # así que calcularlo daría siempre ganancia = 100% del ingreso (incorrecto)
+    detalles_qs = DetalleVenta.objects.filter(
+        venta__in=ventas_qs
+    ).exclude(
+        producto__codigo=PRODUCTO_VARIOS_CODIGO
+    )
+
+    # ingresos_varios: calculamos por separado los ingresos de VARIOS
+    # para mostrarlos como nota informativa en el template, sin mezclarlos
+    # con el cálculo de ganancias
+    ingresos_varios = DetalleVenta.objects.filter(
+        venta__in=ventas_qs,
+        producto__codigo=PRODUCTO_VARIOS_CODIGO
+    ).annotate(
+        ingreso_item=ExpressionWrapper(
+            F('cantidad') * F('precio_unitario'),
+            output_field=DecimalField()
+        )
+    ).aggregate(total=Sum('ingreso_item'))['total'] or Decimal('0')
+    
+    # Detalle de ventas VARIOS del período
+    detalles_varios = list(
+        DetalleVenta.objects.filter(
+            venta__in=ventas_qs,
+            producto__codigo=PRODUCTO_VARIOS_CODIGO
+        ).values(
+            'detalle',
+            'precio_unitario',
+            'cantidad',
+            'venta__fecha',
+            'venta__numero_empresa',
+        ).order_by('venta__fecha')
+    )
+    for d in detalles_varios:
+        d['subtotal'] = float(d['precio_unitario']) * float(d['cantidad'])
+
+    # ── KPIs principales ──
+    # Calcula el total de ingresos y costos sumando cantidad × precio por cada línea de venta
+    totales = detalles_qs.annotate(
+        ingreso_item=ExpressionWrapper(F('cantidad') * F('precio_unitario'), output_field=DecimalField()),
+        costo_item=ExpressionWrapper(F('cantidad') * F('precio_compra'), output_field=DecimalField()),
+    ).aggregate(
+        ingresos=Sum('ingreso_item'),
+        costos=Sum('costo_item'),
+    )
+
+    ingresos_total = totales['ingresos'] or Decimal('0')
+    costos_total   = totales['costos']   or Decimal('0')
+    ganancia_total = ingresos_total - costos_total
+    # margen_pct: qué % del ingreso es ganancia. Si no hay ingresos evita división por cero
+    margen_pct     = round(float(ganancia_total) / float(ingresos_total) * 100, 1) if ingresos_total else 0
+
+    # ── Desglose por producto ──
+    # Agrupa los detalles por producto y suma ingresos y costos de cada uno
+    productos_qs = list(
+        detalles_qs.annotate(
+            ingreso_item=ExpressionWrapper(F('cantidad') * F('precio_unitario'), output_field=DecimalField()),
+            costo_item=ExpressionWrapper(F('cantidad') * F('precio_compra'), output_field=DecimalField()),
+        )
+        .values('producto__id', 'producto__nombre')
+        .annotate(
+            cantidad=Sum('cantidad'),
+            ingresos=Sum('ingreso_item'),
+            costos=Sum('costo_item'),
+        )
+    )
+
+    for p in productos_qs:
+        ing = float(p['ingresos'] or 0)
+        cos = float(p['costos']   or 0)
+
+        # ganancia: cuánto se ganó con ese producto (ingreso - costo)
+        p['ganancia']  = ing - cos
+
+        # margen: qué % del ingreso de ese producto es ganancia
+        p['margen']    = round((ing - cos) / ing * 100, 1) if ing else 0
+
+        # sin_costo: True si el precio de compra es 0 → dato no confiable
+        # Esto puede pasar si el usuario nunca completó el precio de compra
+        p['sin_costo'] = cos == 0
+
+        # porcentaje: qué % del total de ingresos del período representa este producto
+        # Se usa para dibujar la barra proporcional en la tabla
+        p['porcentaje'] = round(ing / float(ingresos_total or 1) * 100, 1) if ingresos_total else 0
+
+        # Convertir cantidad a bultos enteros (igual que en los otros reportes)
+        try:
+            val = float(p['cantidad'] or 0)
+        except (TypeError, ValueError):
+            val = 0.0
+        p['cantidad'] = math.floor(val) if val >= 1 else (1 if val > 0 else 0)
+
+    # Métricas "confiables": solo productos que SÍ tienen precio de costo cargado
+    # Sirven para mostrar un número más real en el banner verde del template
+    total_sin_costo     = sum(1 for p in productos_qs if p['sin_costo'])
+    ganancia_confiable  = sum(p['ganancia'] for p in productos_qs if not p['sin_costo'])
+    ingresos_confiables = sum(float(p['ingresos'] or 0) for p in productos_qs if not p['sin_costo'])
+    margen_confiable    = round(ganancia_confiable / ingresos_confiables * 100, 1) if ingresos_confiables else 0
+
+    orden = request.GET.get('orden', 'ganancia')
+    if orden == 'margen':
+        productos_qs.sort(key=lambda x: x['margen'], reverse=True)
+    elif orden == 'ingresos':
+        productos_qs.sort(key=lambda x: float(x['ingresos'] or 0), reverse=True)
+    elif orden == 'cantidad':
+        productos_qs.sort(key=lambda x: x['cantidad'], reverse=True)
+    else:
+        productos_qs.sort(key=lambda x: x['ganancia'], reverse=True)
+
+    # ── Desglose día a día ──
+    # Agrupa por fecha y suma ingresos/costos de cada día
+    # Como usa el mismo detalles_qs, VARIOS ya está excluido acá también
+    desglose_diario = list(
+        detalles_qs.annotate(
+            dia=TruncDate('venta__fecha'),
+            ingreso_item=ExpressionWrapper(F('cantidad') * F('precio_unitario'), output_field=DecimalField()),
+            costo_item=ExpressionWrapper(F('cantidad') * F('precio_compra'), output_field=DecimalField()),
+        )
+        .values('dia')
+        .annotate(
+            ingresos_dia=Sum('ingreso_item'),
+            costos_dia=Sum('costo_item'),
+        )
+        .order_by('dia')
+    )
+    for d in desglose_diario:
+        ing = float(d['ingresos_dia'] or 0)
+        cos = float(d['costos_dia']   or 0)
+        d['ganancia_dia'] = ing - cos
+        d['margen_dia']   = round((ing - cos) / ing * 100, 1) if ing else 0
+
+    primer_venta = Venta.objects.filter(empresa=empresa).order_by('fecha').first()
+    primer_anio  = primer_venta.fecha.year if primer_venta else hoy.year
+    anios_disponibles = list(range(primer_anio, hoy.year + 1))
+    meses = [
+        (1,'Enero'),(2,'Febrero'),(3,'Marzo'),(4,'Abril'),
+        (5,'Mayo'),(6,'Junio'),(7,'Julio'),(8,'Agosto'),
+        (9,'Septiembre'),(10,'Octubre'),(11,'Noviembre'),(12,'Diciembre'),
+    ]
+
+    context = {
+        'modo': modo,
+        'label_periodo': label_periodo,
+        'fecha_inicio': fecha_inicio.isoformat(),
+        'fecha_fin': fecha_fin.isoformat(),
+        'mes': mes,
+        'anio': anio,
+        'anios_disponibles': anios_disponibles,
+        'meses': meses,
+        'ingresos_total': ingresos_total,
+        'costos_total': costos_total,
+        'ganancia_total': ganancia_total,
+        'margen_pct': margen_pct,
+        'productos': productos_qs,
+        'desglose_diario': desglose_diario,
+        'orden': orden,
+        'total_sin_costo':     total_sin_costo,
+        'ganancia_confiable':  ganancia_confiable,
+        'margen_confiable':    margen_confiable,
+        'ingresos_confiables': ingresos_confiables,
+        'ingresos_varios':     ingresos_varios,
+        'detalles_varios':  detalles_varios,
+    }
+    return render(request, 'reportes/reporte_ganancias.html', context)

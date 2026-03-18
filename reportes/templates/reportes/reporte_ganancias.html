@@ -1,0 +1,906 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% load custom_filters %}
+{% block content %}
+<style>
+  :root {
+    --verde:        #16a34a;
+    --verde-light:  #dcfce7;
+    --verde-dark:   #14532d;
+    --rojo:         #dc2626;
+    --rojo-light:   #fee2e2;
+    --amarillo:     #ca8a04;
+    --amarillo-light:#fef9c3;
+    --azul:         #2563eb;
+    --azul-light:   #dbeafe;
+    --gris-100:     #f3f4f6;
+    --gris-200:     #e5e7eb;
+    --gris-500:     #6b7280;
+    --gris-700:     #374151;
+    --gris-900:     #111827;
+    --surface:      #ffffff;
+    --radius:       12px;
+    --shadow:       0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    --shadow-hover: 0 4px 12px rgba(0,0,0,.12), 0 8px 32px rgba(0,0,0,.08);
+  }
+
+  * { box-sizing: border-box; }
+
+  .gr-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 4rem;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: var(--gris-900);
+  }
+
+  /* ── Header ── */
+  .gr-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .gr-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .gr-badge-periodo {
+    display: inline-block;
+    background: var(--verde-light);
+    color: var(--verde-dark);
+    font-size: .8rem;
+    font-weight: 600;
+    padding: .25rem .75rem;
+    border-radius: 999px;
+    margin-top: .25rem;
+  }
+
+  /* ── Filtros ── */
+  .gr-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .gr-filtros-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    align-items: flex-end;
+  }
+  .gr-filtros-grid label {
+    display: flex;
+    flex-direction: column;
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--gris-500);
+    gap: .25rem;
+  }
+  .gr-filtros-grid select,
+  .gr-filtros-grid input[type="date"] {
+    padding: .45rem .75rem;
+    border: 1.5px solid var(--gris-200);
+    border-radius: 8px;
+    font-size: .88rem;
+    color: var(--gris-900);
+    background: var(--gris-100);
+    transition: border-color .2s;
+    min-width: 120px;
+  }
+  .gr-filtros-grid select:focus,
+  .gr-filtros-grid input[type="date"]:focus {
+    outline: none;
+    border-color: var(--verde);
+  }
+
+  .btn-primary {
+    background: var(--verde);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: .5rem 1.25rem;
+    font-size: .88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+  }
+  .btn-primary:hover { background: var(--verde-dark); transform: translateY(-1px); }
+
+  /* Rango oculto por defecto */
+  .gr-rango { display: none; }
+  .gr-rango.visible { display: contents; }
+
+  /* ── KPI Cards ── */
+  .gr-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    transition: box-shadow .2s, transform .2s;
+    border-left: 4px solid transparent;
+  }
+  .kpi-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+  .kpi-card.verde  { border-left-color: var(--verde); }
+  .kpi-card.azul   { border-left-color: var(--azul); }
+  .kpi-card.rojo   { border-left-color: var(--rojo); }
+  .kpi-card.amarillo { border-left-color: var(--amarillo); }
+
+  .kpi-label {
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--gris-500);
+  }
+  .kpi-value {
+    font-size: 1.65rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .kpi-card.verde  .kpi-value { color: var(--verde-dark); }
+  .kpi-card.azul   .kpi-value { color: var(--azul); }
+  .kpi-card.rojo   .kpi-value { color: var(--rojo); }
+  .kpi-card.amarillo .kpi-value { color: var(--amarillo); }
+  .kpi-sub {
+    font-size: .78rem;
+    color: var(--gris-500);
+  }
+
+  /* ── Progress bar ganancia/costo ── */
+  .gr-breakdown {
+    display: flex;
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: .5rem;
+    background: var(--rojo-light);
+  }
+  .gr-breakdown-fill {
+    background: var(--verde);
+    height: 100%;
+    border-radius: 999px 0 0 999px;
+    transition: width .6s ease;
+  }
+
+  /* ── Gráfico barras diario ── */
+  .gr-chart-wrap {
+    position: relative;
+    height: 220px;
+    margin-top: .5rem;
+  }
+
+  /* ── Tabla productos ── */
+  .gr-tabla-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-bottom: 1rem;
+  }
+  .gr-tabla-header h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+  }
+  .gr-orden-btns {
+    display: flex;
+    gap: .35rem;
+    flex-wrap: wrap;
+  }
+  .btn-orden {
+    padding: .35rem .85rem;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 600;
+    border: 1.5px solid var(--gris-200);
+    background: var(--gris-100);
+    color: var(--gris-700);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all .15s;
+  }
+  .btn-orden:hover, .btn-orden.active {
+    background: var(--verde);
+    border-color: var(--verde);
+    color: #fff;
+  }
+
+  .gr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .88rem;
+  }
+  .gr-table thead tr {
+    background: var(--gris-100);
+    border-bottom: 2px solid var(--gris-200);
+  }
+  .gr-table thead th {
+    padding: .75rem 1rem;
+    text-align: left;
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--gris-500);
+  }
+  .gr-table thead th.right { text-align: right; }
+  .gr-table tbody tr {
+    border-bottom: 1px solid var(--gris-100);
+    transition: background .12s;
+  }
+  .gr-table tbody tr:hover { background: #f9fafb; }
+  .gr-table tbody td {
+    padding: .75rem 1rem;
+    vertical-align: middle;
+  }
+  .gr-table tbody td.right { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .badge-margen {
+    display: inline-block;
+    font-size: .75rem;
+    font-weight: 700;
+    padding: .2rem .6rem;
+    border-radius: 999px;
+  }
+  .badge-margen.alto  { background: var(--verde-light);   color: var(--verde-dark); }
+  .badge-margen.medio { background: var(--amarillo-light); color: var(--amarillo); }
+  .badge-margen.bajo  { background: var(--rojo-light);    color: var(--rojo); }
+
+  /* barra mini ganancia */
+  .mini-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .mini-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--gris-200);
+    border-radius: 999px;
+    overflow: hidden;
+    min-width: 60px;
+  }
+  .mini-bar-fill {
+    height: 100%;
+    background: var(--verde);
+    border-radius: 999px;
+  }
+  .mini-bar-fill.negativo { background: var(--rojo); }
+
+  /* ── Desglose diario tabla ── */
+  .tag-pos { color: var(--verde);    font-weight: 700; }
+  .tag-neg { color: var(--rojo);     font-weight: 700; }
+  .tag-neu { color: var(--gris-500); font-weight: 600; }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .gr-table thead { display: none; }
+    
+    .gr-table tbody tr { 
+      display: block; 
+      padding: .75rem; 
+      border-bottom: 2px solid var(--gris-200); 
+    }
+    
+    .gr-table tbody td { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+      padding: .35rem 0;
+      border-bottom: 1px solid var(--gris-100);
+    }
+    
+    .gr-table tbody td:last-child {
+      border-bottom: none;
+    }
+
+    .gr-table tbody td::before { 
+      content: attr(data-label); 
+      font-weight: 600; 
+      color: var(--gris-500); 
+      font-size: .75rem;
+      flex-shrink: 0;
+      margin-right: .5rem;
+    }
+    
+    .gr-table tbody td.right { text-align: right; }
+
+    /* En mobile ocultamos la barra y dejamos solo el número */
+    .mini-bar { display: none; }
+    
+    .mini-bar-wrap {
+      justify-content: flex-end;
+    }
+
+    /* El badge sin-costo no rompa el layout */
+    .badge-sin-costo {
+      font-size: .65rem;
+    }
+
+    /* Las filas sin costo se ven bien */
+    .fila-sin-costo td {
+      background: transparent;
+    }
+  }
+
+  /* ── Alerta sin precio_compra ── */
+  .gr-alerta {
+    background: var(--amarillo-light);
+    border: 1.5px solid #fde047;
+    border-radius: var(--radius);
+    padding: .85rem 1.25rem;
+    font-size: .88rem;
+    color: #713f12;
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: .6rem;
+    align-items: flex-start;
+  }
+  .gr-alerta a {
+    color: #713f12;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
+  /* ── Fila sin costo ── */
+  .fila-sin-costo {
+    background: #fffbeb !important;
+  }
+  .fila-sin-costo:hover {
+    background: #fef3c7 !important;
+  }
+  .badge-sin-costo {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    border-radius: 999px;
+    font-size: .7rem;
+    font-weight: 700;
+    padding: .15rem .55rem;
+    white-space: nowrap;
+  }
+
+  /* ── Banner confiable ── */
+  .gr-banner-confiable {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: var(--verde-light);
+    border: 1.5px solid #86efac;
+    border-radius: var(--radius);
+    padding: .85rem 1.25rem;
+    font-size: .88rem;
+    color: var(--verde-dark);
+    margin-bottom: 1.5rem;
+  }
+  .gr-banner-confiable strong {
+    font-size: 1.1rem;
+  }
+  .gr-banner-confiable .sep {
+    color: #86efac;
+    font-size: 1.2rem;
+  }
+</style>
+
+<div class="gr-page">
+
+  <!-- ═══════════════ HEADER ═══════════════ -->
+  <div class="gr-header">
+    <div>
+      <h1>💰 Reporte de Ganancias</h1>
+      <span class="gr-badge-periodo">{{ label_periodo }}</span>
+    </div>
+    <a href="{% url 'dashboard' %}" class="btn-orden" style="align-self:center;">← Dashboard</a>
+  </div>
+
+  <!-- ═══════════════ ALERTA PRECIOS COSTO ═══════════════ -->
+  {% if total_sin_costo %}
+  <div class="gr-alerta">
+    <span style="font-size:1.1rem">⚠️</span>
+    <span>
+      <strong>{{ total_sin_costo }} producto{% if total_sin_costo != 1 %}s{% endif %} sin precio de costo cargado.</strong>
+      Para esos productos la ganancia se muestra como el 100% del ingreso, lo que puede
+      <strong>sobreestimar</strong> la ganancia real. Los ves marcados con
+      <span class="badge-sin-costo">⚠ sin costo</span> en la tabla.
+      <a href="{% url 'lista_productos' %}">Completar precios de costo →</a>
+    </span>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════ BANNER GANANCIA CONFIABLE ═══════════════ -->
+  {% if total_sin_costo and ganancia_confiable %}
+  <div class="gr-banner-confiable">
+    <span>✅ Ganancia <strong>verificada</strong> (solo productos con costo cargado):</span>
+    <strong>${{ ganancia_confiable|formato_precio }}</strong>
+    <span class="sep">|</span>
+    <span>Margen: <strong>{{ margen_confiable }}%</strong></span>
+    <span class="sep">|</span>
+    <span style="font-size:.8rem;color:#166534;">
+      Los totales del encabezado incluyen <em>todos</em> los productos vendidos.
+    </span>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════ FILTROS ═══════════════ -->
+  <div class="gr-card">
+    <form method="get" id="form-filtros">
+      <div class="gr-filtros-grid">
+
+        <!-- Modo -->
+        <label>
+          Período
+          <select name="modo" id="sel-modo" onchange="toggleRango(this.value); this.form.submit()">
+            <option value="mensual" {% if modo == 'mensual' %}selected{% endif %}>Mensual</option>
+            <option value="semanal" {% if modo == 'semanal' %}selected{% endif %}>Semanal</option>
+            <option value="rango"   {% if modo == 'rango'   %}selected{% endif %}>Rango libre</option>
+          </select>
+        </label>
+
+        <!-- Mensual: mes + año -->
+        {% if modo != 'rango' and modo != 'semanal' %}
+        <label id="lbl-mes">
+          Mes
+          <select name="mes" onchange="this.form.submit()">
+            {% for num, nombre in meses %}
+              <option value="{{ num }}" {% if num == mes %}selected{% endif %}>{{ nombre }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label id="lbl-anio">
+          Año
+          <select name="anio" onchange="this.form.submit()">
+            {% for a in anios_disponibles %}
+              <option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        {% endif %}
+
+        <!-- Rango libre -->
+        {% if modo == 'rango' %}
+        <label class="gr-rango visible">
+          Desde
+          <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}">
+        </label>
+        <label class="gr-rango visible">
+          Hasta
+          <input type="date" name="fecha_fin" value="{{ fecha_fin }}">
+        </label>
+        <div style="align-self:flex-end">
+          <button type="submit" class="btn-primary">Aplicar</button>
+        </div>
+        {% endif %}
+
+        <!-- Semanal -->
+        {% if modo == 'semanal' %}
+        <label>
+          Semana desde
+          <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}" onchange="this.form.submit()">
+        </label>
+        {% endif %}
+
+        <!-- Orden (oculto, lo manejan los botones abajo) -->
+        <input type="hidden" name="orden" id="inp-orden" value="{{ orden }}">
+      </div>
+    </form>
+  </div>
+
+  <!-- ═══════════════ KPI CARDS ═══════════════ -->
+  <div class="gr-kpis">
+
+    <div class="kpi-card azul">
+      <span class="kpi-label">Ingresos totales</span>
+      <span class="kpi-value">${{ ingresos_total|formato_precio }}</span>
+      <span class="kpi-sub">lo que facturaste en el período</span>
+    </div>
+
+    <div class="kpi-card rojo">
+      <span class="kpi-label">Costo total</span>
+      <span class="kpi-value">${{ costos_total|formato_precio }}</span>
+      <span class="kpi-sub">costo de los productos vendidos</span>
+      <div class="gr-breakdown">
+        <div class="gr-breakdown-fill"
+             style="width: {% if ingresos_total %}{{ margen_pct }}{% else %}0{% endif %}%">
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-card verde">
+      <span class="kpi-label">Ganancia bruta</span>
+      <span class="kpi-value">${{ ganancia_total|formato_precio }}</span>
+      <span class="kpi-sub">ingresos − costos</span>
+    </div>
+
+    <div class="kpi-card amarillo">
+      <span class="kpi-label">Margen bruto</span>
+      <span class="kpi-value">{{ margen_pct }}%</span>
+      <span class="kpi-sub">ganancia / ingresos × 100</span>
+    </div>
+
+  </div>
+
+  {% if ingresos_varios %}
+  <div style="font-size:.82rem;color:var(--gris-500);margin-top:-.75rem;margin-bottom:1.5rem;padding:.6rem 1rem;background:var(--gris-100);border-radius:8px;">
+    ℹ️ Se excluyen <strong>Ventas Varios</strong> del cálculo de ganancias 
+    (no tienen precio de costo). Ingresos por Varios en el período: 
+    <strong>${{ ingresos_varios|formato_precio }}</strong>
+  </div>
+  {% endif %}
+
+  {% if detalles_varios %}
+  <div class="gr-card">
+    <div class="gr-tabla-header">
+      <h2>🗂️ Detalle Ventas Varios <span style="font-size:.85rem;font-weight:400;color:var(--gris-500);">(no incluidos en ganancia)</span></h2>
+      <button onclick="toggleVarios()" id="btn-toggle-varios"
+              class="btn-orden">Ver detalle ▼</button>
+    </div>
+
+    <!-- Resumen siempre visible -->
+    <div style="font-size:.88rem;color:var(--gris-500);margin-bottom:.75rem;">
+      {{ detalles_varios|length }} ítem{% if detalles_varios|length != 1 %}s{% endif %} 
+      · Total ingresado: <strong style="color:var(--gris-900);">${{ ingresos_varios|formato_precio }}</strong>
+    </div>
+
+    <!-- Tabla colapsada por defecto -->
+    <div id="tabla-varios" style="display:none;">
+      <div style="overflow-x:auto;">
+        <table class="gr-table">
+          <thead>
+            <tr>
+              <th>Venta #</th>
+              <th>Fecha</th>
+              <th>Detalle</th>
+              <th class="right">Precio</th>
+              <th class="right">Cant.</th>
+              <th class="right">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in detalles_varios %}
+            <tr>
+              <td data-label="Venta #">#{{ d.venta__numero_empresa }}</td>
+              <td data-label="Fecha">{{ d.venta__fecha|date:"d/m H:i" }}</td>
+              <td data-label="Detalle">
+                {% if d.detalle %}
+                  {{ d.detalle }}
+                {% else %}
+                  <span style="color:var(--gris-500);font-style:italic;">Sin detalle</span>
+                {% endif %}
+              </td>
+              <td data-label="Precio" class="right">${{ d.precio_unitario|formato_precio }}</td>
+              <td data-label="Cant." class="right">{{ d.cantidad }}</td>
+              <td data-label="Subtotal" class="right">
+                <strong>${{ d.subtotal|formato_precio }}</strong>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr style="background:var(--gris-100);font-weight:700;border-top:2px solid var(--gris-200);">
+              <td colspan="5" style="padding:.75rem 1rem;">TOTAL VARIOS</td>
+              <td class="right" style="padding:.75rem 1rem;">${{ ingresos_varios|formato_precio }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  function toggleVarios() {
+    const tabla = document.getElementById('tabla-varios');
+    const btn   = document.getElementById('btn-toggle-varios');
+    const visible = tabla.style.display !== 'none';
+    tabla.style.display = visible ? 'none' : 'block';
+    btn.textContent = visible ? 'Ver detalle ▼' : 'Ocultar ▲';
+  }
+  </script>
+  {% endif %}
+
+  <!-- ═══════════════ GRÁFICO DIARIO ═══════════════ -->
+  <div class="gr-card">
+    <div class="gr-tabla-header">
+      <h2>📈 Evolución diaria</h2>
+      <div style="font-size:.78rem;color:var(--gris-500);">
+        <span style="display:inline-block;width:10px;height:10px;background:var(--azul);border-radius:2px;margin-right:4px;"></span>Ingresos
+        <span style="display:inline-block;width:10px;height:10px;background:var(--rojo);border-radius:2px;margin:0 4px 0 12px;"></span>Costos
+        <span style="display:inline-block;width:10px;height:10px;background:var(--verde);border-radius:2px;margin:0 4px 0 12px;"></span>Ganancia
+      </div>
+    </div>
+    <div class="gr-chart-wrap">
+      <canvas id="chartDiario"></canvas>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TABLA PRODUCTOS ═══════════════ -->
+  <div class="gr-card">
+    <div class="gr-tabla-header">
+      <h2>📦 Ganancia por producto</h2>
+      <div class="gr-orden-btns">
+        <a href="?modo={{ modo }}&mes={{ mes }}&anio={{ anio }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&orden=ganancia"
+           class="btn-orden {% if orden == 'ganancia' %}active{% endif %}">Ganancia ↓</a>
+        <a href="?modo={{ modo }}&mes={{ mes }}&anio={{ anio }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&orden=margen"
+           class="btn-orden {% if orden == 'margen' %}active{% endif %}">Margen ↓</a>
+        <a href="?modo={{ modo }}&mes={{ mes }}&anio={{ anio }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&orden=ingresos"
+           class="btn-orden {% if orden == 'ingresos' %}active{% endif %}">Ingresos ↓</a>
+        <a href="?modo={{ modo }}&mes={{ mes }}&anio={{ anio }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&orden=cantidad"
+           class="btn-orden {% if orden == 'cantidad' %}active{% endif %}">Cantidad ↓</a>
+      </div>
+    </div>
+
+    {% if productos %}
+    <div style="overflow-x:auto;">
+      <table class="gr-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Producto</th>
+            <th class="right">Cant.</th>
+            <th class="right">Ingresos</th>
+            <th class="right">Costos</th>
+            <th class="right">Ganancia</th>
+            <th class="right">Margen</th>
+            <th>Del total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in productos %}
+          {% with ganancia=p.ganancia ingreso=p.ingresos|formato_precio costo=p.costos|formato_precio %}
+          <tr {% if p.sin_costo %}class="fila-sin-costo"{% endif %}>
+            <td data-label="#">{{ forloop.counter }}</td>
+            <td data-label="Producto">
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;">
+                <strong>{{ p.producto__nombre }}</strong>
+                {% if p.sin_costo %}
+                  <span class="badge-sin-costo">⚠ sin costo</span>
+                {% endif %}
+              </div>
+            </td>
+            <td data-label="Cant." class="right">{{ p.cantidad }}</td>
+            <td data-label="Ingresos" class="right">${{ ingreso }}</td>
+            <td data-label="Costos" class="right">
+              {% if p.sin_costo %}
+                <span style="color:var(--gris-500);font-style:italic;">—</span>
+              {% else %}
+                ${{ costo }}
+              {% endif %}
+            </td>
+            <td data-label="Ganancia" class="right">
+              {% if p.sin_costo %}
+                <span style="color:var(--amarillo);font-weight:700;"
+                      title="Ganancia estimada: no tiene precio de costo cargado">
+                  ${{ ganancia|formato_precio }} ~
+                </span>
+              {% elif ganancia >= 0 %}
+                <span class="tag-pos">${{ ganancia|formato_precio}}</span>
+              {% else %}
+                <span class="tag-neg">${{ ganancia|formato_precio }}</span>
+              {% endif %}
+            </td>
+            <td data-label="Margen" class="right">
+              {% if p.sin_costo %}
+                <span class="badge-margen medio" title="Margen estimado">{{ p.margen }}% ~</span>
+              {% elif p.margen >= 30 %}
+                <span class="badge-margen alto">{{ p.margen }}%</span>
+              {% elif p.margen >= 10 %}
+                <span class="badge-margen medio">{{ p.margen }}%</span>
+              {% else %}
+                <span class="badge-margen bajo">{{ p.margen }}%</span>
+              {% endif %}
+            </td>
+            <td data-label="Barra">
+              <div class="mini-bar-wrap">
+                <div class="mini-bar">
+                  {% with pct=p.porcentaje|default:0 %}
+                  <div class="mini-bar-fill {% if ganancia < 0 %}negativo{% endif %}{% if p.sin_costo %}" style="background:#ca8a04;width:{{ pct|formato_precio}}%{% else %}" style="width: {{ pct|formato_precio }}%{% endif %}"></div>
+                  {% endwith %}
+                </div>
+                <span style="font-size:.72rem;color:var(--gris-500);min-width:36px;">
+                  {{ p.porcentaje|default:0|formato_precio}}%
+                </span>
+              </div>
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="background:var(--gris-100);font-weight:700;border-top:2px solid var(--gris-200);">
+            <td colspan="8" style="padding:.75rem 1rem;">
+              <div style="display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;align-items:center;">
+                
+                <span>TOTAL</span>
+
+                <span style="color:var(--gris-500);font-weight:400;">
+                  Ingresos: <strong style="color:var(--gris-900);">${{ ingresos_total|formato_precio }}</strong>
+                </span>
+
+                <span style="color:var(--gris-500);font-weight:400;">
+                  Costos: <strong style="color:var(--gris-900);">${{ costos_total|formato_precio }}</strong>
+                </span>
+
+                <span style="color:var(--gris-500);font-weight:400;">
+                  Ganancia: <strong style="color:var(--verde-dark);">
+                    ${{ ganancia_total|formato_precio }}
+                    {% if total_sin_costo %}<span style="font-size:.75rem;color:var(--amarillo);">~</span>{% endif %}
+                  </strong>
+                </span>
+
+                <span style="color:var(--gris-500);font-weight:400;">
+                  Margen: <strong style="color:var(--gris-900);">
+                    {{ margen_pct }}%
+                    {% if total_sin_costo %}<span style="font-size:.75rem;color:var(--amarillo);">~</span>{% endif %}
+                  </strong>
+                </span>
+
+                {% if total_sin_costo %}
+                <span style="font-size:.72rem;font-weight:400;color:var(--gris-500);">
+                  (incluye {{ total_sin_costo }} prod. sin costo ~)
+                </span>
+                {% endif %}
+
+              </div>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:3rem;color:var(--gris-500);">
+      <div style="font-size:2.5rem;margin-bottom:.5rem;">📭</div>
+      <p>No hay ventas en este período.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════ DESGLOSE DIARIO ═══════════════ -->
+  {% if desglose_diario %}
+  <div class="gr-card">
+    <div class="gr-tabla-header">
+      <h2>📅 Desglose día a día</h2>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="gr-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th class="right">Ingresos</th>
+            <th class="right">Costos</th>
+            <th class="right">Ganancia</th>
+            <th class="right">Margen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in desglose_diario %}
+          <tr>
+            <td data-label="Fecha">{{ d.dia|date:"d/m/Y" }}</td>
+            <td data-label="Ingresos" class="right">${{ d.ingresos_dia|formato_precio }}</td>
+            <td data-label="Costos"   class="right">${{ d.costos_dia|formato_precio }}</td>
+            <td data-label="Ganancia" class="right">
+              {% if d.ganancia_dia >= 0 %}
+                <span class="tag-pos">${{ d.ganancia_dia|formato_precio }}</span>
+              {% else %}
+                <span class="tag-neg">${{ d.ganancia_dia|formato_precio }}</span>
+              {% endif %}
+            </td>
+            <td data-label="Margen" class="right">
+              {% if d.margen_dia >= 30 %}
+                <span class="badge-margen alto">{{ d.margen_dia }}%</span>
+              {% elif d.margen_dia >= 10 %}
+                <span class="badge-margen medio">{{ d.margen_dia }}%</span>
+              {% else %}
+                <span class="badge-margen bajo">{{ d.margen_dia }}%</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div><!-- /gr-page -->
+
+<!-- ═══════════════ CHART.JS ═══════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── Datos del servidor ──────────────────────────────────────────
+const labels    = [{% for d in desglose_diario %}"{{ d.dia|date:'d/m' }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+const ingresos  = [{% for d in desglose_diario %}{{ d.ingresos_dia|formato_precio }}{% if not forloop.last %},{% endif %}{% endfor %}];
+const costos    = [{% for d in desglose_diario %}{{ d.costos_dia|formato_precio }}{% if not forloop.last %},{% endif %}{% endfor %}];
+const ganancias = [{% for d in desglose_diario %}{{ d.ganancia_dia|formato_precio }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+// ── Gráfico ─────────────────────────────────────────────────────
+const ctx = document.getElementById('chartDiario').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      {
+        label: 'Ingresos',
+        data: ingresos,
+        backgroundColor: 'rgba(37,99,235,.7)',
+        borderRadius: 4,
+        order: 2,
+      },
+      {
+        label: 'Costos',
+        data: costos,
+        backgroundColor: 'rgba(220,38,38,.5)',
+        borderRadius: 4,
+        order: 2,
+      },
+      {
+        label: 'Ganancia',
+        data: ganancias,
+        type: 'line',
+        borderColor: '#16a34a',
+        backgroundColor: 'rgba(22,163,74,.12)',
+        fill: true,
+        pointBackgroundColor: '#16a34a',
+        pointRadius: 4,
+        tension: .35,
+        order: 1,
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` $${parseFloat(ctx.raw).toLocaleString('es-AR', {minimumFractionDigits:2})}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 11 } }
+      },
+      y: {
+        grid: { color: 'rgba(0,0,0,.05)' },
+        ticks: {
+          font: { size: 11 },
+          callback: v => '$' + v.toLocaleString('es-AR')
+        }
+      }
+    }
+  }
+});
+
+// ── Toggle rango libre ───────────────────────────────────────────
+function toggleRango(modo) {
+  // Ya lo maneja el onchange con submit, pero dejamos la función por si se necesita
+}
+</script>
+{% endblock %}
