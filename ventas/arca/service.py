@@ -4,10 +4,10 @@ from ventas.arca.wsfev1 import get_client, obtener_ultimo_numero, enviar_comprob
 from ventas.models import ReglaArcaPago, ComprobanteArca
 
 TIPO_CBT = {
-    "cf":        11,  # Factura C / Consumidor Final
+    "cf":        11,
     "boleta":    11,
-    "factura_a":  1,  # Factura A
-    "factura_b":  6,  # Factura B
+    "factura_a":  1,
+    "factura_b":  6,
 }
 
 
@@ -18,63 +18,52 @@ def enviar_a_arca(comprobante):
     if not empresa.usa_arca:
         raise Exception("Empresa no configurada para ARCA")
 
-    # Rutas a los archivos del certificado
-    cert_path = empresa.arca_certificado.path
-    key_path  = empresa.arca_clave_privada.path
-    modo      = empresa.arca_modo
-    cuit      = empresa.cuit.replace("-", "")
+    cert_path   = empresa.arca_certificado.path
+    key_path    = empresa.arca_clave_privada.path
+    modo        = empresa.arca_modo
+    cuit        = empresa.cuit.replace("-", "")
     punto_venta = empresa.arca_punto_venta
 
-    # 1. Login WSAA — obtener token y sign
     token, sign = obtener_token(cert_path, key_path, modo=modo, empresa=empresa)
 
-    # 2. Conectar al WSFEv1
     client = get_client(modo=modo)
 
-    # 3. Tipo de comprobante numérico
     tipo_cbte = TIPO_CBT.get(comprobante.tipo)
     if not tipo_cbte:
         raise Exception(f"Tipo de comprobante desconocido: {comprobante.tipo}")
 
-    # 4. Obtener próximo número
     ultimo = obtener_ultimo_numero(client, token, sign, cuit, punto_venta, tipo_cbte)
     numero = ultimo + 1
 
-    # 5. Datos del cliente
     venta = comprobante.venta
     if venta.cliente and venta.cliente.cuit:
-        doc_tipo = 80   # CUIT
+        doc_tipo = 80
         doc_nro  = int(venta.cliente.cuit.replace("-", ""))
     else:
-        doc_tipo = 99   # Consumidor Final
+        doc_tipo = 99
         doc_nro  = 0
 
-    # 6. Fecha en formato YYYYMMDD
     fecha = venta.fecha.strftime("%Y%m%d")
 
-    # 7. Enviar
     respuesta = enviar_comprobante(client, token, sign, cuit, {
-        "punto_venta": punto_venta,
-        "tipo_cbte":   tipo_cbte,
-        "doc_tipo":    doc_tipo,
-        "doc_nro":     doc_nro,
-        "numero":      numero,
-        "fecha":       fecha,
-        "total":       float(venta.total),
+        "punto_venta":             punto_venta,
+        "tipo_cbte":               tipo_cbte,
+        "doc_tipo":                doc_tipo,
+        "doc_nro":                 doc_nro,
+        "numero":                  numero,
+        "fecha":                   fecha,
+        "total":                   float(venta.total),
+        "condicion_iva_receptor":  5,
     })
 
     return {
-        "cae":       respuesta["cae"],
-        "numero":    respuesta["numero"],
+        "cae":        respuesta["cae"],
+        "numero":     respuesta["numero"],
         "vencimiento": respuesta["vencimiento"],
     }
 
 
 def decidir_arca(venta):
-    """
-    Decide si una venta debe subirse a ARCA según reglas.
-    NO envía nada.
-    """
     empresa = venta.empresa
 
     if not empresa.usa_arca:
@@ -88,8 +77,8 @@ def decidir_arca(venta):
     if not regla or not regla.subir_a_arca:
         return {
             "subir_a_arca": False,
-            "obligatorio": False,
-            "tipo": None,
+            "obligatorio":  False,
+            "tipo":         None,
         }
 
     if regla.tipo_comprobante in ("factura_a", "factura_b"):
@@ -101,6 +90,6 @@ def decidir_arca(venta):
 
     return {
         "subir_a_arca": True,
-        "obligatorio": False,
-        "tipo": regla.tipo_comprobante
+        "obligatorio":  False,
+        "tipo":         regla.tipo_comprobante
     }

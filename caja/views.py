@@ -12,7 +12,7 @@ from django.utils.timezone import now
 from ventas.models import Venta
 from django.db.models import Sum
 from ventas.models import NotaCredito
-
+from usuarios.decorators import no_empleado_required
 
 
 @login_required
@@ -181,6 +181,7 @@ def detalle_caja(request):
 
 
 @login_required
+@no_empleado_required
 def lista_cajas(request):
     cajas = CierreCaja.objects.filter(
         empresa=request.user.empresa
@@ -192,6 +193,7 @@ def lista_cajas(request):
 
 
 @login_required
+@no_empleado_required
 def detalle_caja_historica(request, caja_id):
     caja = get_object_or_404(
         CierreCaja,

@@ -215,7 +215,28 @@ class ComprobanteArca(models.Model):
     def puede_reintentar(self):
         return self.intentos < 3
 
+class TokenArca(models.Model):
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.CASCADE,
+        related_name="tokens_arca"
+    )
+    servicio = models.CharField(max_length=20, default="wsfe")
+    modo = models.CharField(max_length=20, default="homologacion")
+    token = models.TextField()
+    sign = models.TextField()
+    expira = models.DateTimeField()
+    creado_en = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        unique_together = ("empresa", "servicio", "modo")
+
+    def es_valido(self):
+        from django.utils import timezone
+        return timezone.now() < self.expira
+
+    def __str__(self):
+        return f"Token {self.empresa} - {self.servicio} - {self.modo}"
 
 class ReglaArcaPago(models.Model):
 

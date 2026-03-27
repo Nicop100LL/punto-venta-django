@@ -9,7 +9,7 @@ from ventas.models import Venta, DetalleVenta
 import math
 from django.db.models import Sum, F
 from decimal import Decimal
-
+from usuarios.decorators import no_empleado_required
 from django.shortcuts import render
 from django.utils import timezone
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField
@@ -26,6 +26,7 @@ def convertir_a_bultos(cantidad):
     return math.floor(cantidad)
 
 @login_required
+@no_empleado_required
 def reporte_diario(request):
     empresa = request.user.empresa
 
@@ -156,6 +157,7 @@ def reporte_diario(request):
 
 
 @login_required
+@no_empleado_required
 def dashboard(request):
     empresa = request.user.empresa
 
@@ -194,6 +196,7 @@ def dashboard(request):
 
 
 @login_required
+@no_empleado_required
 def reporte_mensual(request):
     import calendar
     from django.db.models import Count
@@ -339,6 +342,7 @@ def reporte_mensual(request):
     return render(request, 'reportes/reporte_mensual.html', context)
 
 @login_required
+@no_empleado_required
 def ranking_productos(request):
     import calendar
     from django.db.models import Count
@@ -493,6 +497,7 @@ def ranking_productos(request):
     return render(request, 'reportes/ranking_productos.html', context)
 
 @login_required
+@no_empleado_required
 def analytics(request):
     """
     Página de analytics con:
@@ -717,6 +722,7 @@ def analytics(request):
 
 
 @login_required
+@no_empleado_required
 def reporte_ganancias(request):
     import calendar
     from django.db.models.functions import TruncDate
