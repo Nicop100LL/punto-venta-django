@@ -414,3 +414,119 @@ def generar_codigo_producto(request):
         "success": True,
         "codigo": codigo
     })
+
+
+
+@login_required
+@require_POST
+def actualizar_producto_inline(request):
+    """
+    Actualiza un producto inline vía AJAX
+    """
+    try:
+        producto_id = request.POST.get('producto_id')
+        campo = request.POST.get('campo')  # 'precio_compra', 'precio_venta', 'stock_actual'
+        valor = request.POST.get('valor')
+        
+        producto = get_object_or_404(
+            Producto, 
+            id=producto_id, 
+            empresa=request.user.empresa
+        )
+        
+        # Limpiar y convertir valor
+        valor_limpio = _clean_number_string(valor)
+        
+        if valor_limpio is None:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Valor inválido'
+            })
+        
+        # Actualizar según el campo
+        if campo == 'precio_compra':
+            producto.precio_compra = Decimal(valor_limpio)
+        elif campo == 'precio_venta':
+            producto.precio_venta = Decimal(valor_limpio)
+        elif campo == 'stock_actual':
+            producto.stock_actual = max(Decimal(valor_limpio), Decimal('0'))
+        else:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Campo no válido'
+            })
+        
+        producto.save()
+        
+        # Formatear valor para respuesta
+        valor_formateado = "{:,.2f}".format(float(getattr(producto, campo))).replace(",", "X").replace(".", ",").replace("X", ".")
+        
+        return JsonResponse({
+            'success': True,
+            'valor_formateado': valor_formateado,
+            'message': 'Actualizado correctamente'
+        })
+        
+    except (InvalidOperation, ValueError) as e:
+        return JsonResponse({
+            'success': False, 
+            'message': 'Formato de número inválido'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False, 
+            'message': str(e)
+        })
+        
+
+@login_required
+def lista_productos_edicion_masiva(request):
+    from .models import Categoria
+    productos = Producto.objects.filter(empresa=request.user.empresa)
+    categorias = Categoria.objects.filter(empresa=request.user.empresa)
+    return render(request, 'productos/lista_productos_edicion_masiva.html', {
+        'productos': productos,
+        'categorias': categorias,
+    })     
+
+
+@login_required
+@require_POST
+def actualizar_precios_masivo(request):
+    from decimal import ROUND_HALF_UP
+    try:
+        ids = request.POST.getlist('ids[]')
+        porcentaje = Decimal(request.POST.get('porcentaje'))
+        campo = request.POST.get('campo')
+        redondear = request.POST.get('redondear') == '1'
+        margen_str = request.POST.get('margen_ganancia', '').strip()
+
+        productos = Producto.objects.filter(id__in=ids, empresa=request.user.empresa)
+        factor = 1 + porcentaje / 100
+
+        def aplicar_redondeo(valor):
+            if redondear:
+                return valor.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+            return valor.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+        for p in productos:
+            if campo == 'ambos' and margen_str:
+                # Sube precio compra y recalcula venta con el margen indicado
+                margen = Decimal(margen_str) / 100
+                nuevo_compra = p.precio_compra * factor
+                p.precio_compra = aplicar_redondeo(nuevo_compra)
+                nuevo_venta = nuevo_compra / (1 - margen)
+                p.precio_venta = aplicar_redondeo(nuevo_venta)
+
+            else:
+                if campo in ('precio_compra', 'ambos'):
+                    p.precio_compra = aplicar_redondeo(p.precio_compra * factor)
+                if campo in ('precio_venta', 'ambos'):
+                    p.precio_venta = aplicar_redondeo(p.precio_venta * factor)
+
+            p.save()
+
+        return JsonResponse({'success': True, 'actualizados': productos.count()})
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})

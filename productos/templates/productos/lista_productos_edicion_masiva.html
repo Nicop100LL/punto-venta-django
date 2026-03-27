@@ -1,0 +1,494 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pb-32">
+
+    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+        <div>
+            <h1 class="text-2xl font-semibold">Edición Masiva de Productos</h1>
+            <p class="text-sm text-gray-500 mt-1">Click en precio o stock para editar. Seleccioná productos para aplicar cambios masivos.</p>
+        </div>
+        <a href="{% url 'lista_productos' %}" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md">
+            ← Volver
+        </a>
+    </div>
+
+    <!-- Buscador -->
+    <div class="mb-4 flex gap-3">
+        <input
+            type="text"
+            id="buscador"
+            placeholder="Buscar por nombre o código..."
+            class="flex-1 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+        >
+        <select id="filtro-categoria" class="border rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+            <option value="">Todas las categorías</option>
+            {% for categoria in categorias %}
+            <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Tabla -->
+    <div class="overflow-x-auto bg-white shadow-md rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left">
+                        <input type="checkbox" id="select-all" class="rounded border-gray-300">
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio Compra</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio Venta</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200" id="tabla-body">
+                {% for producto in productos %}
+                <tr class="hover:bg-gray-50 fila-producto"
+                    data-nombre="{{ producto.nombre|lower }}"
+                    data-codigo="{{ producto.codigo|lower }}"
+                    data-categoria="{{ producto.categoria.id }}">
+
+                    <td class="px-4 py-3">
+                        <input
+                            type="checkbox"
+                            class="checkbox-producto rounded border-gray-300"
+                            data-id="{{ producto.id }}">
+                    </td>
+
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ producto.codigo }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">{{ producto.nombre }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ producto.categoria.nombre }}</td>
+
+                    <!-- Precio Compra -->
+                    <td class="px-4 py-3 whitespace-nowrap text-sm">
+                        <div class="flex items-center gap-1">
+                            <span
+                                class="celda-editable cursor-pointer hover:bg-purple-50 hover:text-purple-700 px-2 py-1 rounded transition-colors"
+                                data-campo="precio_compra"
+                                data-producto-id="{{ producto.id }}"
+                                data-valor="{{ producto.precio_compra|formato_precio }}">
+                                ${{ producto.precio_compra|formato_precio }}
+                            </span>
+                            <button
+                                type="button"
+                                class="btn-ganancia text-xs text-purple-500 hover:text-purple-700 border border-purple-300 hover:border-purple-500 rounded px-1 py-0.5 transition-colors"
+                                data-producto-id="{{ producto.id }}"
+                                data-precio-compra="{{ producto.precio_compra|formato_precio }}"
+                                title="Calcular precio venta con % ganancia">
+                                %
+                            </button>
+                        </div>
+                    </td>
+
+                    <!-- Precio Venta -->
+                    <td class="px-4 py-3 whitespace-nowrap text-sm">
+                        <span
+                            class="celda-editable cursor-pointer hover:bg-purple-50 hover:text-purple-700 px-2 py-1 rounded transition-colors"
+                            data-campo="precio_venta"
+                            data-producto-id="{{ producto.id }}"
+                            data-valor="{{ producto.precio_venta|formato_precio }}"
+                            id="precio-venta-{{ producto.id }}">
+                            ${{ producto.precio_venta|formato_precio }}
+                        </span>
+                    </td>
+
+                    <!-- Stock -->
+                    <td class="px-4 py-3 whitespace-nowrap text-sm">
+                        <span
+                            class="celda-editable cursor-pointer hover:bg-purple-50 hover:text-purple-700 px-2 py-1 rounded transition-colors"
+                            data-campo="stock_actual"
+                            data-producto-id="{{ producto.id }}"
+                            data-valor="{{ producto.stock_actual|formato_precio }}">
+                            {{ producto.stock_actual|formato_precio }}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-4 py-8 text-center text-gray-500">No hay productos registrados</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ─── BARRA FIJA ABAJO ─────────────────────────────────────── -->
+<div id="barra-masiva" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-purple-400 shadow-lg px-6 py-4 z-40">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
+
+        <span id="contador-seleccionados" class="text-sm font-medium text-purple-700 mr-2"></span>
+
+        <!-- Campo a modificar -->
+        <select id="campo-masivo" class="border rounded px-3 py-2 text-sm">
+            <option value="precio_venta">Precio Venta</option>
+            <option value="precio_compra">Precio Compra</option>
+            <option value="ambos">Ambos precios</option>
+        </select>
+
+        <!-- % aumento -->
+        <div class="flex items-center gap-1">
+            <input
+                type="number"
+                id="porcentaje-masivo"
+                placeholder="% aumento"
+                step="0.01"
+                class="border rounded px-3 py-2 text-sm w-32">
+            <span class="text-sm text-gray-500">%</span>
+        </div>
+
+        <!-- Margen a mantener (solo visible cuando campo = ambos) -->
+        <div id="campo-margen-container" class="hidden flex items-center gap-1">
+            <input
+                type="number"
+                id="margen-ganancia"
+                placeholder="% margen"
+                step="0.01"
+                class="border-2 border-purple-300 rounded px-3 py-2 text-sm w-32">
+            <span class="text-xs text-gray-500">% margen a mantener</span>
+        </div>
+
+        <!-- Redondear -->
+        <div class="flex items-center gap-2">
+            <input type="checkbox" id="redondear-masivo" class="rounded border-gray-300">
+            <label for="redondear-masivo" class="text-sm text-gray-700">Redondear</label>
+        </div>
+
+        <button
+            id="btn-aplicar-masivo"
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium">
+            Aplicar a seleccionados
+        </button>
+
+        <button
+            onclick="deseleccionarTodos()"
+            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md text-sm">
+            Cancelar
+        </button>
+    </div>
+</div>
+
+<!-- ─── MODAL GANANCIA ───────────────────────────────────────── -->
+<div id="modal-ganancia" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+        <h3 class="text-lg font-semibold mb-4">Calcular precio de venta</h3>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Precio de compra</label>
+                <input type="text" id="modal-precio-compra"
+                    class="mt-1 w-full border rounded px-3 py-2 text-sm bg-gray-50" readonly>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Margen de ganancia (%)</label>
+                <p class="text-xs text-gray-400 mb-1">Se calcula sobre el precio de venta final, no sobre el costo.</p>
+                <input type="number" id="modal-porcentaje-ganancia" placeholder="Ej: 30" step="0.01"
+                    class="w-full border rounded px-3 py-2 text-sm">
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="modal-redondear" class="rounded border-gray-300">
+                <label for="modal-redondear" class="text-sm text-gray-700">Redondear precio</label>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Precio de venta calculado</label>
+                <input type="text" id="modal-precio-calculado"
+                    class="mt-1 w-full border-2 border-purple-400 rounded px-3 py-2 text-sm font-semibold bg-purple-50" readonly>
+            </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-5">
+            <button onclick="cerrarModalGanancia()"
+                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm">Cancelar</button>
+            <button onclick="aplicarGanancia()"
+                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-medium">Aplicar precio</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-24 right-6 z-50 px-4 py-2 rounded-md text-white text-sm font-medium shadow-lg"></div>
+
+<script>
+const CSRF_TOKEN = '{{ csrf_token }}';
+const URL_ACTUALIZAR = "{% url 'actualizar_producto_inline' %}";
+const URL_MASIVO = "{% url 'actualizar_precios_masivo' %}";
+
+let inputActivo = null;
+let productoIdGanancia = null;
+
+// ─── BUSCADOR + FILTRO CATEGORÍA ─────────────────────────────
+function filtrarTabla() {
+    const q = document.getElementById('buscador').value.toLowerCase().trim();
+    const cat = document.getElementById('filtro-categoria').value;
+
+    document.querySelectorAll('.fila-producto').forEach(fila => {
+        const nombre = fila.dataset.nombre || '';
+        const codigo = fila.dataset.codigo || '';
+        const categoria = fila.dataset.categoria || '';
+
+        const coincideTexto = !q || nombre.includes(q) || codigo.includes(q);
+        const coincideCategoria = !cat || categoria === cat;
+
+        fila.style.display = (coincideTexto && coincideCategoria) ? '' : 'none';
+    });
+}
+
+document.getElementById('buscador').addEventListener('input', filtrarTabla);
+document.getElementById('filtro-categoria').addEventListener('change', filtrarTabla);
+
+// ─── CHECKBOXES ──────────────────────────────────────────────
+document.getElementById('select-all').addEventListener('change', function () {
+    document.querySelectorAll('.checkbox-producto').forEach(cb => {
+        const fila = cb.closest('tr');
+        if (fila.style.display !== 'none') cb.checked = this.checked;
+    });
+    actualizarBarra();
+});
+
+document.querySelectorAll('.checkbox-producto').forEach(cb => {
+    cb.addEventListener('change', actualizarBarra);
+});
+
+function actualizarBarra() {
+    const seleccionados = document.querySelectorAll('.checkbox-producto:checked');
+    const barra = document.getElementById('barra-masiva');
+    const contador = document.getElementById('contador-seleccionados');
+    if (seleccionados.length > 0) {
+        barra.classList.remove('hidden');
+        contador.textContent = `${seleccionados.length} producto${seleccionados.length > 1 ? 's' : ''} seleccionado${seleccionados.length > 1 ? 's' : ''}`;
+    } else {
+        barra.classList.add('hidden');
+    }
+}
+
+function deseleccionarTodos() {
+    document.querySelectorAll('.checkbox-producto').forEach(cb => cb.checked = false);
+    document.getElementById('select-all').checked = false;
+    document.getElementById('barra-masiva').classList.add('hidden');
+}
+
+// Mostrar/ocultar campo margen según selección
+document.getElementById('campo-masivo').addEventListener('change', function () {
+    const contenedor = document.getElementById('campo-margen-container');
+    contenedor.classList.toggle('hidden', this.value !== 'ambos');
+});
+
+// ─── EDICIÓN INLINE ──────────────────────────────────────────
+document.querySelectorAll('.celda-editable').forEach(span => {
+    span.addEventListener('click', function () {
+        if (inputActivo) return;
+        activarInput(this);
+    });
+});
+
+function activarInput(span) {
+    const campo = span.dataset.campo;
+    const productoId = span.dataset.productoId;
+    const valorActual = span.dataset.valor;
+    const esStock = campo === 'stock_actual';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = valorActual;
+    input.className = 'w-28 px-2 py-1 border-2 border-purple-400 rounded text-sm focus:outline-none focus:border-purple-600';
+    input.dataset.campo = campo;
+    input.dataset.productoId = productoId;
+
+    span.replaceWith(input);
+    input.focus();
+    input.select();
+    inputActivo = input;
+
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); guardar(input, span, esStock); }
+        if (e.key === 'Escape') { cancelar(input, span); }
+    });
+    input.addEventListener('blur', function () {
+        setTimeout(() => { if (document.activeElement !== input) guardar(input, span, esStock); }, 150);
+    });
+}
+
+function cancelar(input, span) {
+    input.replaceWith(span);
+    inputActivo = null;
+}
+
+function guardar(input, span, esStock) {
+    if (!inputActivo) return;
+    inputActivo = null;
+
+    const valor = input.value.trim();
+    const campo = input.dataset.campo;
+    const productoId = input.dataset.productoId;
+
+    if (!valor) { cancelar(input, span); return; }
+
+    input.disabled = true;
+    input.classList.add('opacity-50');
+
+    fetch(URL_ACTUALIZAR, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF_TOKEN },
+        body: new URLSearchParams({ producto_id: productoId, campo: campo, valor: valor })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const prefijo = esStock ? '' : '$';
+            span.textContent = prefijo + data.valor_formateado;
+            span.dataset.valor = data.valor_formateado;
+            if (campo === 'precio_compra') {
+                const btnGanancia = span.closest('td').querySelector('.btn-ganancia');
+                if (btnGanancia) btnGanancia.dataset.precioCompra = data.valor_formateado;
+            }
+            input.replaceWith(span);
+            mostrarToast('Guardado ✓', 'success');
+        } else {
+            input.replaceWith(span);
+            mostrarToast('Error: ' + data.message, 'error');
+        }
+    })
+    .catch(() => { input.replaceWith(span); mostrarToast('Error de conexión', 'error'); });
+}
+
+// ─── MODAL GANANCIA ──────────────────────────────────────────
+document.querySelectorAll('.btn-ganancia').forEach(btn => {
+    btn.addEventListener('click', function () {
+        productoIdGanancia = this.dataset.productoId;
+        document.getElementById('modal-precio-compra').value = this.dataset.precioCompra;
+        document.getElementById('modal-porcentaje-ganancia').value = '';
+        document.getElementById('modal-precio-calculado').value = '';
+        document.getElementById('modal-redondear').checked = false;
+        document.getElementById('modal-ganancia').classList.remove('hidden');
+        document.getElementById('modal-porcentaje-ganancia').focus();
+    });
+});
+
+document.getElementById('modal-porcentaje-ganancia').addEventListener('input', calcularModalGanancia);
+document.getElementById('modal-redondear').addEventListener('change', calcularModalGanancia);
+
+function normalizar(valor) {
+    if (!valor) return 0;
+    return Number(String(valor).replace(/\./g, '').replace(',', '.'));
+}
+
+function formatearAR(valor) {
+    return valor.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function calcularModalGanancia() {
+    const compra = normalizar(document.getElementById('modal-precio-compra').value);
+    const porcentaje = parseFloat(document.getElementById('modal-porcentaje-ganancia').value);
+    const redondear = document.getElementById('modal-redondear').checked;
+
+    if (!compra || !porcentaje || porcentaje <= 0 || porcentaje >= 100) {
+        document.getElementById('modal-precio-calculado').value = '';
+        return;
+    }
+
+    const margen = porcentaje / 100;
+    let precio = compra / (1 - margen);
+    precio = redondear ? Math.round(precio) : Math.round(precio * 100) / 100;
+    document.getElementById('modal-precio-calculado').value = formatearAR(precio);
+}
+
+function cerrarModalGanancia() {
+    document.getElementById('modal-ganancia').classList.add('hidden');
+    productoIdGanancia = null;
+}
+
+function aplicarGanancia() {
+    const precioCalculado = document.getElementById('modal-precio-calculado').value;
+    if (!precioCalculado || !productoIdGanancia) return;
+
+    const spanVenta = document.getElementById(`precio-venta-${productoIdGanancia}`);
+    if (!spanVenta) { cerrarModalGanancia(); return; }
+
+    fetch(URL_ACTUALIZAR, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF_TOKEN },
+        body: new URLSearchParams({ producto_id: productoIdGanancia, campo: 'precio_venta', valor: precioCalculado })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            spanVenta.textContent = '$' + data.valor_formateado;
+            spanVenta.dataset.valor = data.valor_formateado;
+            mostrarToast('Precio de venta actualizado ✓', 'success');
+            cerrarModalGanancia();
+        } else {
+            mostrarToast('Error: ' + data.message, 'error');
+        }
+    })
+    .catch(() => mostrarToast('Error de conexión', 'error'));
+}
+
+document.getElementById('modal-ganancia').addEventListener('click', function (e) {
+    if (e.target === this) cerrarModalGanancia();
+});
+
+// ─── ACTUALIZACIÓN MASIVA ────────────────────────────────────
+document.getElementById('btn-aplicar-masivo').addEventListener('click', function () {
+    const ids = [...document.querySelectorAll('.checkbox-producto:checked')].map(cb => cb.dataset.id);
+    const porcentaje = document.getElementById('porcentaje-masivo').value.trim();
+    const campo = document.getElementById('campo-masivo').value;
+    const redondear = document.getElementById('redondear-masivo').checked;
+    const margen = document.getElementById('margen-ganancia').value.trim();
+
+    if (!ids.length) { mostrarToast('No hay productos seleccionados', 'error'); return; }
+    if (!porcentaje || isNaN(porcentaje)) { mostrarToast('Ingresá un porcentaje válido', 'error'); return; }
+    if (campo === 'ambos' && margen && (parseFloat(margen) <= 0 || parseFloat(margen) >= 100)) {
+        mostrarToast('El margen debe estar entre 0 y 100', 'error'); return;
+    }
+
+    const nombreCampo = campo === 'ambos' ? 'ambos precios' : campo === 'precio_venta' ? 'precio de venta' : 'precio de compra';
+    const msgMargen = (campo === 'ambos' && margen) ? ` (manteniendo ${margen}% de margen en venta)` : '';
+    if (!confirm(`¿Aumentar ${nombreCampo} un ${porcentaje}%${msgMargen} a ${ids.length} producto(s)?`)) return;
+
+    this.disabled = true;
+    this.textContent = 'Aplicando...';
+
+    const body = new URLSearchParams({
+        porcentaje,
+        campo,
+        redondear: redondear ? '1' : '0',
+        margen_ganancia: margen
+    });
+    ids.forEach(id => body.append('ids[]', id));
+
+    fetch(URL_MASIVO, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF_TOKEN },
+        body: body
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            mostrarToast(`✓ ${data.actualizados} producto(s) actualizados`, 'success');
+            deseleccionarTodos();
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            mostrarToast('Error: ' + (data.message || 'Error desconocido'), 'error');
+        }
+    })
+    .catch(() => mostrarToast('Error de conexión', 'error'))
+    .finally(() => {
+        this.disabled = false;
+        this.textContent = 'Aplicar a seleccionados';
+    });
+});
+
+// ─── TOAST ───────────────────────────────────────────────────
+function mostrarToast(mensaje, tipo) {
+    const toast = document.getElementById('toast');
+    toast.textContent = mensaje;
+    toast.className = `fixed bottom-24 right-6 z-50 px-4 py-2 rounded-md text-white text-sm font-medium shadow-lg ${tipo === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 2500);
+}
+</script>
+
+{% endblock %}
