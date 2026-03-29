@@ -341,7 +341,8 @@ function guardar(input, span, esStock) {
             span.textContent = prefijo + data.valor_formateado;
             span.dataset.valor = data.valor_formateado;
             if (campo === 'precio_compra') {
-                const btnGanancia = span.closest('td').querySelector('.btn-ganancia');
+                // ✅ Buscar desde INPUT (está en el DOM), no desde span
+                const btnGanancia = input.closest('td').querySelector('.btn-ganancia');
                 if (btnGanancia) btnGanancia.dataset.precioCompra = data.valor_formateado;
             }
             input.replaceWith(span);
