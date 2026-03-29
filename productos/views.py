@@ -368,6 +368,85 @@ def nueva_categoria(request):
     return JsonResponse({'success': True, 'id': cat.id, 'nombre': cat.nombre})
 
 
+# ESTO VA EN TUS VISTAS (views.py)
+# Actualiza tu función crear_categoria existente O agrega esta si no la tienes en la forma correcta
+
+import json
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+
+@login_required
+@require_http_methods(["POST"])
+def crear_categoria(request):
+    """
+    Endpoint AJAX para crear una nueva categoría desde editar_producto.html
+    
+    Acepta:
+    - application/x-www-form-urlencoded (POST tradicional)
+    - application/json (AJAX con JSON)
+    
+    Retorna JSON: { "success": bool, "categoria": {...}, "error": string }
+    """
+    
+    try:
+        # Intentar parsear como JSON (desde AJAX)
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+            nombre = data.get('nombre', '').strip()
+        else:
+            # Si es POST tradicional
+            nombre = request.POST.get('nombre', '').strip()
+
+        # Validación: nombre requerido
+        if not nombre:
+            return JsonResponse({
+                'success': False,
+                'error': 'El nombre de la categoría es requerido'
+            })
+
+        # Validación: nombre no demasiado largo
+        if len(nombre) > 100:
+            return JsonResponse({
+                'success': False,
+                'error': 'El nombre es demasiado largo (máximo 100 caracteres)'
+            })
+
+        # Validación: no existe categoría con el mismo nombre (case-insensitive)
+        if Categoria.objects.filter(
+            empresa=request.user.empresa,
+            nombre__iexact=nombre
+        ).exists():
+            return JsonResponse({
+                'success': False,
+                'error': f'La categoría "{nombre}" ya existe'
+            })
+
+        # Crear la nueva categoría
+        nueva_categoria = Categoria.objects.create(
+            nombre=nombre,
+            empresa=request.user.empresa
+        )
+
+        return JsonResponse({
+            'success': True,
+            'categoria': {
+                'id': nueva_categoria.id,
+                'nombre': nueva_categoria.nombre
+            }
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Formato de datos inválido'
+        }, status=400)
+    
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error al crear la categoría: {str(e)}'
+        }, status=500)
+
 @login_required
 def buscar_producto_por_codigo(request):
     codigo = request.GET.get('codigo')

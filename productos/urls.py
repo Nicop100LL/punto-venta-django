@@ -19,4 +19,5 @@ urlpatterns = [
      path('producto/actualizar-inline/', views.actualizar_producto_inline, name='actualizar_producto_inline'),
      path('edicion-masiva/', views.lista_productos_edicion_masiva, name='lista_productos_edicion_masiva'),
      path('edicion-masiva/actualizar-precios/', views.actualizar_precios_masivo, name='actualizar_precios_masivo'),
+     path('crear-categoria/', views.crear_categoria, name='crear_categoria'),
 ]

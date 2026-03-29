@@ -2,278 +2,390 @@
 {% load custom_filters %}
 {% block content %}
 
-<div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-    <h1 class="text-2xl font-semibold mb-4">Editar Producto</h1>
-    {% if messages %}
-    {% for message in messages %}
-        {% if message.tags == 'error' %}
-            <div class="mb-4 px-4 py-2 rounded text-white bg-red-500">
-                {{ message }}
-            </div>
-        {% endif %}
-    {% endfor %}
-{% endif %}
-
-
-    <form method="POST">
-        {% csrf_token %}
-        <div class="space-y-4">
-            <!-- Nombre -->
-            <div>
-                <label for="nombre" class="block text-sm font-medium">Nombre del Producto</label>
-                <input type="text" id="nombre" name="nombre" value="{{ producto.nombre }}"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
-            </div>
-
-            <!-- Código -->
-            <div>
-                <label for="codigo" class="block text-sm font-medium">Código</label>
-
-             <div class="relative flex gap-1">
-                <input
-                    type="text"
-                    id="codigo"
-                    name="codigo"
-                    value="{{ producto.codigo }}"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    required
-                >
-
-                <!-- Generar código -->
-                <button
-                    type="button"
-                    onclick="generarCodigoProducto()"
-                    class="mt-1 px-2 border rounded text-gray-600 hover:bg-gray-100"
-                    title="Generar código">
-                    🔁
-                </button>
-
-                <!-- Escanear (solo móvil) -->
-                <button
-                    type="button"
-                    onclick="abrirScannerProductoEditar()"
-                    class="mt-1 px-2 border rounded text-gray-600 hover:bg-gray-100 md:hidden"
-                    title="Escanear código">
-                    📷
-                </button>
-            </div>
-
-
-            </div>
-
-
-            <div
-                x-data="{
-                    precioCompraTexto: '{{ producto.precio_compra|formato_precio }}',
-                    precioVentaTexto: '{{ producto.precio_venta|formato_precio }}',
-                    usarGanancia: false,
-                    porcentajeGanancia: '',
-                    redondear: false,
-
-                    normalizar(valor) {
-                    if (!valor) return 0
-                    return Number(valor.replace(/\./g, '').replace(',', '.'))
-                    },
-
-                    formatear(valor) {
-                    return valor.toLocaleString('es-AR', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    })
-                    },
-
-                    calcularPrecio() {
-                    if (!this.usarGanancia) return
-                    const compra = this.normalizar(this.precioCompraTexto)
-                    const porcentaje = this.normalizar(this.porcentajeGanancia)
-
-                    if (compra <= 0 || porcentaje <= 0) return
-
-                    const margen = porcentaje / 100
-                    let precio = compra / (1 - margen)
-
-                    if (this.redondear) {
-                        precio = Math.round(precio)
-                    } else {
-                        precio = Math.round(precio * 100) / 100
-                    }
-
-                    this.precioVentaTexto = this.formatear(precio)
-                    }
-                }"
-                class="space-y-3"
-                >
-
-                <!-- PRECIO COMPRA -->
-                <div>
-                    <label class="block text-sm font-medium">Precio de Compra</label>
-                    <input
-                    type="text"
-                    name="precio_compra"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    x-model="precioCompraTexto"
-                    @input="calcularPrecio()"
-                    required
-                    >
-                </div>
-
-                <!-- CHECKBOX GANANCIA -->
-                <div class="flex items-center gap-2">
-                    <input
-                    type="checkbox"
-                    class="rounded border-gray-300 text-blue-600 shadow-sm"
-                    x-model="usarGanancia"
-                    @change="calcularPrecio()"
-                    >
-                    <label class="text-sm font-medium text-gray-700">
-                    Calcular precio con ganancia (%)
-                    </label>
-                </div>
-
-                <!-- PORCENTAJE -->
-                <div x-show="usarGanancia" x-transition>
-                    <label class="flex items-center gap-1 text-sm font-medium"
-                        x-data="{ open: false }"
-                        @click.outside="open = false">
-
-                        Margen de ganancia (%)
-
-                        <button type="button"
-                                @click="open = !open"
-                                class="text-gray-400 hover:text-gray-600 focus:outline-none">
-                            ❓
-                        </button>
-
-                        <div x-show="open"
-                            x-cloak
-                            class="absolute z-20 ml-8 mt-2 w-64 p-3 text-xs text-gray-700
-                                    bg-white border rounded shadow">
-                            El margen se calcula sobre el precio de venta final,
-                            no sobre el costo.
-                        </div>
-                    </label>
-
-
-                    <input
-                    type="text"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    x-model="porcentajeGanancia"
-                    @input="calcularPrecio()"
-                    placeholder="Ej: 30"
-                    >
-                </div>
-
-                <!-- REDONDEAR -->
-                <div x-show="usarGanancia" class="flex items-center gap-2">
-                    <input
-                    type="checkbox"
-                    class="rounded border-gray-300 text-blue-600 shadow-sm"
-                    x-model="redondear"
-                    @change="calcularPrecio()"
-                    >
-                    <label class="text-sm font-medium text-gray-700">
-                    Redondear precio
-                    </label>
-                </div>
-
-                <!-- PRECIO VENTA -->
-                <div>
-                    <label class="block text-sm font-medium">Precio de Venta</label>
-                    <input
-                    type="text"
-                    name="precio_venta"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    x-model="precioVentaTexto"
-                    required
-                    >
-                </div>
-
-                </div>
-
-
-            <!-- Aplicar descuento -->
-            <div class="flex items-center gap-2">
-                <input type="checkbox" id="aplica_descuento" name="aplica_descuento"
-                    class="rounded border-gray-300 text-blue-600 shadow-sm"
-                    {% if producto.aplica_descuento %}checked{% endif %}>
-                <label for="aplica_descuento" class="text-sm font-medium text-gray-700">Aplicar descuento</label>
-            </div>
-
-            <!-- Campos condicionales -->
-            <div id="campos-descuento" class="{% if not producto.aplica_descuento %}hidden{% endif %} space-y-4">
-
-                <div>
-                    <label for="cantidad_minima_descuento" class="block text-sm font-medium">
-                        Cantidad mínima para descuento
-                    </label>
-                    <input type="number" id="cantidad_minima_descuento" name="cantidad_minima_descuento"
-                        value="{{ producto.cantidad_minima_descuento }}"
-                        step="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                </div>
-
-                <div>
-                    <label for="porcentaje_descuento" class="block text-sm font-medium">
-                        Porcentaje de descuento (%)
-                    </label>
-                    <input type="text" id="porcentaje_descuento" name="porcentaje_descuento"
-                        value="{{ producto.porcentaje_descuento|default_if_none:''|formato_precio }}"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                </div>
-
-            </div>
-
-            <!-- Alerta stock bajo -->
-            <div class="flex items-center gap-2">
-                <input type="checkbox" id="alerta_stock_bajo" name="alerta_stock_bajo"
-                    class="rounded border-gray-300 text-blue-600 shadow-sm"
-                    {% if producto.alerta_stock_bajo %}checked{% endif %}>
-                <label for="alerta_stock_bajo" class="text-sm font-medium text-gray-700">
-                    ⚠️ Alertar cuando quede poco stock
-                </label>
-            </div>
-
-            <div id="campos-alerta-stock" class="{% if not producto.alerta_stock_bajo %}hidden{% endif %} space-y-2">
-                <div>
-                    <label for="stock_minimo_alerta" class="block text-sm font-medium">
-                        Avisar cuando el stock sea menor o igual a:
-                    </label>
-                    <input type="number" id="stock_minimo_alerta" name="stock_minimo_alerta"
-                        value="{{ producto.stock_minimo_alerta|default:'' }}"
-                        min="0" step="1"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                </div>
-            </div>
-
-            <!-- Categoría -->
-            <div>
-                <label for="categoria" class="block text-sm font-medium">Categoría</label>
-                <select id="categoria" name="categoria"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                    {% for categoria in categorias %}
-                        <option value="{{ categoria.id }}"
-                            {% if producto.categoria.id == categoria.id %}selected{% endif %}>
-                            {{ categoria.nombre }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <!-- Stock -->
-            <div>
-                <label for="stock_actual" class="block text-sm font-medium">Stock Actual</label>
-                <input type="text" id="stock_actual" name="stock_actual"
-                    value="{{ producto.stock_actual|formato_precio }}"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
-            </div>
-
-            <!-- Botón -->
-            <button type="submit" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md">Guardar Cambios</button>
-
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Editar Producto</h1>
+            <p class="text-gray-600 mt-1">Actualiza la información del producto</p>
         </div>
-    </form>
+
+        <!-- Mensajes -->
+        {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div class="mb-6 p-4 rounded-lg text-red-800 bg-red-100 border border-red-300">
+                    {{ message }}
+                </div>
+            {% endif %}
+        {% endfor %}
+        {% endif %}
+
+        <!-- Card Principal -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+            <form method="POST" class="p-6 sm:p-8">
+                {% csrf_token %}
+                <div class="space-y-6">
+
+                    <!-- SECCIÓN 1: INFORMACIÓN BÁSICA -->
+                    <div class="border-b border-gray-200 pb-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Información Básica</h2>
+                        
+                        <!-- Nombre -->
+                        <div class="mb-4">
+                            <label for="nombre" class="block text-sm font-medium text-gray-700 mb-2">
+                                Nombre del Producto <span class="text-red-500">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="nombre" 
+                                name="nombre" 
+                                value="{{ producto.nombre }}"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                required>
+                        </div>
+
+                        <!-- Código -->
+                        <div class="mb-4">
+                            <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">
+                                Código <span class="text-red-500">*</span>
+                            </label>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <input
+                                    type="text"
+                                    id="codigo"
+                                    name="codigo"
+                                    value="{{ producto.codigo }}"
+                                    class="w-full sm:flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                    required
+                                >
+                                <button
+                                    type="button"
+                                    onclick="generarCodigoProducto()"
+                                    class="px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg text-gray-600 font-medium transition flex-shrink-0"
+                                    title="Generar código">
+                                    🔁
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick="abrirScannerProductoEditar()"
+                                    class="px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg text-gray-600 font-medium block sm:hidden transition flex-shrink-0"
+                                    title="Escanear código">
+                                    📷
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Categoría -->
+                        <div x-data="{ modoNuevaCategoria: false, nombreNuevaCategoria: '', cargando: false, error: '' }">
+                            <div class="flex items-center justify-between mb-2">
+                                <label for="categoria" class="block text-sm font-medium text-gray-700">
+                                    Categoría <span class="text-red-500">*</span>
+                                </label>
+                                <button
+                                    type="button"
+                                    @click="modoNuevaCategoria = !modoNuevaCategoria; error = ''"
+                                    class="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                                    x-text="modoNuevaCategoria ? '✕ Cancelar' : '+ Nueva categoría'">
+                                    + Nueva categoría
+                                </button>
+                            </div>
+
+                            <!-- Selector de categoría existente -->
+                            <div x-show="!modoNuevaCategoria" x-transition>
+                                <select id="categoria" name="categoria"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white">
+                                    <option value="">-- Seleccionar categoría --</option>
+                                    {% for categoria in categorias %}
+                                        <option value="{{ categoria.id }}"
+                                            {% if producto.categoria.id == categoria.id %}selected{% endif %}>
+                                            {{ categoria.nombre }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Crear nueva categoría -->
+                            <div x-show="modoNuevaCategoria" x-transition class="space-y-2">
+                                <input
+                                    type="text"
+                                    x-model="nombreNuevaCategoria"
+                                    placeholder="Ej: Electrónica, Ropa, etc."
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                    @keyup.enter="crearNuevaCategoria(nombreNuevaCategoria)"
+                                >
+                                
+                                <div x-show="error" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700" x-text="error"></div>
+
+                                <div class="flex gap-2">
+                                    <button
+                                        type="button"
+                                        @click="crearNuevaCategoria(nombreNuevaCategoria)"
+                                        :disabled="cargando || !nombreNuevaCategoria.trim()"
+                                        class="flex-1 px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition">
+                                        <span x-show="!cargando">Crear</span>
+                                        <span x-show="cargando">Creando...</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="modoNuevaCategoria = false; nombreNuevaCategoria = ''; error = ''"
+                                        class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN 2: PRECIOS -->
+                    <div class="border-b border-gray-200 pb-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Precios</h2>
+                        
+                        <div x-data="{
+                            precioCompraTexto: '{{ producto.precio_compra|formato_precio }}',
+                            precioVentaTexto: '{{ producto.precio_venta|formato_precio }}',
+                            usarGanancia: false,
+                            porcentajeGanancia: '',
+                            redondear: false,
+
+                            normalizar(valor) {
+                                if (!valor) return 0
+                                return Number(valor.replace(/\./g, '').replace(',', '.'))
+                            },
+
+                            formatear(valor) {
+                                return valor.toLocaleString('es-AR', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                })
+                            },
+
+                            calcularPrecio() {
+                                if (!this.usarGanancia) return
+                                const compra = this.normalizar(this.precioCompraTexto)
+                                const porcentaje = this.normalizar(this.porcentajeGanancia)
+
+                                if (compra <= 0 || porcentaje <= 0) return
+
+                                const margen = porcentaje / 100
+                                let precio = compra / (1 - margen)
+
+                                if (this.redondear) {
+                                    precio = Math.round(precio)
+                                } else {
+                                    precio = Math.round(precio * 100) / 100
+                                }
+
+                                this.precioVentaTexto = this.formatear(precio)
+                            }
+                        }" class="space-y-4">
+
+                            <!-- Grid 2 columnas para precios -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <!-- PRECIO COMPRA -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Precio de Compra <span class="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="precio_compra"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                        x-model="precioCompraTexto"
+                                        @input="calcularPrecio()"
+                                        required
+                                    >
+                                </div>
+
+                                <!-- PRECIO VENTA -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Precio de Venta <span class="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="precio_venta"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                        x-model="precioVentaTexto"
+                                        required
+                                    >
+                                </div>
+                            </div>
+
+                            <!-- CALCULADORA DE GANANCIA -->
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                                        x-model="usarGanancia"
+                                        @change="calcularPrecio()"
+                                    >
+                                    <span class="text-sm font-medium text-gray-700">
+                                        Calcular precio con margen de ganancia
+                                    </span>
+                                </label>
+
+                                <!-- Opciones de ganancia -->
+                                <div x-show="usarGanancia" x-transition class="mt-4 space-y-3">
+                                    <div class="relative">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <label class="text-sm font-medium text-gray-700">
+                                                Margen de ganancia (%)
+                                            </label>
+                                            <div x-data="{ open: false }" class="relative">
+                                                <button type="button"
+                                                        @click="open = !open"
+                                                        @click.outside="open = false"
+                                                        class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                                                    ❓
+                                                </button>
+                                                <!-- Tooltip -->
+                                                <div x-show="open"
+                                                     x-cloak
+                                                     class="absolute right-0 mt-2 w-64 p-3 bg-white border border-gray-300 rounded-lg shadow-lg text-xs text-gray-700 z-20">
+                                                    El margen se calcula sobre el precio de venta final, no sobre el costo.
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                            x-model="porcentajeGanancia"
+                                            @input="calcularPrecio()"
+                                            placeholder="Ej: 30"
+                                        >
+                                    </div>
+
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                                            x-model="redondear"
+                                            @change="calcularPrecio()"
+                                        >
+                                        <span class="text-sm text-gray-700">Redondear a número entero</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN 3: STOCK -->
+                    <div class="border-b border-gray-200 pb-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Stock</h2>
+                        
+                        <div class="mb-4">
+                            <label for="stock_actual" class="block text-sm font-medium text-gray-700 mb-2">
+                                Stock Actual <span class="text-red-500">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="stock_actual" 
+                                name="stock_actual"
+                                value="{{ producto.stock_actual|formato_precio }}"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                required>
+                        </div>
+
+                        <!-- Alerta stock bajo -->
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    id="alerta_stock_bajo" 
+                                    name="alerta_stock_bajo"
+                                    class="w-4 h-4 rounded border-gray-300 text-yellow-600 focus:ring-2 focus:ring-yellow-500"
+                                    {% if producto.alerta_stock_bajo %}checked{% endif %}>
+                                <span class="text-sm font-medium text-gray-700">
+                                    ⚠️ Alertar cuando quede poco stock
+                                </span>
+                            </label>
+
+                            <div id="campos-alerta-stock" class="{% if not producto.alerta_stock_bajo %}hidden{% endif %} mt-3">
+                                <label for="stock_minimo_alerta" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Avisar cuando sea menor o igual a:
+                                </label>
+                                <input 
+                                    type="number" 
+                                    id="stock_minimo_alerta" 
+                                    name="stock_minimo_alerta"
+                                    value="{{ producto.stock_minimo_alerta|default:'' }}"
+                                    min="0" 
+                                    step="1"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN 4: DESCUENTOS -->
+                    <div class="pb-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Descuentos</h2>
+                        
+                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    id="aplica_descuento" 
+                                    name="aplica_descuento"
+                                    class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-2 focus:ring-purple-500"
+                                    {% if producto.aplica_descuento %}checked{% endif %}>
+                                <span class="text-sm font-medium text-gray-700">
+                                    Aplicar descuento por cantidad
+                                </span>
+                            </label>
+
+                            <div id="campos-descuento" class="{% if not producto.aplica_descuento %}hidden{% endif %} mt-4 space-y-4">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="cantidad_minima_descuento" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Cantidad mínima
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            id="cantidad_minima_descuento" 
+                                            name="cantidad_minima_descuento"
+                                            value="{{ producto.cantidad_minima_descuento }}"
+                                            step="1" 
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                                    </div>
+                                    <div>
+                                        <label for="porcentaje_descuento" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Descuento (%)
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            id="porcentaje_descuento" 
+                                            name="porcentaje_descuento"
+                                            value="{{ producto.porcentaje_descuento|default_if_none:''|formato_precio }}"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Botones de Acción -->
+                <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
+                    <button 
+                        type="submit" 
+                        class="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition shadow-sm">
+                        💾 Guardar Cambios
+                    </button>
+                    <a 
+                        href="{% url 'lista_productos' %}" 
+                        class="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg transition text-center">
+                        ← Volver
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
-<!-- Script -->
+<!-- Scripts -->
 <script>
     const checkbox = document.getElementById('aplica_descuento');
     const camposDescuento = document.getElementById('campos-descuento');
@@ -281,17 +393,16 @@
     checkbox.addEventListener('change', function () {
         camposDescuento.classList.toggle('hidden', !this.checked);
     });
+
     const checkAlerta = document.getElementById('alerta_stock_bajo');
     const camposAlerta = document.getElementById('campos-alerta-stock');
+    
     checkAlerta.addEventListener('change', function () {
         camposAlerta.classList.toggle('hidden', !this.checked);
     });
 </script>
 
 <script>
-/*
-  Abre la cámara y reemplaza el código del producto en la vista EDITAR
-*/
 function abrirScannerProductoEditar() {
   const modalScanner = document.getElementById('scanner-modal');
   if (!modalScanner) {
@@ -299,20 +410,15 @@ function abrirScannerProductoEditar() {
     return;
   }
 
-  // mostrar modal de cámara
   modalScanner.classList.remove('hidden');
 
-  // abrir cámara (usa ScannerCamara de base.html)
   ScannerCamara.abrir('scanner-view', (codigo) => {
     feedbackScanner();
-    // cerrar cámara con un pequeño delay para asegurar detección en móviles
     setTimeout(() => {
         ScannerCamara.cerrar();
         modalScanner.classList.add('hidden');
-    }, 200); // 200 ms es suficiente
+    }, 200);
 
-
-    // escribir código escaneado en el input
     const input = document.getElementById('codigo');
     if (input) {
       input.value = codigo;
@@ -322,7 +428,6 @@ function abrirScannerProductoEditar() {
 }
 </script>
 
-<!--Generar código-->
 <script>
 function generarCodigoProducto() {
     fetch("{% url 'generar_codigo_producto' %}?producto_id={{ producto.id }}")
@@ -338,8 +443,53 @@ function generarCodigoProducto() {
         })
         .catch(() => alert('Error al generar el código'));
 }
-
 </script>
 
+<script>
+function crearNuevaCategoria(nombre) {
+    const alpineElement = document.querySelector('[x-data*="modoNuevaCategoria"]');
+    const alpineData = Alpine.$data(alpineElement);
+    
+    if (!nombre.trim()) {
+        alpineData.error = 'El nombre no puede estar vacío';
+        return;
+    }
+
+    alpineData.cargando = true;
+    alpineData.error = '';
+
+    fetch("{% url 'crear_categoria' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({ nombre: nombre.trim() })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const select = document.getElementById('categoria');
+            const option = document.createElement('option');
+            option.value = data.categoria.id;
+            option.textContent = data.categoria.nombre;
+            option.selected = true;
+            select.appendChild(option);
+
+            alpineData.nombreNuevaCategoria = '';
+            alpineData.modoNuevaCategoria = false;
+            alpineData.cargando = false;
+        } else {
+            alpineData.error = data.error || 'Error al crear la categoría';
+            alpineData.cargando = false;
+        }
+    })
+    .catch(error => {
+        alpineData.error = 'Error de conexión';
+        alpineData.cargando = false;
+        console.error(error);
+    });
+}
+</script>
 
 {% endblock %}
