@@ -7,15 +7,31 @@ WSFE_URL_HOMO = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx?wsdl"
 WSFE_URL_PROD = "https://servicios1.afip.gov.ar/wsfev1/service.asmx?wsdl"
 
 
+import ssl
+from requests import Session
+from requests.adapters import HTTPAdapter
+from urllib3.poolmanager import PoolManager
+from zeep.transports import Transport
+from zeep import Client
+
+
+class SSLAdapter(HTTPAdapter):
+    def init_poolmanager(self, *args, **kwargs):
+        ctx = ssl.create_default_context()
+        ctx.set_ciphers('DEFAULT:@SECLEVEL=1')  # 🔥 clave
+
+        kwargs['ssl_context'] = ctx
+        return super().init_poolmanager(*args, **kwargs)
+
+
 def get_client(modo="homologacion"):
     url = WSFE_URL_HOMO if modo == "homologacion" else WSFE_URL_PROD
 
-    # 🔥 FIX SSL para ARCA
     session = Session()
-    session.verify = False  # evita errores de certificado
+    session.verify = False
 
-    ctx = ssl.create_default_context()
-    ctx.set_ciphers('DEFAULT:@SECLEVEL=1')  # 🔑 clave para DH_KEY_TOO_SMALL
+    # 🔥 montar adapter SSL custom
+    session.mount("https://", SSLAdapter())
 
     transport = Transport(session=session)
 
