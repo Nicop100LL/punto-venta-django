@@ -6,7 +6,7 @@ from ventas.models import ReglaArcaPago, ComprobanteArca
 TIPO_CBT = {
     "cf":        11,
     "boleta":    11,
-    "ticket":    11,
+    "ticket":    6,
     "factura_a":  1,
     "factura_b":  6,
 }
