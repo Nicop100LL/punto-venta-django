@@ -7,7 +7,8 @@ from django.utils import timezone
 import ssl
 
 # Permitir DH keys pequeñas (necesario para AFIP)
-ssl._create_unverified_context = ssl._create_stdlib_context
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 WSAA_URL_HOMO = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms?wsdl"
 WSAA_URL_PROD = "https://wsaa.afip.gov.ar/ws/services/LoginCms?wsdl"
@@ -49,12 +50,12 @@ def firmar_tra(tra_bytes, cert_path, key_path):
 
     return base64.b64encode(firmado).decode("utf-8")
 
-
-def obtener_token(cert_path, key_path, modo="homologacion", servicio="wsfe", empresa=None):
-    """Devuelve token y sign, usando BD si todavía es válido"""
+def obtener_token(cert_path, key_path, modo="produccion", servicio="wsfe", empresa=None):
     from ventas.models import TokenArca
+    from requests import Session
+    from zeep.transports import Transport
+    from zeep import Client
 
-    # Intentar usar token guardado en BD
     if empresa:
         try:
             token_obj = TokenArca.objects.get(
@@ -67,32 +68,25 @@ def obtener_token(cert_path, key_path, modo="homologacion", servicio="wsfe", emp
         except TokenArca.DoesNotExist:
             pass
 
-    # Pedir token nuevo a ARCA
     url = WSAA_URL_HOMO if modo == "homologacion" else WSAA_URL_PROD
 
     tra = crear_tra(servicio)
     cms = firmar_tra(tra, cert_path, key_path)
 
-    client = zeep.Client(url)
+    # 🔥 CONFIG SSL FIX
+    session = Session()
+    session.verify = False
+
+    ctx = ssl.create_default_context()
+    ctx.set_ciphers('DEFAULT:@SECLEVEL=1')
+
+    transport = Transport(session=session)
+    client = Client(url, transport=transport)
+
     respuesta = client.service.loginCms(in0=cms)
 
     root = ET.fromstring(respuesta)
     token = root.find(".//token").text
     sign  = root.find(".//sign").text
-
-    expira = timezone.now() + datetime.timedelta(hours=10)
-
-    # Guardar en BD
-    if empresa:
-        TokenArca.objects.update_or_create(
-            empresa=empresa,
-            servicio=servicio,
-            modo=modo,
-            defaults={
-                "token":  token,
-                "sign":   sign,
-                "expira": expira,
-            }
-        )
 
     return token, sign
