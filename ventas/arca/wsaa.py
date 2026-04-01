@@ -4,6 +4,10 @@ import base64
 import xml.etree.ElementTree as ET
 import zeep
 from django.utils import timezone
+import ssl
+
+# Permitir DH keys pequeñas (necesario para AFIP)
+ssl._create_unverified_context = ssl._create_stdlib_context
 
 WSAA_URL_HOMO = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms?wsdl"
 WSAA_URL_PROD = "https://wsaa.afip.gov.ar/ws/services/LoginCms?wsdl"
@@ -90,36 +94,5 @@ def obtener_token(cert_path, key_path, modo="homologacion", servicio="wsfe", emp
                 "expira": expira,
             }
         )
-
-    return token, sign
-    """Devuelve token y sign, usando caché si todavía es válido"""
-    cache_key = f"{cert_path}_{servicio}_{modo}"
-
-    # Usar caché si no expiró
-    if cache_key in _TOKEN_CACHE:
-        expira = _TOKEN_CACHE[cache_key]["expira"]
-        if datetime.datetime.now() < expira:
-            cached = _TOKEN_CACHE[cache_key]
-            print("ℹ️  Usando token cacheado")
-            return cached["token"], cached["sign"]
-
-    url = WSAA_URL_HOMO if modo == "homologacion" else WSAA_URL_PROD
-
-    tra = crear_tra(servicio)
-    cms = firmar_tra(tra, cert_path, key_path)
-
-    client = zeep.Client(url)
-    respuesta = client.service.loginCms(in0=cms)
-
-    root = ET.fromstring(respuesta)
-    token = root.find(".//token").text
-    sign  = root.find(".//sign").text
-
-    # Guardar en caché por 10 horas
-    _TOKEN_CACHE[cache_key] = {
-        "token":  token,
-        "sign":   sign,
-        "expira": datetime.datetime.now() + datetime.timedelta(hours=10)
-    }
 
     return token, sign
