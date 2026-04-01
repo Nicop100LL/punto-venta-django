@@ -1,5 +1,7 @@
-# ventas/arca/wsfev1.py
-import zeep
+import ssl
+from requests import Session
+from zeep.transports import Transport
+from zeep import Client
 
 WSFE_URL_HOMO = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx?wsdl"
 WSFE_URL_PROD = "https://servicios1.afip.gov.ar/wsfev1/service.asmx?wsdl"
@@ -7,7 +9,17 @@ WSFE_URL_PROD = "https://servicios1.afip.gov.ar/wsfev1/service.asmx?wsdl"
 
 def get_client(modo="homologacion"):
     url = WSFE_URL_HOMO if modo == "homologacion" else WSFE_URL_PROD
-    return zeep.Client(url)
+
+    # 🔥 FIX SSL para ARCA
+    session = Session()
+    session.verify = False  # evita errores de certificado
+
+    ctx = ssl.create_default_context()
+    ctx.set_ciphers('DEFAULT:@SECLEVEL=1')  # 🔑 clave para DH_KEY_TOO_SMALL
+
+    transport = Transport(session=session)
+
+    return Client(url, transport=transport)
 
 
 def obtener_ultimo_numero(client, token, sign, cuit, punto_venta, tipo_cbte):
