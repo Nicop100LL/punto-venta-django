@@ -4,11 +4,11 @@ from ventas.arca.wsfev1 import get_client, obtener_ultimo_numero, enviar_comprob
 from ventas.models import ReglaArcaPago, ComprobanteArca
 
 TIPO_CBT = {
-    "cf":        11,
-    "boleta":    11,
+    "cf":        6,
+    "boleta":    6,
     "ticket":    6,
-    "factura_a":  1,
-    "factura_b":  6,
+    "factura_a": 1,
+    "factura_b": 6,
 }
 
 
@@ -49,6 +49,7 @@ def enviar_a_arca(comprobante):
     print("CUIT:", cuit)
     print("Punto de venta:", punto_venta)
     print("Tipo comprobante:", tipo_cbte)
+    print("Tipo original:", comprobante.tipo)
     
     respuesta = enviar_comprobante(client, token, sign, cuit, {
         "punto_venta":             punto_venta,
