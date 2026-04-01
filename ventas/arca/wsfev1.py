@@ -54,6 +54,8 @@ def obtener_ultimo_numero(client, token, sign, cuit, punto_venta, tipo_cbte):
 
 
 def enviar_comprobante(client, token, sign, cuit, datos):
+    neto = round(datos["total"] / 1.21, 2)
+    iva  = round(datos["total"] - neto, 2)
     resultado = client.service.FECAESolicitar(
         Auth={"Token": token, "Sign": sign, "Cuit": cuit},
         FeCAEReq={
@@ -72,13 +74,19 @@ def enviar_comprobante(client, token, sign, cuit, datos):
                     "CbteFch": datos["fecha"],
                     "ImpTotal": datos["total"],
                     "ImpTotConc": 0,
-                    "ImpNeto": datos["total"],
+                    "ImpNeto": neto,
                     "ImpOpEx": 0,
-                    "ImpIVA": 0,
+                    "ImpIVA": iva,
                     "ImpTrib": 0,
                     "MonId": "PES",
                     "MonCotiz": 1,
-                    "Iva": None,
+                    "Iva": {
+                        "AlicIva": [{
+                            "Id": 5,  # 21%
+                            "BaseImp": neto,
+                            "Importe": iva,
+                        }]
+                    },
                     "CondicionIVAReceptorId": datos.get("condicion_iva_receptor", 5),
                 }]
             }
