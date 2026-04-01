@@ -92,7 +92,9 @@ def enviar_comprobante(client, token, sign, cuit, datos):
             }
         }
     )
-
+    print("RESPUESTA COMPLETA:")
+    from zeep.helpers import serialize_object
+    print(serialize_object(resultado))
     # Capturar errores de cabecera
     if resultado.Errors:
         from zeep.helpers import serialize_object
