@@ -15,28 +15,34 @@ from zeep.transports import Transport
 from zeep import Client
 
 
+
 class SSLAdapter(HTTPAdapter):
     def init_poolmanager(self, *args, **kwargs):
         ctx = ssl.create_default_context()
-        ctx.set_ciphers('DEFAULT:@SECLEVEL=1')  # 🔥 clave
+
+        # 🔥 bajar seguridad para ARCA
+        ctx.set_ciphers('DEFAULT:@SECLEVEL=1')
+
+        # 🔥 clave para evitar el error actual
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
 
         kwargs['ssl_context'] = ctx
         return super().init_poolmanager(*args, **kwargs)
-
 
 def get_client(modo="homologacion"):
     url = WSFE_URL_HOMO if modo == "homologacion" else WSFE_URL_PROD
 
     session = Session()
-    session.verify = False
 
-    # 🔥 montar adapter SSL custom
+    # ❌ sacá esto:
+    # session.verify = False
+
     session.mount("https://", SSLAdapter())
 
     transport = Transport(session=session)
 
     return Client(url, transport=transport)
-
 
 def obtener_ultimo_numero(client, token, sign, cuit, punto_venta, tipo_cbte):
     resultado = client.service.FECompUltimoAutorizado(
