@@ -46,6 +46,10 @@ def enviar_a_arca(comprobante):
 
     fecha = venta.fecha.strftime("%Y%m%d")
 
+    print("CUIT:", cuit)
+    print("Punto de venta:", punto_venta)
+    print("Tipo comprobante:", tipo_cbte)
+    
     respuesta = enviar_comprobante(client, token, sign, cuit, {
         "punto_venta":             punto_venta,
         "tipo_cbte":               tipo_cbte,
