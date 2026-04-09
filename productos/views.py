@@ -9,7 +9,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from django.db.models.functions import Substr, Cast
 from django.db.models import IntegerField, Max
-
+from decimal import Decimal, ROUND_HALF_UP
 from .models import Producto, Categoria
 
 
