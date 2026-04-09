@@ -153,10 +153,19 @@
             <span class="text-xs text-gray-500">% margen a mantener</span>
         </div>
 
-        <!-- Redondear -->
-        <div class="flex items-center gap-2">
-            <input type="checkbox" id="redondear-masivo" class="rounded border-gray-300">
-            <label for="redondear-masivo" class="text-sm text-gray-700">Redondear</label>
+        <!-- Opciones de redondeo -->
+        <div class="flex items-center gap-4 border-l pl-4">
+            <!-- Redondear a enteros -->
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="redondear-masivo" class="rounded border-gray-300">
+                <label for="redondear-masivo" class="text-sm text-gray-700">Redondear</label>
+            </div>
+
+            <!-- Redondear a centenas -->
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="redondear-centenas" class="rounded border-gray-300">
+                <label for="redondear-centenas" class="text-sm text-gray-700">A centenas</label>
+            </div>
         </div>
 
         <button
@@ -437,6 +446,7 @@ document.getElementById('btn-aplicar-masivo').addEventListener('click', function
     const porcentaje = document.getElementById('porcentaje-masivo').value.trim();
     const campo = document.getElementById('campo-masivo').value;
     const redondear = document.getElementById('redondear-masivo').checked;
+    const redondearCentenas = document.getElementById('redondear-centenas').checked;
     const margen = document.getElementById('margen-ganancia').value.trim();
 
     if (!ids.length) { mostrarToast('No hay productos seleccionados', 'error'); return; }
@@ -444,10 +454,17 @@ document.getElementById('btn-aplicar-masivo').addEventListener('click', function
     if (campo === 'ambos' && margen && (parseFloat(margen) <= 0 || parseFloat(margen) >= 100)) {
         mostrarToast('El margen debe estar entre 0 y 100', 'error'); return;
     }
+    // ✨ NUEVO: Validar que no selecciones ambos redondeos
+    if (redondear && redondearCentenas) {
+        mostrarToast('Selecciona solo una opción de redondeo', 'error'); return;
+    }
 
     const nombreCampo = campo === 'ambos' ? 'ambos precios' : campo === 'precio_venta' ? 'precio de venta' : 'precio de compra';
     const msgMargen = (campo === 'ambos' && margen) ? ` (manteniendo ${margen}% de margen en venta)` : '';
-    if (!confirm(`¿Aumentar ${nombreCampo} un ${porcentaje}%${msgMargen} a ${ids.length} producto(s)?`)) return;
+    // ✨ NUEVO: Mostrar tipo de redondeo en confirmación
+    const tipoRedondeo = redondearCentenas ? ' (redondeado a centenas)' : redondear ? ' (redondeado)' : '';
+    
+    if (!confirm(`¿Aumentar ${nombreCampo} un ${porcentaje}%${msgMargen}${tipoRedondeo} a ${ids.length} producto(s)?`)) return;
 
     this.disabled = true;
     this.textContent = 'Aplicando...';
@@ -456,6 +473,8 @@ document.getElementById('btn-aplicar-masivo').addEventListener('click', function
         porcentaje,
         campo,
         redondear: redondear ? '1' : '0',
+        // ✨ NUEVO: Agregar parámetro para redondeo a centenas
+        redondear_centenas: redondearCentenas ? '1' : '0',
         margen_ganancia: margen
     });
     ids.forEach(id => body.append('ids[]', id));

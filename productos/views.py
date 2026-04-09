@@ -572,40 +572,71 @@ def lista_productos_edicion_masiva(request):
 @login_required
 @require_POST
 def actualizar_precios_masivo(request):
-    from decimal import ROUND_HALF_UP
+    """
+    Actualiza precios de múltiples productos con opciones de redondeo
+    """
     try:
         ids = request.POST.getlist('ids[]')
         porcentaje = Decimal(request.POST.get('porcentaje'))
         campo = request.POST.get('campo')
         redondear = request.POST.get('redondear') == '1'
+        redondear_centenas = request.POST.get('redondear_centenas') == '1'
         margen_str = request.POST.get('margen_ganancia', '').strip()
-
+ 
         productos = Producto.objects.filter(id__in=ids, empresa=request.user.empresa)
         factor = 1 + porcentaje / 100
-
+ 
         def aplicar_redondeo(valor):
-            if redondear:
+            """
+            Aplica redondeo según las opciones seleccionadas
+            - redondear: redondea a entero (1, 2, 3, 4, 5...)
+            - redondear_centenas: redondea a centenas (100, 200, 300, 400, 500...)
+            """
+            valor_float = float(valor)
+            
+            if redondear_centenas:
+                # Redondea a la centena más cercana
+                # 653 -> 700, 643 -> 600, 550 -> 600, 549 -> 500
+                return Decimal(str(round(valor_float / 100) * 100))
+            elif redondear:
+                # Redondea a entero
                 return valor.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
-            return valor.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
+            else:
+                # Mantiene 2 decimales
+                return valor.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+ 
         for p in productos:
             if campo == 'ambos' and margen_str:
                 # Sube precio compra y recalcula venta con el margen indicado
                 margen = Decimal(margen_str) / 100
                 nuevo_compra = p.precio_compra * factor
                 p.precio_compra = aplicar_redondeo(nuevo_compra)
+                
                 nuevo_venta = nuevo_compra / (1 - margen)
                 p.precio_venta = aplicar_redondeo(nuevo_venta)
-
+ 
             else:
                 if campo in ('precio_compra', 'ambos'):
                     p.precio_compra = aplicar_redondeo(p.precio_compra * factor)
                 if campo in ('precio_venta', 'ambos'):
                     p.precio_venta = aplicar_redondeo(p.precio_venta * factor)
-
+ 
             p.save()
-
-        return JsonResponse({'success': True, 'actualizados': productos.count()})
-
+ 
+        return JsonResponse({
+            'success': True,
+            'actualizados': productos.count(),
+            'mensaje': f'{productos.count()} producto(s) actualizado(s) correctamente'
+        })
+ 
+    except ValueError as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Valor inválido: {str(e)}'
+        })
     except Exception as e:
-        return JsonResponse({'success': False, 'message': str(e)})
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        })
+ 
