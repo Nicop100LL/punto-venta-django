@@ -55,6 +55,7 @@ def obtener_token(cert_path, key_path, modo="produccion", servicio="wsfe", empre
     from requests import Session
     from zeep.transports import Transport
     from zeep import Client
+    from datetime import timedelta
 
     if empresa:
         try:
@@ -78,7 +79,7 @@ def obtener_token(cert_path, key_path, modo="produccion", servicio="wsfe", empre
     session.verify = False
 
     ctx = ssl.create_default_context()
-    ctx.set_ciphers('DEFAULT:@SECLEVEL=1')
+    #ctx.set_ciphers('DEFAULT:@SECLEVEL=1')
 
     transport = Transport(session=session)
     client = Client(url, transport=transport)
@@ -88,5 +89,20 @@ def obtener_token(cert_path, key_path, modo="produccion", servicio="wsfe", empre
     root = ET.fromstring(respuesta)
     token = root.find(".//token").text
     sign  = root.find(".//sign").text
+
+    # Guardar token nuevo
+    if empresa:
+        expira = timezone.now() + timedelta(hours=12)
+
+        TokenArca.objects.update_or_create(
+            empresa=empresa,
+            servicio=servicio,
+            modo=modo,
+            defaults={
+                "token": token,
+                "sign": sign,
+                "expira": expira
+            }
+        )
 
     return token, sign

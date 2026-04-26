@@ -8,6 +8,10 @@ TIPO_CBT = {
     "boleta":    11,
     "factura_a":  1,  # Factura A
     "factura_b":  6,  # Factura B
+    
+    "nota_credito_a": 3,
+    "nota_credito_b": 8,
+    "nota_credito_cf": 13,
 }
 
 
