@@ -21,15 +21,15 @@ class SSLAdapter(HTTPAdapter):
     def init_poolmanager(self, *args, **kwargs):
         ctx = ssl.create_default_context()
 
-        # ❌ comentar esta línea (rompe en LibreSSL)
-        # ctx.set_ciphers('DEFAULT:@SECLEVEL=1')
+        # 🔥 ESTA ES LA CLAVE
+        ctx.set_ciphers('DEFAULT:@SECLEVEL=1')
 
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
 
         kwargs['ssl_context'] = ctx
         return super().init_poolmanager(*args, **kwargs)
-
+    
 def get_client(modo="homologacion"):
     url = WSFE_URL_HOMO if modo == "homologacion" else WSFE_URL_PROD
 
