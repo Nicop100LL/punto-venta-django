@@ -57,16 +57,21 @@ def enviar_a_arca(comprobante):
     print("Tipo comprobante:", tipo_cbte)
     print("Tipo original:", comprobante.tipo)
     
-    respuesta = enviar_comprobante(client, token, sign, cuit, {
-        "punto_venta":             punto_venta,
-        "tipo_cbte":               tipo_cbte,
-        "doc_tipo":                doc_tipo,
-        "doc_nro":                 doc_nro,
-        "numero":                  numero,
-        "fecha":                   fecha,
-        "total":                   float(venta.total),
-        "condicion_iva_receptor":  5,
-    })
+    data = {
+        "punto_venta": punto_venta,
+        "tipo_cbte": tipo_cbte,
+        "doc_tipo": doc_tipo,
+        "doc_nro": doc_nro,
+        "numero": numero,
+        "fecha": fecha,
+        "total": float(venta.total),
+    }
+
+    # 🔥 SOLO si tiene CUIT
+    if doc_tipo == 80:
+        data["condicion_iva_receptor"] = 1  # ajustar después si hace falta
+
+    respuesta = enviar_comprobante(client, token, sign, cuit, data)
 
     return {
         "cae":        respuesta["cae"],
