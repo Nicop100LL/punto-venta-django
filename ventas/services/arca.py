@@ -4,14 +4,14 @@ from ventas.arca.wsfev1 import get_client, obtener_ultimo_numero, enviar_comprob
 from ventas.models import ReglaArcaPago, ComprobanteArca
 
 TIPO_CBT = {
-    "cf":        11,  # Factura C / Consumidor Final
-    "boleta":    11,
+    "cf":        6,  # Factura C / Consumidor Final
+    "boleta":    6,
     "factura_a":  1,  # Factura A
     "factura_b":  6,  # Factura B
     
     "nota_credito_a": 3,
     "nota_credito_b": 8,
-    "nota_credito_cf": 13,
+    "nota_credito_cf": 8,
 }
 
 

@@ -6,15 +6,15 @@ from ventas.models import NotaCredito, DetalleNotaCredito
 from datetime import datetime
 
 TIPO_CBT = {
-    "cf":        11,
-    "boleta":    11,
-    "ticket":    11,
+    "cf":        6,
+    "boleta":    6,
+    "ticket":    6,
     "factura_a": 1,
     "factura_b": 6,
     
     "nota_credito_a": 3,
     "nota_credito_b": 8,
-    "nota_credito_cf": 13,
+    "nota_credito_cf": 8,
 }
 
 
@@ -69,7 +69,7 @@ def enviar_a_arca(comprobante):
 
     # 🔥 SOLO si tiene CUIT
     if doc_tipo == 80:
-        data["condicion_iva_receptor"] = 1  # ajustar después si hace falta
+        data["condicion_iva_receptor"] = 5  # ajustar después si hace falta
 
     respuesta = enviar_comprobante(client, token, sign, cuit, data)
 
