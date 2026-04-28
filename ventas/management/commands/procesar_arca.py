@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from ventas.models import ComprobanteArca
-from ventas.services.arca import enviar_a_arca
+from ventas.arca.service import enviar_a_arca
 from datetime import datetime
 
 class Command(BaseCommand):
