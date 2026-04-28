@@ -1,4 +1,4 @@
-# ventas/arca/service.py
+# ventas/services/arca.py
 from ventas.arca.wsaa import obtener_token
 from ventas.arca.wsfev1 import get_client, obtener_ultimo_numero, enviar_comprobante
 from ventas.models import ReglaArcaPago, ComprobanteArca
