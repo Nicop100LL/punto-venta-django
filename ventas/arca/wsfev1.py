@@ -54,7 +54,7 @@ def obtener_ultimo_numero(client, token, sign, cuit, punto_venta, tipo_cbte):
 
 
 def enviar_comprobante(client, token, sign, cuit, datos):
-    neto = round(datos["total"] / 1.21, 2)
+    neto = round(datos["total"] / 1.105, 2)
     iva  = round(datos["total"] - neto, 2)
     resultado = client.service.FECAESolicitar(
         Auth={"Token": token, "Sign": sign, "Cuit": cuit},
@@ -82,7 +82,7 @@ def enviar_comprobante(client, token, sign, cuit, datos):
                     "MonCotiz": 1,
                     "Iva": {
                         "AlicIva": [{
-                            "Id": 5,  # 21%
+                            "Id": 4,  # 10.5%
                             "BaseImp": neto,
                             "Importe": iva,
                         }]
