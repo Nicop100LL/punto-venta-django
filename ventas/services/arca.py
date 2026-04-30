@@ -8,6 +8,9 @@ TIPO_CBT = {
     "boleta":    11,
     "factura_a":  1,  # Factura A
     "factura_b":  6,  # Factura B
+    "nc_a":      3,   # Nota de Crédito A
+    "nc_b":      8,   # Nota de Crédito B
+    "nc_c":     13,
 }
 
 
@@ -18,42 +21,34 @@ def enviar_a_arca(comprobante):
     if not empresa.usa_arca:
         raise Exception("Empresa no configurada para ARCA")
 
-    # Rutas a los archivos del certificado
     cert_path = empresa.arca_certificado.path
     key_path  = empresa.arca_clave_privada.path
     modo      = empresa.arca_modo
     cuit      = empresa.cuit.replace("-", "")
     punto_venta = empresa.arca_punto_venta
 
-    # 1. Login WSAA — obtener token y sign
     token, sign = obtener_token(cert_path, key_path, modo=modo, empresa=empresa)
-
-    # 2. Conectar al WSFEv1
     client = get_client(modo=modo)
 
-    # 3. Tipo de comprobante numérico
     tipo_cbte = TIPO_CBT.get(comprobante.tipo)
     if not tipo_cbte:
         raise Exception(f"Tipo de comprobante desconocido: {comprobante.tipo}")
 
-    # 4. Obtener próximo número
     ultimo = obtener_ultimo_numero(client, token, sign, cuit, punto_venta, tipo_cbte)
     numero = ultimo + 1
 
-    # 5. Datos del cliente
     venta = comprobante.venta
     if venta.cliente and venta.cliente.cuit:
-        doc_tipo = 80   # CUIT
+        doc_tipo = 80
         doc_nro  = int(venta.cliente.cuit.replace("-", ""))
     else:
-        doc_tipo = 99   # Consumidor Final
+        doc_tipo = 99
         doc_nro  = 0
 
-    # 6. Fecha en formato YYYYMMDD
     fecha = venta.fecha.strftime("%Y%m%d")
 
-    # 7. Enviar
-    respuesta = enviar_comprobante(client, token, sign, cuit, {
+    # Armar datos por separado para poder agregar el asociado si es NC
+    datos_envio = {
         "punto_venta": punto_venta,
         "tipo_cbte":   tipo_cbte,
         "doc_tipo":    doc_tipo,
@@ -61,11 +56,21 @@ def enviar_a_arca(comprobante):
         "numero":      numero,
         "fecha":       fecha,
         "total":       float(venta.total),
-    })
+    }
+
+    # Solo para NC: agregar referencia al comprobante original
+    if comprobante.tipo.startswith('nc_') and comprobante.comprobante_asociado_nro:
+        datos_envio["comprobante_asociado"] = {
+            "tipo":    comprobante.comprobante_asociado_tipo,
+            "pto_vta": comprobante.comprobante_asociado_pto_vta,
+            "nro":     comprobante.comprobante_asociado_nro,
+        }
+
+    respuesta = enviar_comprobante(client, token, sign, cuit, datos_envio)
 
     return {
-        "cae":       respuesta["cae"],
-        "numero":    respuesta["numero"],
+        "cae":        respuesta["cae"],
+        "numero":     respuesta["numero"],
         "vencimiento": respuesta["vencimiento"],
     }
 

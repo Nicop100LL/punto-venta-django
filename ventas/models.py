@@ -168,15 +168,22 @@ class DetalleNotaCredito(models.Model):
 
 class ComprobanteArca(models.Model):
 
-    venta = models.ForeignKey('Venta', on_delete=models.CASCADE, related_name='comprobantes_arca')
+    venta = models.OneToOneField(
+        Venta,
+        on_delete=models.CASCADE,
+        related_name="comprobante_arca"
+    )
 
     tipo = models.CharField(
         max_length=30,
         choices=[
-            ("cf", "Consumidor Final"),
-            ("boleta", "Boleta Común"),
+            ("cf",        "Consumidor Final"),
+            ("boleta",    "Boleta Común"),
             ("factura_a", "Factura A"),
             ("factura_b", "Factura B"),
+            ("nc_a",      "Nota de Crédito A"),  # ← agregar
+            ("nc_b",      "Nota de Crédito B"),  # ← agregar
+            ("nc_c",      "Nota de Crédito C"),  # ← agregar
         ]
     )
 
@@ -187,43 +194,35 @@ class ComprobanteArca(models.Model):
         db_index=True,
         choices=[
             ("pendiente", "Pendiente"),
-            ("aprobado", "Aprobado"),
-            ("error", "Error"),
+            ("aprobado",  "Aprobado"),
+            ("error",     "Error"),
         ],
         default="pendiente"
     )
 
     cae = models.CharField(max_length=50, blank=True, null=True)
     vencimiento_cae = models.DateField(blank=True, null=True)
-
     mensaje_error = models.TextField(blank=True, null=True)
-    
     procesando = models.BooleanField(default=False)
-    
     intentos = models.IntegerField(default=0)
     ultimo_intento = models.DateTimeField(blank=True, null=True)
-
     enviado_en = models.DateTimeField(blank=True, null=True)
     creado_en = models.DateTimeField(auto_now_add=True)
-
     raw_response = models.JSONField(blank=True, null=True)
-    
+
     comprobante_asociado_tipo = models.IntegerField(
-        blank=True, 
-        null=True,
+        blank=True, null=True,
         help_text="Tipo del comprobante que se anula (para NC)"
     )
     comprobante_asociado_pto_vta = models.IntegerField(
-        blank=True, 
-        null=True,
+        blank=True, null=True,
         help_text="Punto de venta del comprobante original"
     )
     comprobante_asociado_nro = models.IntegerField(
-        blank=True, 
-        null=True,
+        blank=True, null=True,
         help_text="Número del comprobante que se anula"
     )
-    
+
     def puede_reintentar(self):
         return self.intentos < 3
 

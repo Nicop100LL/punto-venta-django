@@ -106,55 +106,43 @@ def decidir_arca(venta):
     }
     
 def crear_nota_credito(venta_original, motivo="Anulación"):
-    """
-    Crea una Nota de Crédito para anular una venta facturada.
-    Thread-safe con locks para evitar duplicados.
-    """
     from ventas.models import Venta, ComprobanteArca
     from django.db import transaction
     from django.utils import timezone
-    
-    # Lock a nivel DB para evitar race conditions
-    with transaction.atomic():
-        # Verificar que existe comprobante original
-        try:
-            comp_original = venta_original.comprobantes_arca.select_for_update().filter(
-                estado='aprobado'
-            ).exclude(
-                tipo__in=['nc_a', 'nc_b', 'nc_c']
-            ).first()
 
-            if not comp_original:
-                raise Exception("La venta no tiene comprobante ARCA aprobado")
+    with transaction.atomic():
+        # Con OneToOneField se accede así:
+        try:
+            comp_original = venta_original.comprobante_arca
         except ComprobanteArca.DoesNotExist:
             raise Exception("La venta no tiene comprobante ARCA")
-        
+
         if comp_original.estado != "aprobado":
             raise Exception("El comprobante original no está aprobado")
-        
-        # Verificar que no exista NC previa
-        nc_existente = ComprobanteArca.objects.select_for_update().filter(
-            tipo__in=['nc_a', 'nc_b', 'nc_c'],
+
+        if comp_original.tipo in ('nc_a', 'nc_b', 'nc_c'):
+            raise Exception("No se puede crear NC de una NC")
+
+        # Verificar que no exista NC previa para este comprobante
+        nc_existente = ComprobanteArca.objects.filter(
             comprobante_asociado_nro=comp_original.numero,
             comprobante_asociado_pto_vta=venta_original.empresa.arca_punto_venta,
             comprobante_asociado_tipo=TIPO_CBT[comp_original.tipo]
         ).exists()
-        
+
         if nc_existente:
             raise Exception(f"Ya existe una NC para el comprobante {comp_original.numero}")
-        
-        # Determinar tipo de NC
+
         tipo_nc_map = {
             "factura_a": "nc_a",
             "factura_b": "nc_b",
-            "cf": "nc_c",
-            "boleta": "nc_c",
+            "cf":        "nc_c",
+            "boleta":    "nc_c",
         }
-        
         tipo_nc = tipo_nc_map.get(comp_original.tipo)
         if not tipo_nc:
             raise Exception(f"No se puede crear NC para tipo {comp_original.tipo}")
-        
+
         # Crear venta negativa
         venta_nc = Venta.objects.create(
             empresa=venta_original.empresa,
@@ -163,8 +151,8 @@ def crear_nota_credito(venta_original, motivo="Anulación"):
             total=-abs(venta_original.total),
             fecha=timezone.now(),
         )
-        
-        # Crear comprobante NC
+
+        # Crear comprobante NC (OneToOneField: una venta → un comprobante)
         comp_nc = ComprobanteArca.objects.create(
             venta=venta_nc,
             tipo=tipo_nc,
@@ -173,5 +161,5 @@ def crear_nota_credito(venta_original, motivo="Anulación"):
             comprobante_asociado_pto_vta=venta_original.empresa.arca_punto_venta,
             comprobante_asociado_nro=comp_original.numero,
         )
-        
+
         return comp_nc
