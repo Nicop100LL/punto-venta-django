@@ -52,10 +52,47 @@ def obtener_ultimo_numero(client, token, sign, cuit, punto_venta, tipo_cbte):
     )
     return resultado.CbteNro
 
-
 def enviar_comprobante(client, token, sign, cuit, datos):
+    # ⬇️ CAMBIAR: divisor de 1.21 a 1.105 (IVA 10.5%)
     neto = round(datos["total"] / 1.105, 2)
     iva  = round(datos["total"] - neto, 2)
+    
+    # Estructura base del detalle
+    detalle = {
+        "Concepto": 1,
+        "DocTipo": datos["doc_tipo"],
+        "DocNro": datos["doc_nro"],
+        "CbteDesde": datos["numero"],
+        "CbteHasta": datos["numero"],
+        "CbteFch": datos["fecha"],
+        "ImpTotal": datos["total"],
+        "ImpTotConc": 0,
+        "ImpNeto": neto,
+        "ImpOpEx": 0,
+        "ImpIVA": iva,
+        "ImpTrib": 0,
+        "MonId": "PES",
+        "MonCotiz": 1,
+        "Iva": {
+            "AlicIva": [{
+                # ⬇️ CAMBIAR: ID de 5 a 4 (IVA 10.5%)
+                "Id": 4,  # 10.5%
+                "BaseImp": neto,
+                "Importe": iva,
+            }]
+        },
+    }
+    
+    # ⬇️ AGREGAR: Si es Nota de Crédito, incluir comprobante asociado
+    if datos.get("comprobante_asociado"):
+        detalle["CbtesAsoc"] = {
+            "CbteAsoc": [{
+                "Tipo": datos["comprobante_asociado"]["tipo"],
+                "PtoVta": datos["comprobante_asociado"]["pto_vta"],
+                "Nro": datos["comprobante_asociado"]["nro"],
+            }]
+        }
+    
     resultado = client.service.FECAESolicitar(
         Auth={"Token": token, "Sign": sign, "Cuit": cuit},
         FeCAEReq={
@@ -65,36 +102,15 @@ def enviar_comprobante(client, token, sign, cuit, datos):
                 "CbteTipo": datos["tipo_cbte"],
             },
             "FeDetReq": {
-                "FECAEDetRequest": [{
-                    "Concepto": 1,
-                    "DocTipo": datos["doc_tipo"],
-                    "DocNro": datos["doc_nro"],
-                    "CbteDesde": datos["numero"],
-                    "CbteHasta": datos["numero"],
-                    "CbteFch": datos["fecha"],
-                    "ImpTotal": datos["total"],
-                    "ImpTotConc": 0,
-                    "ImpNeto": neto,
-                    "ImpOpEx": 0,
-                    "ImpIVA": iva,
-                    "ImpTrib": 0,
-                    "MonId": "PES",
-                    "MonCotiz": 1,
-                    "Iva": {
-                        "AlicIva": [{
-                            "Id": 4,  # 10.5%
-                            "BaseImp": neto,
-                            "Importe": iva,
-                        }]
-                    },
-                    "CondicionIVAReceptorId": datos.get("condicion_iva_receptor", 5),
-                }]
+                "FECAEDetRequest": [detalle]  # ⬅️ Usar la variable
             }
         }
     )
+    
     print("RESPUESTA COMPLETA:")
     from zeep.helpers import serialize_object
     print(serialize_object(resultado))
+    
     # Capturar errores de cabecera
     if resultado.Errors:
         from zeep.helpers import serialize_object

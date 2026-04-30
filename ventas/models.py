@@ -168,11 +168,7 @@ class DetalleNotaCredito(models.Model):
 
 class ComprobanteArca(models.Model):
 
-    venta = models.OneToOneField(
-        Venta,
-        on_delete=models.CASCADE,
-        related_name="comprobante_arca"
-    )
+    venta = models.ForeignKey('Venta', on_delete=models.CASCADE, related_name='comprobantes_arca')
 
     tipo = models.CharField(
         max_length=30,
@@ -211,6 +207,22 @@ class ComprobanteArca(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
 
     raw_response = models.JSONField(blank=True, null=True)
+    
+    comprobante_asociado_tipo = models.IntegerField(
+        blank=True, 
+        null=True,
+        help_text="Tipo del comprobante que se anula (para NC)"
+    )
+    comprobante_asociado_pto_vta = models.IntegerField(
+        blank=True, 
+        null=True,
+        help_text="Punto de venta del comprobante original"
+    )
+    comprobante_asociado_nro = models.IntegerField(
+        blank=True, 
+        null=True,
+        help_text="Número del comprobante que se anula"
+    )
     
     def puede_reintentar(self):
         return self.intentos < 3

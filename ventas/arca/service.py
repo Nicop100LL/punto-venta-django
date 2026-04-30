@@ -9,24 +9,25 @@ TIPO_CBT = {
     "ticket":    6,
     "factura_a": 1,
     "factura_b": 6,
+    
+    "nc_a":       3,  # Nota de Crédito A
+    "nc_b":       8,  # Nota de Crédito B
+    "nc_c":      13,  # Nota de Crédito C
 }
 
-
 def enviar_a_arca(comprobante):
-
     empresa = comprobante.venta.empresa
 
     if not empresa.usa_arca:
         raise Exception("Empresa no configurada para ARCA")
 
-    cert_path   = empresa.arca_certificado.path
-    key_path    = empresa.arca_clave_privada.path
-    modo        = empresa.arca_modo
-    cuit        = empresa.cuit.replace("-", "")
+    cert_path = empresa.arca_certificado.path
+    key_path  = empresa.arca_clave_privada.path
+    modo      = empresa.arca_modo
+    cuit      = empresa.cuit.replace("-", "")
     punto_venta = empresa.arca_punto_venta
 
     token, sign = obtener_token(cert_path, key_path, modo=modo, empresa=empresa)
-
     client = get_client(modo=modo)
 
     tipo_cbte = TIPO_CBT.get(comprobante.tipo)
@@ -46,21 +47,25 @@ def enviar_a_arca(comprobante):
 
     fecha = venta.fecha.strftime("%Y%m%d")
 
-    print("CUIT:", cuit)
-    print("Punto de venta:", punto_venta)
-    print("Tipo comprobante:", tipo_cbte)
-    print("Tipo original:", comprobante.tipo)
+    datos_envio = {
+        "punto_venta": punto_venta,
+        "tipo_cbte":   tipo_cbte,
+        "doc_tipo":    doc_tipo,
+        "doc_nro":     doc_nro,
+        "numero":      numero,
+        "fecha":       fecha,
+        "total":       float(venta.total),
+    }
     
-    respuesta = enviar_comprobante(client, token, sign, cuit, {
-        "punto_venta":             punto_venta,
-        "tipo_cbte":               tipo_cbte,
-        "doc_tipo":                doc_tipo,
-        "doc_nro":                 doc_nro,
-        "numero":                  numero,
-        "fecha":                   fecha,
-        "total":                   float(venta.total),
-        "condicion_iva_receptor":  5,
-    })
+    # ⬇️ AGREGAR: Si es NC, incluir comprobante asociado
+    if comprobante.tipo.startswith('nc_') and comprobante.comprobante_asociado_nro:
+        datos_envio["comprobante_asociado"] = {
+            "tipo": comprobante.comprobante_asociado_tipo,
+            "pto_vta": comprobante.comprobante_asociado_pto_vta,
+            "nro": comprobante.comprobante_asociado_nro,
+        }
+
+    respuesta = enviar_comprobante(client, token, sign, cuit, datos_envio)
 
     return {
         "cae":        respuesta["cae"],
@@ -99,3 +104,74 @@ def decidir_arca(venta):
         "obligatorio":  False,
         "tipo":         regla.tipo_comprobante
     }
+    
+def crear_nota_credito(venta_original, motivo="Anulación"):
+    """
+    Crea una Nota de Crédito para anular una venta facturada.
+    Thread-safe con locks para evitar duplicados.
+    """
+    from ventas.models import Venta, ComprobanteArca
+    from django.db import transaction
+    from django.utils import timezone
+    
+    # Lock a nivel DB para evitar race conditions
+    with transaction.atomic():
+        # Verificar que existe comprobante original
+        try:
+            comp_original = venta_original.comprobantes_arca.select_for_update().filter(
+                estado='aprobado'
+            ).exclude(
+                tipo__in=['nc_a', 'nc_b', 'nc_c']
+            ).first()
+
+            if not comp_original:
+                raise Exception("La venta no tiene comprobante ARCA aprobado")
+        except ComprobanteArca.DoesNotExist:
+            raise Exception("La venta no tiene comprobante ARCA")
+        
+        if comp_original.estado != "aprobado":
+            raise Exception("El comprobante original no está aprobado")
+        
+        # Verificar que no exista NC previa
+        nc_existente = ComprobanteArca.objects.select_for_update().filter(
+            tipo__in=['nc_a', 'nc_b', 'nc_c'],
+            comprobante_asociado_nro=comp_original.numero,
+            comprobante_asociado_pto_vta=venta_original.empresa.arca_punto_venta,
+            comprobante_asociado_tipo=TIPO_CBT[comp_original.tipo]
+        ).exists()
+        
+        if nc_existente:
+            raise Exception(f"Ya existe una NC para el comprobante {comp_original.numero}")
+        
+        # Determinar tipo de NC
+        tipo_nc_map = {
+            "factura_a": "nc_a",
+            "factura_b": "nc_b",
+            "cf": "nc_c",
+            "boleta": "nc_c",
+        }
+        
+        tipo_nc = tipo_nc_map.get(comp_original.tipo)
+        if not tipo_nc:
+            raise Exception(f"No se puede crear NC para tipo {comp_original.tipo}")
+        
+        # Crear venta negativa
+        venta_nc = Venta.objects.create(
+            empresa=venta_original.empresa,
+            cliente=venta_original.cliente,
+            tipo_pago=venta_original.tipo_pago,
+            total=-abs(venta_original.total),
+            fecha=timezone.now(),
+        )
+        
+        # Crear comprobante NC
+        comp_nc = ComprobanteArca.objects.create(
+            venta=venta_nc,
+            tipo=tipo_nc,
+            estado="pendiente",
+            comprobante_asociado_tipo=TIPO_CBT[comp_original.tipo],
+            comprobante_asociado_pto_vta=venta_original.empresa.arca_punto_venta,
+            comprobante_asociado_nro=comp_original.numero,
+        )
+        
+        return comp_nc
