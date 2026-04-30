@@ -49,13 +49,14 @@ def firmar_tra(tra_bytes, cert_path, key_path):
     )
 
     return base64.b64encode(firmado).decode("utf-8")
-
 def obtener_token(cert_path, key_path, modo="produccion", servicio="wsfe", empresa=None):
     from ventas.models import TokenArca
     from requests import Session
     from zeep.transports import Transport
     from zeep import Client
+    from datetime import timedelta
 
+    # 1. Si hay token válido en caché, usarlo directamente
     if empresa:
         try:
             token_obj = TokenArca.objects.get(
@@ -68,12 +69,12 @@ def obtener_token(cert_path, key_path, modo="produccion", servicio="wsfe", empre
         except TokenArca.DoesNotExist:
             pass
 
+    # 2. Obtener token nuevo desde ARCA
     url = WSAA_URL_HOMO if modo == "homologacion" else WSAA_URL_PROD
 
     tra = crear_tra(servicio)
     cms = firmar_tra(tra, cert_path, key_path)
 
-    # 🔥 CONFIG SSL FIX
     session = Session()
     session.verify = False
 
@@ -88,5 +89,19 @@ def obtener_token(cert_path, key_path, modo="produccion", servicio="wsfe", empre
     root = ET.fromstring(respuesta)
     token = root.find(".//token").text
     sign  = root.find(".//sign").text
+
+    # 3. Guardar/actualizar token en DB para reutilizarlo
+    if empresa:
+        expira = timezone.now() + timedelta(hours=11)  # 11hs de margen (ARCA da 12)
+        TokenArca.objects.update_or_create(
+            empresa=empresa,
+            servicio=servicio,
+            modo=modo,
+            defaults={
+                'token': token,
+                'sign':  sign,
+                'expira': expira,
+            }
+        )
 
     return token, sign
