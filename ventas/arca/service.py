@@ -136,7 +136,7 @@ def crear_nota_credito(venta_original, motivo="Anulación"):
         tipo_nc_map = {
             "factura_a": "nc_a",
             "factura_b": "nc_b",
-            "cf":        "nc_c",
+            "cf":        "nc_b",
             "boleta":    "nc_c",
         }
         tipo_nc = tipo_nc_map.get(comp_original.tipo)
