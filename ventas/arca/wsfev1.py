@@ -51,13 +51,25 @@ def obtener_ultimo_numero(client, token, sign, cuit, punto_venta, tipo_cbte):
         CbteTipo=tipo_cbte,
     )
     return resultado.CbteNro
-
 def enviar_comprobante(client, token, sign, cuit, datos):
-    # ⬇️ CAMBIAR: divisor de 1.21 a 1.105 (IVA 10.5%)
-    neto = round(datos["total"] / 1.105, 2)
-    iva  = round(datos["total"] - neto, 2)
     
-    # Estructura base del detalle
+    # Tomar valor absoluto siempre (NC viene negativo, ARCA necesita positivo)
+    total = abs(datos["total"])
+    
+    # Determinar alícuota según tipo de comprobante
+    # NC de facturas viejas (21%) vs comprobantes nuevos (10.5%)
+    es_nc = datos.get("comprobante_asociado") is not None
+    
+    if es_nc:
+        divisor = 1.21   # Las facturas originales tienen IVA 21%
+        id_iva  = 5      # ID 5 = 21%
+    else:
+        divisor = 1.105  # Comprobantes nuevos con IVA 10.5%
+        id_iva  = 4      # ID 4 = 10.5%
+    
+    neto = round(total / divisor, 2)
+    iva  = round(total - neto, 2)
+    
     detalle = {
         "Concepto": 1,
         "DocTipo": datos["doc_tipo"],
@@ -65,7 +77,7 @@ def enviar_comprobante(client, token, sign, cuit, datos):
         "CbteDesde": datos["numero"],
         "CbteHasta": datos["numero"],
         "CbteFch": datos["fecha"],
-        "ImpTotal": datos["total"],
+        "ImpTotal": total,   # ← abs(), siempre positivo
         "ImpTotConc": 0,
         "ImpNeto": neto,
         "ImpOpEx": 0,
@@ -75,15 +87,13 @@ def enviar_comprobante(client, token, sign, cuit, datos):
         "MonCotiz": 1,
         "Iva": {
             "AlicIva": [{
-                # ⬇️ CAMBIAR: ID de 5 a 4 (IVA 10.5%)
-                "Id": 4,  # 10.5%
+                "Id": id_iva,
                 "BaseImp": neto,
                 "Importe": iva,
             }]
         },
     }
     
-    # ⬇️ AGREGAR: Si es Nota de Crédito, incluir comprobante asociado
     if datos.get("comprobante_asociado"):
         detalle["CbtesAsoc"] = {
             "CbteAsoc": [{
@@ -102,7 +112,7 @@ def enviar_comprobante(client, token, sign, cuit, datos):
                 "CbteTipo": datos["tipo_cbte"],
             },
             "FeDetReq": {
-                "FECAEDetRequest": [detalle]  # ⬅️ Usar la variable
+                "FECAEDetRequest": [detalle]
             }
         }
     )
@@ -111,29 +121,27 @@ def enviar_comprobante(client, token, sign, cuit, datos):
     from zeep.helpers import serialize_object
     print(serialize_object(resultado))
     
-    # Capturar errores de cabecera
     if resultado.Errors:
-        from zeep.helpers import serialize_object
         errs = serialize_object(resultado.Errors)
         mensajes = [f"[{e['Code']}] {e['Msg']}" for e in errs.get('Err', [])]
         raise Exception(f"Error ARCA: {', '.join(mensajes)}")
 
-    detalle = resultado.FeDetResp.FECAEDetResponse[0]
+    det_resp = resultado.FeDetResp.FECAEDetResponse[0]
 
-    if detalle.Resultado != "A":
+    if det_resp.Resultado != "A":
         errores = []
-        if detalle.Observaciones:
+        if det_resp.Observaciones:
             try:
-                for obs in detalle.Observaciones.Obs:
+                for obs in det_resp.Observaciones.Obs:
                     errores.append(f"[{obs.Code}] {obs.Msg}")
             except Exception:
-                errores.append(str(detalle.Observaciones))
+                errores.append(str(det_resp.Observaciones))
         if not errores:
-            errores.append(f"Resultado: {detalle.Resultado}")
+            errores.append(f"Resultado: {det_resp.Resultado}")
         raise Exception(f"ARCA rechazó el comprobante: {', '.join(errores)}")
 
     return {
-        "cae":        detalle.CAE,
-        "vencimiento": detalle.CAEFchVto,
+        "cae":        det_resp.CAE,
+        "vencimiento": det_resp.CAEFchVto,
         "numero":     datos["numero"],
     }
