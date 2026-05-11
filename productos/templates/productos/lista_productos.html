@@ -7,17 +7,25 @@
   <div class="flex-1 p-6">
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
       <h1 class="text-2xl font-bold">Lista de Productos</h1>
-      <div class="flex gap-2">
-
+      <div class="grid grid-cols-2 sm:flex gap-2">
         <a href="{% url 'lista_productos_edicion_masiva' %}" 
-               class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-md">
-                ✏️ Edición Masiva
-            </a>
-        <a href="{% url 'exportar_productos_pdf' %}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          📄 Exportar PDF
+          class="px-3 sm:px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-md text-center text-sm sm:text-base">
+          <span class="hidden sm:inline">✏️ </span>Edición Masiva
         </a>
-        <button onclick="openModal()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-          + Agregar Producto
+        
+        <a href="{% url 'exportar_productos_pdf' %}" 
+          class="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-center text-sm sm:text-base">
+          <span class="hidden sm:inline">📄 </span>PDF
+        </a>
+        
+        <a href="{% url 'exportar_productos_excel' %}" 
+          class="px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-center text-sm sm:text-base">
+          <span class="hidden sm:inline">📊 </span>Excel
+        </a>
+        
+        <button onclick="openModal()" 
+                class="px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-center text-sm sm:text-base">
+          <span class="hidden sm:inline">+ </span>Agregar
         </button>
       </div>
     </div>

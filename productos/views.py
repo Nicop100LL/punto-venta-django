@@ -639,4 +639,119 @@ def actualizar_precios_masivo(request):
             'success': False,
             'message': str(e)
         })
- 
+
+
+
+from django.http import HttpResponse
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from collections import defaultdict
+
+@login_required
+def exportar_productos_excel(request):
+    """
+    Exporta la lista de productos a un archivo Excel (.xlsx)
+    agrupados por categoría, con formato profesional.
+    """
+    
+    # Obtener productos ordenados por categoría
+    productos = Producto.objects.filter(
+        empresa=request.user.empresa
+    ).order_by('categoria__nombre', 'nombre')
+    
+    # Agrupar por categoría
+    productos_por_categoria = defaultdict(list)
+    for prod in productos:
+        productos_por_categoria[prod.categoria.nombre].append(prod)
+    
+    # Crear libro de Excel
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Productos"
+    
+    # Estilos
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    categoria_fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+    categoria_font = Font(bold=True, size=13)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Título principal
+    ws.merge_cells('A1:E1')
+    ws['A1'] = f"📄 Lista de Productos - {request.user.empresa.nombre}"
+    ws['A1'].font = Font(bold=True, size=16)
+    ws['A1'].alignment = Alignment(horizontal='center')
+    
+    fila = 3  # Empezar después del título
+    
+    # Recorrer categorías
+    for categoria, productos_categoria in productos_por_categoria.items():
+        
+        # Nombre de la categoría (fila completa fusionada)
+        ws.merge_cells(f'A{fila}:E{fila}')
+        celda_categoria = ws[f'A{fila}']
+        celda_categoria.value = f"▶ {categoria}"
+        celda_categoria.font = categoria_font
+        celda_categoria.fill = categoria_fill
+        celda_categoria.alignment = Alignment(horizontal='left', vertical='center')
+        fila += 1
+        
+        # Encabezados de tabla
+        encabezados = ['Código', 'Nombre', 'Stock', 'Tipo', 'Precio']
+        for col_num, encabezado in enumerate(encabezados, 1):
+            celda = ws.cell(row=fila, column=col_num)
+            celda.value = encabezado
+            celda.font = header_font
+            celda.fill = header_fill
+            celda.alignment = Alignment(horizontal='center', vertical='center')
+            celda.border = border
+        
+        fila += 1
+        
+        # Productos de la categoría
+        for prod in productos_categoria:
+            # Formatear stock según tipo
+            if prod.tipo_venta == "unidad":
+                stock_formato = int(prod.stock_actual)
+            else:
+                stock_formato = round(prod.stock_actual, 2)
+            
+            # Formatear precio
+            precio_formato = f"${int(prod.precio_venta):,}".replace(",", ".")
+            
+            # Escribir datos
+            ws.cell(row=fila, column=1, value=prod.codigo).border = border
+            ws.cell(row=fila, column=2, value=prod.nombre).border = border
+            ws.cell(row=fila, column=3, value=stock_formato).border = border
+            ws.cell(row=fila, column=4, value=prod.get_tipo_venta_display()).border = border
+            ws.cell(row=fila, column=5, value=precio_formato).border = border
+            
+            # Alineación
+            ws.cell(row=fila, column=3).alignment = Alignment(horizontal='center')
+            ws.cell(row=fila, column=4).alignment = Alignment(horizontal='center')
+            ws.cell(row=fila, column=5).alignment = Alignment(horizontal='right')
+            
+            fila += 1
+        
+        fila += 1  # Espacio entre categorías
+    
+    # Ajustar anchos de columna
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 35
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 15
+    
+    # Preparar respuesta HTTP
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="productos.xlsx"'
+    
+    wb.save(response)
+    return response 
