@@ -90,7 +90,7 @@
     </form>
 
     <!-- TARJETAS COMPARATIVAS -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
 
         <!-- Ventas totales -->
         <div class="border rounded-xl p-4 bg-gray-50">
@@ -148,6 +148,71 @@
             <p class="text-xs text-gray-400 mt-1">{{ label_actual }} vs {{ label_anterior }}</p>
         </div>
 
+        <!-- EGRESOS -->
+        <div class="border rounded-xl p-4 bg-red-50 border-red-200">
+
+            <p class="text-xs text-red-500 uppercase tracking-wide font-semibold">
+                Egresos
+            </p>
+
+            <p class="text-3xl font-bold mt-1 text-red-600">
+                -${{ egresos_actual|floatformat:0|formato_precio }}
+            </p>
+
+            <div class="flex items-center gap-2 mt-2">
+
+                <span class="text-xs text-gray-400">
+                    vs ${{ egresos_anterior|floatformat:0|formato_precio }}
+                </span>
+
+                {% if var_egresos is not None %}
+
+                    {% if var_egresos >= 0 %}
+                    <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                        ↑ {{ var_egresos }}%
+                    </span>
+                    {% else %}
+                    <span class="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                        ↓ {{ var_egresos|stringformat:".1f" }}%
+                    </span>
+                    {% endif %}
+
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- NETO -->
+        <div class="border rounded-xl p-4 bg-green-50 border-green-200">
+
+            <p class="text-xs text-green-600 uppercase tracking-wide font-semibold">
+                Neto
+            </p>
+
+            <p class="text-3xl font-bold mt-1 text-green-700">
+                ${{ neto_actual|floatformat:0|formato_precio }}
+            </p>
+
+            <div class="flex items-center gap-2 mt-2">
+
+                <span class="text-xs text-gray-400">
+                    vs ${{ neto_anterior|floatformat:0|formato_precio }}
+                </span>
+
+                {% if var_neto is not None %}
+
+                    {% if var_neto >= 0 %}
+                    <span class="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                        ↑ {{ var_neto }}%
+                    </span>
+                    {% else %}
+                    <span class="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                        ↓ {{ var_neto|stringformat:".1f" }}%
+                    </span>
+                    {% endif %}
+
+                {% endif %}
+            </div>
+        </div>
 
     </div>
 

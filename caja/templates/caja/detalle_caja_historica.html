@@ -1,14 +1,16 @@
 {% extends "caja/base_caja.html" %}
 {% load custom_filters %}
 
-{% block acciones_caja %}
+{% block caja_content %}
+
+<div x-data="{
+    openEgresosPeriodo: false
+}">
 <a href="{% url 'lista_cajas' %}"
    class="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300">
    ← Volver
 </a>
-{% endblock %}
 
-{% block caja_content %}
 
 <!-- Datos generales -->
 <div class="bg-white rounded shadow p-4 mb-6">
@@ -27,6 +29,10 @@
         {% endif %}<br>
         <strong>Monto inicial:</strong> ${{ caja.monto_inicial|floatformat:2|formato_precio }}<br>
         <strong>Ingreso total en caja:</strong> ${{ total_ventas|floatformat:2|formato_precio }}<br>
+        <strong>Egresos:</strong>
+        <span class="text-red-600">
+            -${{ total_egresos|floatformat:2|formato_precio }}
+        </span><br>
         {% if caja.fecha_cierre %}
         <strong>Diferencia:</strong> ${{ diferencia|floatformat:2|formato_precio }}<br>
         <strong>Saldo final:</strong> ${{ saldo_final|floatformat:2|formato_precio }}
@@ -118,9 +124,19 @@
         </ul>
     </div>
         <div class="bg-white rounded shadow p-4">
-    <h3 class="text-md font-semibold mb-2">
-        Totales generales
-    </h3>
+    <div class="flex items-center justify-between mb-2">
+
+        <h3 class="text-md font-semibold">
+            Totales generales
+        </h3>
+
+        <button
+            @click="openEgresosPeriodo = true"
+            class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded">
+
+            👁 Ver egresos
+        </button>
+    </div>
 
     <ul class="text-sm space-y-1 mb-3">
         <li class="flex justify-between">
@@ -131,6 +147,10 @@
             <span>Notas de crédito:</span>
             <span>- ${{ total_notas_credito|floatformat:2|formato_precio }}</span>
         </li>
+        <li class="flex justify-between text-red-600">
+            <span>Egresos:</span>
+            <span>- ${{ total_egresos|floatformat:2|formato_precio }}</span>
+        </li>
     </ul>
 
     <hr class="mb-3">
@@ -138,6 +158,148 @@
     <div class="flex justify-between text-green-700">
         <span class="font-semibold">💵 Efectivo en caja:</span>
         <span class="text-lg font-bold">${{ efectivo_esperado|floatformat:2|formato_precio }}</span>
+    </div>
+</div>
+</div>
+<!-- Modal egresos caja -->
+<div
+    x-show="openEgresosPeriodo"
+    x-cloak
+    @keydown.window.escape="openEgresosPeriodo = false"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+
+    <div
+        @click.outside="openEgresosPeriodo = false"
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl p-6 max-h-[90vh] overflow-y-auto">
+
+        <!-- HEADER -->
+        <div class="flex items-center justify-between mb-6">
+
+            <div>
+                <h2 class="text-2xl font-bold text-red-600">
+                    💸 Egresos de caja
+                </h2>
+
+                <p class="text-sm text-gray-500">
+                    Movimientos registrados
+                </p>
+            </div>
+
+            <button
+                @click="openEgresosPeriodo = false"
+                class="text-2xl text-gray-400 hover:text-gray-700">
+
+                ✕
+            </button>
+        </div>
+
+        <!-- TOTAL -->
+        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+
+            <div class="flex items-center justify-between">
+
+                <div>
+                    <p class="text-sm text-red-500 uppercase">
+                        Total egresos
+                    </p>
+
+                    <p class="text-3xl font-bold text-red-600">
+                        ${{ total_egresos|floatformat:2|formato_precio }}
+                    </p>
+                </div>
+
+                <div class="text-sm text-gray-500">
+                    {{ egresos_caja|length }} movimientos
+                </div>
+            </div>
+        </div>
+
+        <!-- TABLA -->
+        <div class="overflow-x-auto">
+
+            <table class="w-full text-sm border-collapse">
+
+                <thead class="bg-gray-100">
+
+                    <tr>
+                        <th class="border px-3 py-2 text-left">Fecha</th>
+                        <th class="border px-3 py-2 text-left">Tipo</th>
+                        <th class="border px-3 py-2 text-left">Concepto</th>
+                        <th class="border px-3 py-2 text-left">Método</th>
+                        <th class="border px-3 py-2 text-left">Proveedor</th>
+                        <th class="border px-3 py-2 text-left">Observación</th>
+                        <th class="border px-3 py-2 text-right">Monto</th>
+                        <th class="border px-3 py-2 text-left">Usuario</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for egreso in egresos_caja %}
+
+                    <tr class="hover:bg-gray-50">
+
+                        <td class="border px-3 py-2">
+                            {{ egreso.fecha|date:"d/m/Y H:i" }}
+                        </td>
+
+                        <td class="border px-3 py-2">
+                            {{ egreso.get_tipo_display }}
+                        </td>
+
+                        <td class="border px-3 py-2 font-medium">
+                            {{ egreso.concepto }}
+                        </td>
+
+                        <td class="border px-3 py-2">
+                            {{ egreso.get_metodo_pago_display }}
+                        </td>
+
+                        <td class="border px-3 py-2">
+                            {{ egreso.proveedor|default:"-" }}
+                        </td>
+
+                        <td class="border px-3 py-2">
+                            {{ egreso.observaciones|default:"-" }}
+                        </td>
+
+                        <td class="border px-3 py-2 text-right font-bold text-red-600">
+                            ${{ egreso.monto|floatformat:2|formato_precio }}
+                        </td>
+
+                        <td class="border px-3 py-2">
+                            {{ egreso.usuario }}
+                        </td>
+
+                    </tr>
+
+                    {% empty %}
+
+                    <tr>
+                        <td colspan="8"
+                            class="text-center py-10 text-gray-500">
+
+                            No hay egresos registrados
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+            </table>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="flex justify-end mt-5">
+
+            <button
+                @click="openEgresosPeriodo = false"
+                class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded">
+
+                Cerrar
+            </button>
+        </div>
     </div>
 </div>
 </div>

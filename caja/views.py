@@ -13,7 +13,7 @@ from ventas.models import Venta
 from django.db.models import Sum
 from ventas.models import NotaCredito
 from usuarios.decorators import no_empleado_required
-
+from ventas.models import EgresoCaja 
 
 @login_required
 def abrir_caja(request):
@@ -71,9 +71,20 @@ def cerrar_caja(request):
     nc_efectivo = notas_credito.filter(
         venta__tipo_pago='EF'
     ).aggregate(total=Sum('total'))['total'] or Decimal('0')
+    
+    # EGRESOS DE CAJA
+    total_egresos = EgresoCaja.objects.filter(
+        caja=caja
+    ).aggregate(total=Sum('monto'))['total'] or Decimal('0')
+
 
     # Lo que debería haber en caja (solo efectivo)
-    efectivo_sistema = caja.monto_inicial + total_efectivo_ventas - nc_efectivo
+    efectivo_sistema = (
+        caja.monto_inicial
+        + total_efectivo_ventas
+        - nc_efectivo
+        - total_egresos
+    )
 
     if request.method == 'POST':
         monto_real = Decimal(request.POST.get('monto_cierre') or '0')
@@ -152,7 +163,22 @@ def detalle_caja(request):
     total_no_efectivo = total_ventas - total_efectivo
 
     # Total efectivo real en caja, descontando notas de crédito
-    total_caja = caja.monto_inicial + total_ventas - total_notas_credito
+    # EGRESOS DE LA CAJA
+    egresos_caja = EgresoCaja.objects.filter(
+        caja=caja
+    ).select_related('usuario').order_by('-fecha')
+
+    total_egresos = egresos_caja.aggregate(
+        total=Sum('monto')
+    )['total'] or Decimal('0')
+
+    # Total efectivo esperado en caja
+    total_caja = (
+        caja.monto_inicial
+        + total_ventas
+        - total_notas_credito
+        - total_egresos
+    )
 
     # Diferencia y saldo final
     if caja.fecha_cierre:
@@ -174,6 +200,8 @@ def detalle_caja(request):
         'diferencia': diferencia,
         'notas_credito': notas_credito,
         'total_notas_credito': total_notas_credito,
+        'egresos_caja': egresos_caja,
+        'total_egresos': total_egresos,
     }
 
     return render(request, 'caja/detalle_caja.html', context)
@@ -230,7 +258,14 @@ def detalle_caja_historica(request, caja_id):
             totales['CC'] -= nc.total
         else:
             totales[nc.venta.tipo_pago] -= nc.total
+    # EGRESOS DE LA CAJA
+    egresos_caja = EgresoCaja.objects.filter(
+        caja=caja
+    ).select_related('usuario').order_by('-fecha')
 
+    total_egresos = egresos_caja.aggregate(
+        total=Sum('monto')
+    )['total'] or Decimal('0')
     # ✅ Efectivo físico esperado:
     #    Solo ventas EF no-CC, menos NC de ventas EF no-CC
     ventas_ef = sum(v.total for v in ventas
@@ -239,7 +274,12 @@ def detalle_caja_historica(request, caja_id):
     nc_ef = sum(nc.total for nc in notas_credito
                 if nc.venta.tipo_pago == 'EF' and not nc.venta.cuenta_corriente)
 
-    efectivo_esperado = caja.monto_inicial + ventas_ef - nc_ef
+    efectivo_esperado = (
+        caja.monto_inicial
+        + ventas_ef
+        - nc_ef
+        - total_egresos
+    )
 
     # Para el historial usamos efectivo_sistema guardado al cierre
     # Si no existe (cajas viejas), calculamos como fallback
@@ -266,6 +306,8 @@ def detalle_caja_historica(request, caja_id):
         # Informativos para mostrar en tarjetas
         'ventas_ef': ventas_ef,
         'nc_ef': nc_ef,
+        'egresos_caja': egresos_caja,
+        'total_egresos': total_egresos,
     }
 
     return render(request, 'caja/detalle_caja_historica.html', context)

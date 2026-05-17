@@ -5,7 +5,7 @@ from django.db.models import Sum, F
 from django.contrib.auth.decorators import login_required
 import datetime
 from django.db.models import Sum, F, DecimalField, ExpressionWrapper
-from ventas.models import Venta, DetalleVenta
+from ventas.models import Venta, DetalleVenta, EgresoCaja
 import math
 from django.db.models import Sum, F
 from decimal import Decimal
@@ -14,9 +14,9 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField
 from django.contrib.auth.decorators import login_required
-import datetime
+from .utils.reportes import obtener_egresos_periodo
 
-from ventas.models import Venta, DetalleVenta
+
 
 def convertir_a_bultos(cantidad):
     if cantidad <= 0:
@@ -68,6 +68,11 @@ def reporte_diario(request):
     # -----------------------------
     total_ventas = ventas_qs.aggregate(total=Sum('total'))['total'] or 0
     cantidad_ventas = ventas_qs.count()
+    egresos_periodo, egresos_total = obtener_egresos_periodo(
+        empresa,
+        fecha,
+        fecha
+    )
 
     total_productos = detalles_qs.aggregate(total_cant=Sum('cantidad'))['total_cant'] or 0
     cantidad_tickets = ventas_qs.count()
@@ -151,6 +156,11 @@ def reporte_diario(request):
         'ticket_promedio': ticket_promedio,
         'producto_filtrado': producto_id,  # para marcar la opción seleccionada
         'total_productos': total_bultos, 
+       
+        
+        'egresos_periodo': egresos_periodo,
+        'egresos_total': egresos_total,
+        'neto_dia': total_ventas - egresos_total,
     }
 
     return render(request, 'reportes/reporte_diario.html', context)
@@ -254,12 +264,24 @@ def reporte_mensual(request):
     # QuerySets filtrados por rango
     ventas_qs   = Venta.objects.filter(empresa=empresa, fecha__date__gte=fecha_inicio, fecha__date__lte=fecha_fin)
     detalles_qs = DetalleVenta.objects.filter(venta__in=ventas_qs)
+    # EGRESOS DEL PERÍODO
+    egresos_periodo = EgresoCaja.objects.filter(
+        empresa=empresa,
+        fecha__date__gte=fecha_inicio,
+        fecha__date__lte=fecha_fin
+    ).select_related('usuario').order_by('-fecha')
 
+    egresos_total = egresos_periodo.aggregate(
+        total=Sum('monto')
+    )['total'] or 0
+    
     # KPIs
     total_ventas     = ventas_qs.aggregate(t=Sum('total'))['t'] or 0
     cantidad_tickets = ventas_qs.count()
     ticket_promedio  = total_ventas / cantidad_tickets if cantidad_tickets else 0
 
+    neto_periodo = total_ventas - egresos_total
+    
     # Tabla de productos
     detalles_con_subtotal = detalles_qs.annotate(
         subtotal=ExpressionWrapper(F('cantidad') * F('precio_unitario'), output_field=DecimalField())
@@ -321,6 +343,8 @@ def reporte_mensual(request):
         (9,'Septiembre'),(10,'Octubre'),(11,'Noviembre'),(12,'Diciembre'),
     ]
 
+
+    
     context = {
         'modo': modo,
         'label_periodo': label_periodo,
@@ -338,6 +362,9 @@ def reporte_mensual(request):
         'totales_pago': totales_pago,
         'desglose_diario': desglose_diario,
         'orden': orden,
+        'egresos_periodo': egresos_periodo,
+        'egresos_total': egresos_total,
+        'neto_periodo': neto_periodo,
     }
     return render(request, 'reportes/reporte_mensual.html', context)
 
@@ -532,6 +559,13 @@ def analytics(request):
             fecha__date__lte=hasta,
         ).count()
 
+    def egresos_total(desde, hasta):
+        return EgresoCaja.objects.filter(
+            empresa=empresa,
+            fecha__date__gte=desde,
+            fecha__date__lte=hasta,
+        ).aggregate(t=Sum('monto'))['t'] or 0
+    
     # ── Helper: parsear fecha GET ────────────────────────────────────
     def parse_date(param, default):
         raw = request.GET.get(param)
@@ -599,6 +633,11 @@ def analytics(request):
     # ── KPIs ─────────────────────────────────────────────────────────
     ventas_actual    = ventas_total(actual_desde, actual_hasta)
     ventas_anterior  = ventas_total(anterior_desde, anterior_hasta)
+    egresos_actual   = egresos_total(actual_desde, actual_hasta)
+    egresos_anterior = egresos_total(anterior_desde, anterior_hasta)
+
+    neto_actual      = ventas_actual - egresos_actual
+    neto_anterior    = ventas_anterior - egresos_anterior
     tickets_actual   = tickets_count(actual_desde, actual_hasta)
     tickets_anterior = tickets_count(anterior_desde, anterior_hasta)
 
@@ -613,6 +652,8 @@ def analytics(request):
     var_ventas  = variacion(ventas_actual,  ventas_anterior)
     var_tickets = variacion(tickets_actual, tickets_anterior)
     var_ticket  = variacion(ticket_promedio_actual, ticket_promedio_anterior)
+    var_egresos = variacion(egresos_actual, egresos_anterior)
+    var_neto    = variacion(neto_actual, neto_anterior)
 
     # ── Gráfico 1: Evolución día a día — barras agrupadas ────────────
     def evolucion_por_dia(desde, hasta):
@@ -716,6 +757,13 @@ def analytics(request):
             ('anio',   'Este año vs anterior'),
             ('rango',  'Rango libre'),
         ],
+        
+        'egresos_actual': egresos_actual,
+        'egresos_anterior': egresos_anterior,
+        'neto_actual': neto_actual,
+        'neto_anterior': neto_anterior,
+        'var_egresos': var_egresos,
+        'var_neto': var_neto,
     }
     return render(request, 'reportes/analytics.html', context)
 

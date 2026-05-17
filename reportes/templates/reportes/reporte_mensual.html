@@ -235,6 +235,43 @@
                 </table>
             </div>
 
+            <!-- EGRESOS -->
+            <div class="p-4 bg-red-50 rounded border border-red-200">
+
+                <div class="flex items-start justify-between gap-3">
+
+                    <div>
+                        <p class="text-xs text-red-500 uppercase tracking-wide">
+                            EGRESOS DEL PERÍODO
+                        </p>
+
+                        <p class="text-2xl font-bold mt-1 text-red-600">
+                            -${{ egresos_total|floatformat:0|formato_precio }}
+                        </p>
+                    </div>
+
+                    <button
+                        @click="openEgresosPeriodo = true"
+                        class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm">
+
+                        👁 Ver
+                    </button>
+
+                </div>
+            </div>
+
+            <!-- NETO -->
+            <div class="p-4 bg-green-50 rounded border border-green-200">
+
+                <p class="text-xs text-green-600 uppercase tracking-wide">
+                    NETO
+                </p>
+
+                <p class="text-2xl font-bold mt-1 text-green-700">
+                    ${{ neto_periodo|floatformat:0|formato_precio }}
+                </p>
+            </div>
+
         </aside>
 
     </div><!-- /grid -->

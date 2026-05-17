@@ -25,7 +25,28 @@
   x-data="{
     open: false,
     openCerrarCaja: false,
-    openAbrirCaja: {{ abrir_modal_caja|yesno:'true,false' }}
+    openAbrirCaja: {{ abrir_modal_caja|yesno:'true,false' }},
+    openEgreso: false,
+    openEgresosPeriodo: false,
+    mostrarDetalleEgreso(egreso) {
+        this.detalleEgreso = egreso
+        this.openDetalleEgreso = true
+    },
+    openDetalleEgreso: false,
+    detalleEgreso:{},
+
+    detalleEgreso: {
+        fecha: '',
+        tipo: '',
+        concepto: '',
+        monto: '',
+        metodo_pago: '',
+        proveedor: '',
+        comprobante: '',
+        observaciones: '',
+        usuario: '',
+        caja: '',
+    }, 
   }">
 
 
@@ -574,8 +595,382 @@
             </div>
         </form>
     </div>
+
+    
+
 </div>
 
+<!-- Modal registrar egreso -->
+<div
+        x-show="openEgreso"
+        x-cloak
+        @keydown.window.escape="openEgreso = false"
+        @keydown.window.f8.prevent="openEgreso = true"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+
+        <div
+            @click.outside="openEgreso = false"
+            class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+
+            <h2 class="text-lg font-bold mb-4 text-red-600">
+                💸 Registrar Egreso
+            </h2>
+
+            <!-- Info caja -->
+            {% if caja_abierta %}
+            <div class="bg-blue-50 border border-blue-200 rounded p-2 mb-4 text-sm">
+                ✅ Caja abierta: {{ caja_abierta.fecha_apertura|date:"d/m/Y H:i" }}
+            </div>
+            {% else %}
+            <div class="bg-yellow-50 border border-yellow-300 rounded p-2 mb-4 text-sm">
+                ⚠️ Sin caja abierta (solo dueños/admin)
+            </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'registrar_egreso_ajax' %}">
+                {% csrf_token %}
+
+                <!-- Tipo de egreso -->
+                <div class="mb-3">
+                    <label class="block text-sm font-semibold mb-1">Tipo de Egreso</label>
+                    <select name="tipo" required
+                            class="w-full border rounded px-3 py-2 text-sm">
+                        <option value="proveedor">Pago a Proveedor</option>
+                        <option value="servicio">Servicio (luz, agua, internet)</option>
+                        <option value="alquiler">Alquiler</option>
+                        <option value="sueldo">Sueldo/Honorarios</option>
+                        <option value="impuesto">Impuesto/Tasas</option>
+                        <option value="varios">Otros Gastos</option>
+                    </select>
+                </div>
+
+                <!-- Concepto -->
+                <div class="mb-3">
+                    <label class="block text-sm font-semibold mb-1">Concepto</label>
+                    <input type="text" name="concepto" required
+                        placeholder="Ej: Pago luz enero"
+                        class="w-full border rounded px-3 py-2 text-sm">
+                </div>
+
+                <!-- Monto + Método -->
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1">Monto</label>
+                        <input type="number" step="0.01" name="monto" required
+                            class="w-full border rounded px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1">Pago</label>
+                        <select name="metodo_pago" required
+                                class="w-full border rounded px-3 py-2 text-sm">
+                            <option value="EF">Efectivo</option>
+                            <option value="TR">Transferencia</option>
+                            <option value="TJ">Tarjeta</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Proveedor (opcional) -->
+                <div class="mb-3">
+                    <label class="block text-sm font-semibold mb-1">Proveedor (opcional)</label>
+                    <input type="text" name="proveedor"
+                        class="w-full border rounded px-3 py-2 text-sm">
+                </div>
+
+                <!-- Comprobante (opcional) -->
+                <div class="mb-3">
+                    <label class="block text-sm font-semibold mb-1">Nro. Comprobante (opcional)</label>
+                    <input type="text" name="comprobante"
+                        class="w-full border rounded px-3 py-2 text-sm">
+                </div>
+
+                <!-- Observaciones (opcional) -->
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-1">Observaciones</label>
+                    <textarea name="observaciones" rows="2"
+                            class="w-full border rounded px-3 py-2 text-sm"></textarea>
+                </div>
+
+                <!-- Botones -->
+                <div class="flex justify-end gap-2">
+                    <button
+                        type="button"
+                        @click="openEgreso = false"
+                        class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+                        Cancelar
+                    </button>
+                    <button
+                        type="submit"
+                        class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                        Registrar
+                    </button>
+                </div>
+            </form>
+        </div>
+</div>
+
+
+<!-- Modal egresos período -->
+<div
+    x-show="openEgresosPeriodo"
+    x-cloak
+    @keydown.window.escape="openEgresosPeriodo = false"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+
+    <div
+        @click.outside="openEgresosPeriodo = false"
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl p-6 max-h-[90vh] overflow-y-auto">
+
+        <!-- HEADER -->
+        <div class="flex items-center justify-between mb-6">
+
+            <div>
+                <h2 class="text-2xl font-bold text-red-600">
+                    💸 Egresos del período
+                </h2>
+
+                <p class="text-sm text-gray-500">
+                    Todos los movimientos registrados
+                </p>
+            </div>
+
+            <button
+                @click="openEgresosPeriodo = false"
+                class="text-2xl text-gray-400 hover:text-gray-700">
+
+                ✕
+            </button>
+        </div>
+
+        <!-- TOTAL -->
+        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+
+            <div class="flex items-center justify-between">
+
+                <div>
+                    <p class="text-sm text-red-500 uppercase">
+                        Total egresos
+                    </p>
+
+                    <p class="text-3xl font-bold text-red-600">
+                        ${{ egresos_total|floatformat:0|formato_precio }}
+                    </p>
+                </div>
+
+                <div class="text-sm text-gray-500">
+                    {{ egresos_periodo|length }} movimientos
+                </div>
+            </div>
+        </div>
+
+        <!-- TABLA -->
+        <div class="overflow-x-auto">
+
+            <table class="w-full text-sm border-collapse">
+
+                <thead class="bg-gray-100">
+
+                    <tr>
+                        <th class="border px-3 py-2 text-left">Fecha</th>
+                        <th class="border px-3 py-2 text-left">Tipo</th>
+                        <th class="border px-3 py-2 text-left">Concepto</th>
+                        <th class="border px-3 py-2 text-left">Método</th>
+                        <th class="border px-3 py-2 text-left">Proveedor</th>
+                        <th class="border px-3 py-2 text-right">Monto</th>
+                        <th class="border px-3 py-2 text-left">Usuario</th>
+                        <th class="border px-3 py-2 text-center">Detalle</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for egreso in egresos_periodo %}
+
+                    <tr class="hover:bg-gray-50">
+
+                        <td class="border px-3 py-2">
+                            {{ egreso.fecha|date:"d/m/Y H:i" }}
+                        </td>
+
+                        <td class="border px-3 py-2">
+                            {{ egreso.get_tipo_display }}
+                        </td>
+
+                        <td class="border px-3 py-2 font-medium">
+                            {{ egreso.concepto }}
+                        </td>
+
+                        <td class="border px-3 py-2">
+                            {{ egreso.get_metodo_pago_display }}
+                        </td>
+
+                        <td class="border px-3 py-2">
+                            {{ egreso.proveedor|default:"-" }}
+                        </td>
+
+                        <td class="border px-3 py-2 text-right font-bold text-red-600">
+                            ${{ egreso.monto|floatformat:0|formato_precio }}
+                        </td>
+
+                        <td class="border px-3 py-2">
+                            {{ egreso.usuario }}
+                        </td>
+
+                        <td class="border px-3 py-2 text-center">
+
+                            <button
+                                @click="detalleEgreso = {
+                                    fecha: '{{ egreso.fecha|date:"d/m/Y H:i" }}',
+                                    tipo: '{{ egreso.get_tipo_display|escapejs }}',
+                                    concepto: '{{ egreso.concepto|escapejs }}',
+                                    metodo: '{{ egreso.get_metodo_pago_display|escapejs }}',
+                                    proveedor: '{{ egreso.proveedor|escapejs }}',
+                                    comprobante: '{{ egreso.comprobante|escapejs }}',
+                                    observaciones: '{{ egreso.observaciones|escapejs }}',
+                                    usuario: '{{ egreso.usuario|escapejs }}',
+                                    monto: '{{ egreso.monto|floatformat:0 }}'
+                                };
+                                openDetalleEgreso = true"
+                                class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 rounded">
+
+                                👁 Ver
+                            </button>
+
+                        </td>
+
+                    </tr>
+
+                    {% empty %}
+
+                    <tr>
+                        <td colspan="7"
+                            class="text-center py-10 text-gray-500">
+
+                            No hay egresos registrados
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+            </table>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="flex justify-end mt-5">
+
+            <button
+                @click="openEgresosPeriodo = false"
+                class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded">
+
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal detalle egreso -->
+<div
+    x-show="openDetalleEgreso"
+    x-cloak
+    class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
+
+    <div
+        @click.outside="openDetalleEgreso = false"
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-5">
+
+            <h2 class="text-xl font-bold text-red-600">
+                💸 Detalle del egreso
+            </h2>
+
+            <button
+                @click="openDetalleEgreso = false"
+                class="text-gray-400 hover:text-gray-700 text-2xl">
+
+                ✕
+            </button>
+        </div>
+
+        <!-- Datos -->
+        <div class="space-y-4 text-sm">
+
+            <div class="grid grid-cols-2 gap-4">
+
+                <div>
+                    <p class="text-gray-500">Fecha</p>
+                    <p class="font-semibold" x-text="detalleEgreso.fecha"></p>
+                </div>
+
+                <div>
+                    <p class="text-gray-500">Monto</p>
+                    <p class="font-bold text-red-600 text-lg"
+                       x-text="'$' + detalleEgreso.monto"></p>
+                </div>
+
+            </div>
+
+            <div>
+                <p class="text-gray-500">Tipo</p>
+                <p class="font-semibold" x-text="detalleEgreso.tipo"></p>
+            </div>
+
+            <div>
+                <p class="text-gray-500">Concepto</p>
+                <p class="font-semibold" x-text="detalleEgreso.concepto"></p>
+            </div>
+
+            <div>
+                <p class="text-gray-500">Método de pago</p>
+                <p class="font-semibold" x-text="detalleEgreso.metodo"></p>
+            </div>
+
+            <template x-if="detalleEgreso.proveedor">
+                <div>
+                    <p class="text-gray-500">Proveedor</p>
+                    <p class="font-semibold" x-text="detalleEgreso.proveedor"></p>
+                </div>
+            </template>
+
+            <template x-if="detalleEgreso.comprobante">
+                <div>
+                    <p class="text-gray-500">Comprobante</p>
+                    <p class="font-semibold" x-text="detalleEgreso.comprobante"></p>
+                </div>
+            </template>
+
+            <template x-if="detalleEgreso.observaciones">
+                <div>
+                    <p class="text-gray-500">Observaciones</p>
+
+                    <div class="bg-gray-50 border rounded-lg p-3 mt-1">
+                        <p x-text="detalleEgreso.observaciones"></p>
+                    </div>
+                </div>
+            </template>
+
+            <div>
+                <p class="text-gray-500">Usuario</p>
+                <p class="font-semibold" x-text="detalleEgreso.usuario"></p>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-end mt-6">
+
+            <button
+                @click="openDetalleEgreso = false"
+                class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded">
+
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
 
 <script>
 function cerrarScannerSiFondo(e) {

@@ -62,7 +62,9 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
 
 from ventas.models import Venta, ComprobanteArca
-
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from .models import EgresoCaja
 
 
 
@@ -1157,3 +1159,43 @@ def reintentar_arca(request, venta_id):
 
 def landing(request):
     return render(request, 'landing/index.html')
+
+
+@login_required
+@require_POST
+def registrar_egreso_ajax(request):
+    """
+    Registra un egreso desde el modal de nueva_venta.
+    - Empleados: solo con caja abierta
+    - Dueños/Admin: siempre pueden
+    """
+    from .models import EgresoCaja
+    from caja.utils import get_caja_abierta
+    
+    caja_abierta = get_caja_abierta(request.user, request.user.empresa)
+    
+    # Validación empleados
+    if request.user.es_empleado and not caja_abierta:
+        messages.error(request, 'No puedes registrar egresos sin caja abierta.')
+        return redirect('nueva_venta')
+    
+    try:
+        egreso = EgresoCaja.objects.create(
+            tipo=request.POST['tipo'],
+            concepto=request.POST['concepto'],
+            monto=Decimal(request.POST['monto']),
+            metodo_pago=request.POST['metodo_pago'],
+            proveedor=request.POST.get('proveedor', ''),
+            comprobante=request.POST.get('comprobante', ''),
+            observaciones=request.POST.get('observaciones', ''),
+            caja=caja_abierta,
+            usuario=request.user,
+            empresa=request.user.empresa
+        )
+        
+        messages.success(request, f'✅ Egreso registrado: ${egreso.monto}')
+    except Exception as e:
+        messages.error(request, f'Error al registrar egreso: {str(e)}')
+    
+    return redirect('nueva_venta')
+

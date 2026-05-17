@@ -276,3 +276,51 @@ class ReglaArcaPago(models.Model):
 
     class Meta:
         unique_together = ("empresa", "tipo_pago")    
+        
+        
+class EgresoCaja(models.Model):
+    TIPO_CHOICES = [
+        ('proveedor', 'Pago a Proveedor'),
+        ('servicio', 'Servicio (luz, agua, internet)'),
+        ('alquiler', 'Alquiler'),
+        ('sueldo', 'Sueldo/Honorarios'),
+        ('impuesto', 'Impuesto/Tasas'),
+        ('varios', 'Otros Gastos'),
+    ]
+    
+    METODO_PAGO_CHOICES = [
+        ('EF', 'Efectivo'),
+        ('TR', 'Transferencia'),
+        ('TJ', 'Tarjeta'),
+    ]
+    
+    caja = models.ForeignKey(
+        'caja.CierreCaja',
+        on_delete=models.PROTECT,
+        related_name='egresos',
+        null=True,
+        blank=True
+    )
+    
+    fecha = models.DateTimeField(default=timezone.now)
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='varios')
+    concepto = models.CharField(max_length=200, help_text="Ej: Pago a Distribuidora XYZ")
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    metodo_pago = models.CharField(max_length=2, choices=METODO_PAGO_CHOICES, default='EF')
+    
+    proveedor = models.CharField(max_length=100, blank=True)
+    comprobante = models.CharField(max_length=50, blank=True)
+    observaciones = models.TextField(blank=True)
+    
+    usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT)
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-fecha']
+        verbose_name = 'Egreso de Caja'
+        verbose_name_plural = 'Egresos de Caja'
+    
+    def __str__(self):
+        return f"Egreso {self.get_tipo_display()} - ${self.monto} ({self.fecha.date()})"        

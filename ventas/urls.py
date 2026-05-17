@@ -22,4 +22,5 @@ urlpatterns = [
     path('ticket-pdf-prueba/<int:venta_id>/',views.ticket_pdf_prueba,name="ticket_pdf_prueba"), 
     path('reintentar-arca/<int:venta_id>/', reintentar_arca, name='reintentar_arca'),
     path("arca/enviar/<int:venta_id>/", arca_enviar, name="arca_enviar"),
+    path('egreso/ajax/', views.registrar_egreso_ajax, name='registrar_egreso_ajax'),
 ]
