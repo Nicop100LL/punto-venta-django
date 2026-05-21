@@ -717,24 +717,31 @@ def exportar_productos_excel(request):
         for prod in productos_categoria:
             # Formatear stock según tipo
             if prod.tipo_venta == "unidad":
-                stock_formato = int(prod.stock_actual)
+                stock_valor = int(prod.stock_actual)
             else:
-                stock_formato = round(prod.stock_actual, 2)
-            
-            # Formatear precio
-            precio_formato = f"${int(prod.precio_venta):,}".replace(",", ".")
+                stock_valor = round(prod.stock_actual, 2)
             
             # Escribir datos
             ws.cell(row=fila, column=1, value=prod.codigo).border = border
             ws.cell(row=fila, column=2, value=prod.nombre).border = border
-            ws.cell(row=fila, column=3, value=stock_formato).border = border
-            ws.cell(row=fila, column=4, value=prod.get_tipo_venta_display()).border = border
-            ws.cell(row=fila, column=5, value=precio_formato).border = border
             
-            # Alineación
-            ws.cell(row=fila, column=3).alignment = Alignment(horizontal='center')
-            ws.cell(row=fila, column=4).alignment = Alignment(horizontal='center')
-            ws.cell(row=fila, column=5).alignment = Alignment(horizontal='right')
+            # Stock
+            celda_stock = ws.cell(row=fila, column=3, value=stock_valor)
+            celda_stock.border = border
+            celda_stock.alignment = Alignment(horizontal='center')
+            if prod.tipo_venta != "unidad":
+                celda_stock.number_format = '0.00'
+            
+            # Tipo de venta
+            celda_tipo = ws.cell(row=fila, column=4, value=prod.get_tipo_venta_display())
+            celda_tipo.border = border
+            celda_tipo.alignment = Alignment(horizontal='center')
+            
+            # Precio (CAMBIADO: número con formato en lugar de texto)
+            celda_precio = ws.cell(row=fila, column=5, value=int(prod.precio_venta))
+            celda_precio.border = border
+            celda_precio.alignment = Alignment(horizontal='right')
+            celda_precio.number_format = '"$"#,##0'
             
             fila += 1
         
