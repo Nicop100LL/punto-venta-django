@@ -682,7 +682,7 @@ def exportar_productos_excel(request):
     )
     
     # Título principal
-    ws.merge_cells('A1:E1')
+    ws.merge_cells('A1:G1')
     ws['A1'] = f"📄 Lista de Productos - {request.user.empresa.nombre}"
     ws['A1'].font = Font(bold=True, size=16)
     ws['A1'].alignment = Alignment(horizontal='center')
@@ -692,8 +692,8 @@ def exportar_productos_excel(request):
     # Recorrer categorías
     for categoria, productos_categoria in productos_por_categoria.items():
         
-        # Nombre de la categoría (fila completa fusionada)
-        ws.merge_cells(f'A{fila}:E{fila}')
+        # Nombre de la categoría
+        ws.merge_cells(f'A{fila}:G{fila}')
         celda_categoria = ws[f'A{fila}']
         celda_categoria.value = f"▶ {categoria}"
         celda_categoria.font = categoria_font
@@ -702,7 +702,7 @@ def exportar_productos_excel(request):
         fila += 1
         
         # Encabezados de tabla
-        encabezados = ['Código', 'Nombre', 'Stock', 'Tipo', 'Precio']
+        encabezados = ['Código', 'Nombre', 'Stock', 'Tipo', 'Precio', '% Extra envío', 'Precio Final']
         for col_num, encabezado in enumerate(encabezados, 1):
             celda = ws.cell(row=fila, column=col_num)
             celda.value = encabezado
@@ -737,11 +737,25 @@ def exportar_productos_excel(request):
             celda_tipo.border = border
             celda_tipo.alignment = Alignment(horizontal='center')
             
-            # Precio (CAMBIADO: número con formato en lugar de texto)
+            # Precio
             celda_precio = ws.cell(row=fila, column=5, value=int(prod.precio_venta))
             celda_precio.border = border
             celda_precio.alignment = Alignment(horizontal='right')
             celda_precio.number_format = '"$"#,##0'
+            
+            # COLUMNA F: % Aumento (editable, vacía por defecto)
+            celda_porcentaje = ws.cell(row=fila, column=6)
+            celda_porcentaje.border = border
+            celda_porcentaje.alignment = Alignment(horizontal='center')
+            celda_porcentaje.number_format = '0"%"'  # Muestra "5%" cuando escribe 5
+            
+            # COLUMNA G: Precio Final (fórmula automática)
+            celda_final = ws.cell(row=fila, column=7)
+            celda_final.border = border
+            celda_final.alignment = Alignment(horizontal='right')
+            celda_final.number_format = '"$"#,##0'
+            # Fórmula: si F está vacío muestra E, si no calcula E + (E * F/100)
+            celda_final.value = f'=IF(F{fila}="",E{fila},E{fila}+(E{fila}*F{fila}/100))'
             
             fila += 1
         
@@ -753,6 +767,8 @@ def exportar_productos_excel(request):
     ws.column_dimensions['C'].width = 12
     ws.column_dimensions['D'].width = 12
     ws.column_dimensions['E'].width = 15
+    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['G'].width = 15
     
     # Preparar respuesta HTTP
     response = HttpResponse(
@@ -761,4 +777,4 @@ def exportar_productos_excel(request):
     response['Content-Disposition'] = 'attachment; filename="productos.xlsx"'
     
     wb.save(response)
-    return response 
+    return response
