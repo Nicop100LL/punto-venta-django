@@ -29,6 +29,8 @@
         {% endif %}<br>
         <strong>Monto inicial:</strong> ${{ caja.monto_inicial|floatformat:2|formato_precio }}<br>
         <strong>Ingreso total en caja:</strong> ${{ total_ventas|floatformat:2|formato_precio }}<br>
+        <strong>Notas de crédito:</strong>
+            <span class="text-red-500">-${{ total_notas_credito|floatformat:2|formato_precio }}</span><br>
         <strong>Egresos:</strong>
         <span class="text-red-600">
             -${{ total_egresos|floatformat:2|formato_precio }}
@@ -111,7 +113,7 @@
 <div class="grid md:grid-cols-2 gap-6 mb-6">
     <div class="bg-white rounded shadow p-4">
         <h3 class="text-md font-semibold mb-2">
-            Totales por medio de pago
+            Totales por medio de pago <span class="text-xs text-gray-400 font-normal">(neto NC)</span>
         </h3>
 
         <ul class="text-sm space-y-1">
@@ -122,6 +124,19 @@
             <li class="text-gray-800">🏦 Transferencia: ${{ totales.TR|default:0|floatformat:2|formato_precio }}</li>
             <li class="text-yellow-700">🏛️ Cuenta corriente: ${{ totales.CC|default:0|floatformat:2|formato_precio }}</li>
         </ul>
+        {% if notas_credito.exists %}
+        <div class="mt-3 pt-3 border-t border-dashed border-gray-200">
+            <p class="text-xs text-red-500 font-semibold mb-1">Devoluciones por NC:</p>
+            <ul class="text-xs space-y-1 text-red-400">
+                {% for nc in notas_credito %}
+                <li class="flex justify-between">
+                    <span>NC #{{ nc.id }} – {{ nc.venta.get_tipo_pago_display }}{% if nc.venta.cuenta_corriente %} (CC){% endif %}</span>
+                    <span>-${{ nc.total|floatformat:2|formato_precio }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
     </div>
         <div class="bg-white rounded shadow p-4">
     <div class="flex items-center justify-between mb-2">

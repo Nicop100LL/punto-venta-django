@@ -843,6 +843,8 @@ def crear_nota_credito(request, venta_id):
                 precio_unitario=detalle.precio_unitario,
                 subtotal=subtotal
             )
+            detalle.producto.stock_actual += cantidad
+            detalle.producto.save()
 
             total_nota += subtotal
 
