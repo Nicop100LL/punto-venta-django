@@ -170,6 +170,7 @@
                             <tr>
                                 <th class="border px-2 py-2 text-left">Fecha</th>
                                 <th class="border px-2 py-2 text-right">Tickets</th>
+                                <th class="border px-2 py-2 text-right">NC</th>
                                 <th class="border px-2 py-2 text-right">Total del día</th>
                             </tr>
                         </thead>
@@ -178,6 +179,9 @@
                             <tr class="hover:bg-gray-50">
                                 <td class="border px-2 py-1">{{ d.dia }}</td>
                                 <td class="border px-2 py-1 text-right">{{ d.tickets }}</td>
+                                <td class="border px-2 py-1 text-right text-red-500">
+                                    {% if d.nc_dia %}-${{ d.nc_dia|floatformat:0|formato_precio }}{% else %}—{% endif %}
+                                </td>
                                 <td class="border px-2 py-1 text-right">${{ d.total_dia|floatformat:0|formato_precio }}</td>
                             </tr>
                             {% endfor %}
@@ -202,6 +206,11 @@
             <div class="p-4 bg-gray-50 rounded border">
                 <p class="text-xs text-gray-500 uppercase tracking-wide">Total vendido</p>
                 <p class="text-2xl font-bold mt-1">${{ total_ventas|floatformat:0|formato_precio }}</p>
+                {% if total_nc %}
+                <p class="text-xs text-red-500 mt-1">
+                    -${{ total_nc|floatformat:0|formato_precio }} en notas de crédito
+                </p>
+                {% endif %}
                 <p class="text-xs text-gray-400 mt-1">{{ label_periodo }}</p>
             </div>
 

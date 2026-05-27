@@ -5,7 +5,7 @@ from django.db.models import Sum, F
 from django.contrib.auth.decorators import login_required
 import datetime
 from django.db.models import Sum, F, DecimalField, ExpressionWrapper
-from ventas.models import Venta, DetalleVenta, EgresoCaja
+from ventas.models import Venta, DetalleVenta, EgresoCaja, NotaCredito
 import math
 from django.db.models import Sum, F
 from decimal import Decimal
@@ -66,7 +66,7 @@ def reporte_diario(request):
     # -----------------------------
     # 5) Totales generales
     # -----------------------------
-    total_ventas = ventas_qs.aggregate(total=Sum('total'))['total'] or 0
+    total_ventas_bruto = ventas_qs.aggregate(total=Sum('total'))['total'] or Decimal('0')
     cantidad_ventas = ventas_qs.count()
     egresos_periodo, egresos_total = obtener_egresos_periodo(
         empresa,
@@ -74,6 +74,15 @@ def reporte_diario(request):
         fecha
     )
 
+    # Notas de crédito del día
+    notas_credito_dia = NotaCredito.objects.filter(
+        venta__empresa=empresa,
+        fecha__date=fecha,
+        estado='aplicada'
+    )
+    total_nc_dia = notas_credito_dia.aggregate(t=Sum('total'))['t'] or Decimal('0')
+    total_ventas = total_ventas_bruto - total_nc_dia
+    
     total_productos = detalles_qs.aggregate(total_cant=Sum('cantidad'))['total_cant'] or 0
     cantidad_tickets = ventas_qs.count()
     ticket_promedio = total_ventas / cantidad_tickets if cantidad_tickets > 0 else 0
@@ -161,6 +170,8 @@ def reporte_diario(request):
         'egresos_periodo': egresos_periodo,
         'egresos_total': egresos_total,
         'neto_dia': total_ventas - egresos_total,
+        'total_nc': total_nc_dia,
+        'total_ventas_bruto': total_ventas_bruto,
     }
 
     return render(request, 'reportes/reporte_diario.html', context)
@@ -276,11 +287,21 @@ def reporte_mensual(request):
     )['total'] or 0
     
     # KPIs
-    total_ventas     = ventas_qs.aggregate(t=Sum('total'))['t'] or 0
-    cantidad_tickets = ventas_qs.count()
-    ticket_promedio  = total_ventas / cantidad_tickets if cantidad_tickets else 0
+    total_ventas_bruto = ventas_qs.aggregate(t=Sum('total'))['t'] or Decimal('0')
+    cantidad_tickets   = ventas_qs.count()
 
-    neto_periodo = total_ventas - egresos_total
+    # Notas de crédito del período
+    notas_credito_periodo = NotaCredito.objects.filter(
+        venta__empresa=empresa,
+        fecha__date__gte=fecha_inicio,
+        fecha__date__lte=fecha_fin,
+        estado='aplicada'
+    )
+    total_nc = notas_credito_periodo.aggregate(t=Sum('total'))['t'] or Decimal('0')
+
+    total_ventas    = total_ventas_bruto - total_nc
+    ticket_promedio = total_ventas / cantidad_tickets if cantidad_tickets else 0
+    neto_periodo    = total_ventas - egresos_total
     
     # Tabla de productos
     detalles_con_subtotal = detalles_qs.annotate(
@@ -332,6 +353,20 @@ def reporte_mensual(request):
         .order_by('dia')
     )
 
+    # NC agrupadas por día para descontar del desglose
+    from django.db.models.functions import TruncDate as TD
+    nc_por_dia = {
+        str(r['dia']): float(r['total'] or 0)
+        for r in notas_credito_periodo
+        .annotate(dia=TD('fecha'))
+        .values('dia')
+        .annotate(total=Sum('total'))
+    }
+    for d in desglose_diario:
+        nc_dia = nc_por_dia.get(str(d['dia']), 0)
+        d['nc_dia']    = nc_dia
+        d['total_dia'] = float(d['total_dia'] or 0) - nc_dia
+
     # Selectores del formulario
     primer_venta = Venta.objects.filter(empresa=empresa).order_by('fecha').first()
     primer_anio  = primer_venta.fecha.year if primer_venta else hoy.year
@@ -355,6 +390,8 @@ def reporte_mensual(request):
         'anios_disponibles': anios_disponibles,
         'meses': meses,
         'total_ventas': total_ventas,
+        'total_nc': total_nc,
+        'total_ventas_bruto': total_ventas_bruto,
         'cantidad_tickets': cantidad_tickets,
         'ticket_promedio': ticket_promedio,
         'ventas': ventas_productos,
@@ -546,11 +583,20 @@ def analytics(request):
 
     # ── Helper: suma total de ventas en un rango ─────────────────────
     def ventas_total(desde, hasta):
-        return Venta.objects.filter(
+        ventas = Venta.objects.filter(
             empresa=empresa,
             fecha__date__gte=desde,
             fecha__date__lte=hasta,
-        ).aggregate(t=Sum('total'))['t'] or 0
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0')
+
+        nc = NotaCredito.objects.filter(
+            venta__empresa=empresa,
+            fecha__date__gte=desde,
+            fecha__date__lte=hasta,
+            estado='aplicada'
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0')
+
+        return ventas - nc
 
     def tickets_count(desde, hasta):
         return Venta.objects.filter(
@@ -876,10 +922,17 @@ def reporte_ganancias(request):
         costos=Sum('costo_item'),
     )
 
-    ingresos_total = totales['ingresos'] or Decimal('0')
-    costos_total   = totales['costos']   or Decimal('0')
+    ingresos_total_bruto = totales['ingresos'] or Decimal('0')
+    costos_total         = totales['costos']   or Decimal('0')
+
+    # Descontar NC del período
+    nc_ganancias = NotaCredito.objects.filter(
+        venta__in=ventas_qs,
+        estado='aplicada'
+    ).aggregate(t=Sum('total'))['t'] or Decimal('0')
+
+    ingresos_total = ingresos_total_bruto - nc_ganancias
     ganancia_total = ingresos_total - costos_total
-    # margen_pct: qué % del ingreso es ganancia. Si no hay ingresos evita división por cero
     margen_pct     = round(float(ganancia_total) / float(ingresos_total) * 100, 1) if ingresos_total else 0
 
     # ── Desglose por producto ──

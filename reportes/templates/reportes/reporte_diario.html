@@ -95,6 +95,11 @@
             <div class="p-4 bg-gray-50 rounded border">
                 <p class="text-sm text-gray-600">TOTAL VENDIDO</p>
                 <p class="text-2xl font-bold">${{ total_ventas|floatformat:0|formato_precio }}</p>
+                {% if total_nc %}
+                <p class="text-xs text-red-500 mt-1">
+                    incluye -${{ total_nc|floatformat:0|formato_precio }} en notas de crédito
+                </p>
+                {% endif %}
             </div>
 
             <div class="p-4 bg-gray-50 rounded border">
