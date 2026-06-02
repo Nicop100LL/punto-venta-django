@@ -101,12 +101,15 @@
     <div>
         <label for="tipo_comprobante" class="block text-gray-700 font-bold mb-1 text-sm">Comprobante</label>
         <select name="tipo_comprobante" id="tipo_comprobante" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
-        <option value="ticket" {% if tipo_comprobante|stringformat:"s" == "ticket" %}selected{% endif %}>
-            Consumidor Final (Ticket)
-        </option>
-        <option value="factura_afip" {% if tipo_comprobante|stringformat:"s" == "factura_afip" %}selected{% endif %}>
-            Factura AFIP
-        </option>
+            <option value="58mm" {% if tipo_comprobante == "58mm" %}selected{% endif %}>
+                Ticket 58mm (térmica)
+            </option>
+            <option value="80mm" {% if tipo_comprobante == "80mm" %}selected{% endif %}>
+                Ticket 80mm (térmica)
+            </option>
+            <option value="a4" {% if tipo_comprobante == "a4" %}selected{% endif %}>
+                Boleta A4
+            </option>
         </select>
     </div>
 
@@ -615,10 +618,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const clienteHiddenFinalizar = document.getElementById('cliente-hidden-finalizar');
     const selectTipoPago = document.getElementById('tipo_pago');
     const tipoPagoHiddenFinalizar = document.querySelector('form#form-finalizar input[name="tipo_pago"]');
+    const selectTipoComprobante = document.getElementById('tipo_comprobante');
+    const tipoComprobanteHiddenFinalizar = document.querySelector('form#form-finalizar input[name="tipo_comprobante"]');
 
     // sincronizar al cargar
     clienteHiddenFinalizar.value = selectCliente.value;
     tipoPagoHiddenFinalizar.value = selectTipoPago.value;
+    tipoComprobanteHiddenFinalizar.value = selectTipoComprobante.value;
 
         // ===============================
         // SINCRONIZAR NOTA CON FORM FINALIZAR
@@ -664,6 +670,10 @@ document.addEventListener('DOMContentLoaded', function () {
         tipoPagoHiddenFinalizar.value = selectTipoPago.value;
     });
 
+    // Sincronizar cada vez que cambia
+    selectTipoComprobante.addEventListener('change', () => {
+        tipoComprobanteHiddenFinalizar.value = selectTipoComprobante.value;
+    });
 
     // == VARIABLES GENERALES == //
     const inputCodigo = document.getElementById('codigo');

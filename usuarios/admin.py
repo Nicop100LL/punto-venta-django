@@ -19,7 +19,7 @@ class EmpresaAdmin(admin.ModelAdmin):
     list_editable = ("usa_arca",)
     fieldsets = (
         ("Datos generales", {
-            "fields": ("nombre", "cuit", "direccion", "condicion_iva", "logo", "activo")
+            "fields": ("nombre", "cuit", "direccion", "condicion_iva", "logo", "formato_ticket", "activo")
         }),
         ("Configuración ARCA", {
             "fields": (

@@ -1,6 +1,12 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+FORMATO_TICKET_CHOICES = [
+    ('80mm', 'Ticket 80mm (térmica)'),
+    ('58mm', 'Ticket 58mm (térmica)'),
+    ('a4', 'Boleta A4'),
+]
+
 class Empresa(models.Model):
     nombre = models.CharField(max_length=100)
     cuit = models.CharField(max_length=13, blank=True, null=True)
@@ -8,6 +14,12 @@ class Empresa(models.Model):
     condicion_iva = models.CharField(max_length=100, blank=True, null=True)
     logo = models.ImageField(upload_to='logos/', blank=True, null=True)  # logo opcional
     activo = models.BooleanField(default=True)  # empresa activa o no
+    formato_ticket = models.CharField(
+        max_length=10,
+        choices=FORMATO_TICKET_CHOICES,
+        default='80mm',
+        help_text="Formato del comprobante tipo ticket para esta empresa"
+    )
     
     # --- CONFIGURACIÓN ARCA ---
     usa_arca = models.BooleanField(

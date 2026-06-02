@@ -1,0 +1,279 @@
+    {% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Detalle de Venta{% endblock %}
+
+{% block content %}
+<!-- Contenedor tipo ticket 58mm -->
+<div class="boleta mx-auto bg-white shadow text-[9px]">
+
+    <!-- Encabezado de la venta -->
+    <div class="text-center mb-2">
+        {% if empresa.logo %}
+            <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}" class="mx-auto w-12 h-12 mb-1">
+        {% endif %}
+        <h1 class="text-center font-bold text-sm">{{ empresa.nombre }}</h1>
+        
+        {# 🔥 DATOS FISCALES COMPLETOS SI HAY ARCA APROBADO #}
+        {% if venta.comprobante_arca and venta.comprobante_arca.estado == "aprobado" %}
+            {% if empresa.direccion %}
+                <p class="text-[8px]">{{ empresa.direccion }}</p>
+            {% endif %}
+            {% if empresa.cuit %}
+                <p class="text-[8px]"><strong>CUIT:</strong> {{ empresa.cuit }}</p>
+            {% endif %}
+            {% if empresa.condicion_iva %}
+                <p class="text-[8px]"><strong>IVA:</strong> {{ empresa.condicion_iva }}</p>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    {# 🔥 TIPO DE COMPROBANTE SI HAY ARCA #}
+    {% if venta.comprobante_arca and venta.comprobante_arca.estado == "aprobado" %}
+        <div class="text-center border-y border-black py-1 mb-2">
+            <p class="font-bold text-xs">FACTURA B</p>
+            <p class="text-[8px]">N° {{ venta.comprobante_arca.punto_venta|stringformat:"04d" }}-{{ venta.comprobante_arca.numero_comprobante|stringformat:"08d" }}</p>
+        </div>
+    {% else %}
+        <h2 class="text-center font-bold text-sm mb-2">Venta #{{ venta.numero_empresa }}</h2>
+    {% endif %}
+
+    <!-- Información general -->
+    <p class="text-[8px]"><strong>Fecha:</strong> {{ venta.fecha|date:"d/m/Y H:i" }}</p>
+    <p class="text-[8px]"><strong>Vendedor:</strong> {{ venta.usuario.get_full_name|default:venta.usuario.username }}</p>
+    {% if venta.cliente %}
+    <p class="text-[8px]">Cliente: {{ venta.cliente.nombre }}</p>
+    {% else %}
+    <p class="text-[8px]">Cliente: Consumidor Final</p>
+    {% endif %}
+
+    <p class="text-[8px]"><strong>Pago:</strong> {{ venta.get_tipo_pago_display }}</p>
+    
+    {% if venta.cuenta_corriente %}
+    <p class="text-[8px]"><strong>Cuenta Corriente:</strong> Sí</p>
+    {% endif %}
+    
+    <hr class="my-1 border-dashed">
+
+    <!-- Lista de productos (más compacta) -->
+    <table class="w-full text-[8px]">
+        <thead>
+            <tr class="border-b border-black text-[9px] text-left">
+                <th class="w-[80px]">Prod.</th>
+                <th class="w-[18px] text-center">Cant</th>
+                <th class="w-[32px] text-right">P.U</th>
+                <th class="w-[38px] text-right">Subt</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in venta.detalles.all %}
+            <tr class="text-[8px] align-top">
+                <td class="max-w-[80px] break-words whitespace-normal leading-tight">
+                    {{ item.producto.nombre }}
+                    {% if item.detalle %}
+                        <br><small class="italic">{{ item.detalle }}</small>
+                    {% endif %}
+                </td>
+                <td class="text-center">{{ item.cantidad }}</td>
+                <td class="text-right">
+                    ${{ item.precio_unitario|floatformat:2|formato_precio }}
+                </td>
+                <td class="text-right">
+                    ${{ item.subtotal|floatformat:2|formato_precio }}
+                </td>
+            </tr>
+
+            {% if item.producto.precio_venta > item.precio_unitario %}
+            <tr>
+                <td colspan="4"
+                    class="text-[7px] text-blue-600 italic pl-1 leading-tight">
+                    Desc: -{{ item.precio_unitario|calcular_descuento:item.producto.precio_venta }}%
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <hr class="my-1 border-dashed">
+
+    <!-- Totales -->
+    <p class="text-[8px]"><strong>Productos:</strong> {{ total_productos|floatformat:2|formato_precio }}</p>
+    <hr class="my-1 border-dashed">
+    <p class="text-sm mt-1 font-bold"><strong>Total:</strong> ${{ venta.total|floatformat:2|formato_precio }}</p>
+    
+    {% if venta.tipo_pago == 'EF' and venta.importe_entregado %}
+    <hr class="my-1 border-dashed">
+    <p class="text-[8px]">
+        <strong>Entregado:</strong>
+        ${{ venta.importe_entregado|floatformat:2|formato_precio }}
+    </p>
+    <p class="text-[8px]">
+        <strong>Vuelto:</strong>
+        ${{ venta.vuelto|floatformat:2|formato_precio }}
+    </p>
+    {% endif %}
+
+    {% if venta.nota %}
+    <hr class="my-1 border-dashed">
+    <p class="text-[8px]"><strong>Nota:</strong> {{ venta.nota }}</p>
+    {% endif %}
+
+    {# 🔥 INFORMACIÓN FISCAL COMPLETA SI HAY ARCA APROBADO #}
+    {% if venta.comprobante_arca and venta.comprobante_arca.estado == "aprobado" %}
+    <hr class="my-1 border-dashed">
+    
+    <div class="text-[8px]">
+        <p><strong>CAE:</strong> {{ venta.comprobante_arca.cae }}</p>
+        <p><strong>Vto CAE:</strong> {{ venta.comprobante_arca.fecha_vencimiento_cae|date:"d/m/Y" }}</p>
+    </div>
+
+    {# 🔥 CÓDIGO QR #}
+    {% if venta.comprobante_arca.qr_data %}
+    <div class="text-center my-2">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ venta.comprobante_arca.qr_data|urlencode }}" 
+             alt="QR AFIP" 
+             class="mx-auto w-20 h-20">
+        <p class="text-[7px] mt-1">Comprobante autorizado por AFIP</p>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {# 🔥 ESTADO ARCA SOLO SI NO ESTÁ APROBADO #}
+    {% if venta.comprobante_arca %}
+        {% if venta.comprobante_arca.estado == "pendiente" %}
+        <hr class="my-1 border-dashed">
+        <p class="text-yellow-600 font-bold text-[8px] no-print">
+            ARCA: Pendiente de envío
+        </p>
+        {% elif venta.comprobante_arca.estado == "error" %}
+        <hr class="my-1 border-dashed">
+        <p class="text-red-600 font-bold text-[8px] no-print">
+            ARCA: Error
+        </p>
+        {% endif %}
+
+        {# 🚀 BOTÓN REINTENTAR #}
+        {% if venta.comprobante_arca.estado != "aprobado" %}
+        <form method="post" action="{% url 'reintentar_arca' venta.id %}" class="mt-2 no-print">
+            {% csrf_token %}
+            <button type="submit"
+                class="bg-orange-500 text-white px-2 py-1 rounded text-[8px] hover:bg-orange-600">
+                Reintentar ARCA
+            </button>
+        </form>
+        {% endif %}
+    {% endif %}
+
+    {% if venta.notas_credito.exists %}
+    <hr class="my-1 border-dashed">
+    <h3 class="text-[8px] font-bold mb-1">Notas de Crédito</h3>
+    <table class="w-full text-[8px]">
+        <thead>
+            <tr class="border-b border-black">
+                <th class="text-left">#</th>
+                <th class="text-left">Fecha</th>
+                <th class="text-right">Total</th>
+                <th class="text-right">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for nc in venta.notas_credito.all %}
+            <tr>
+                <td>{{ nc.id }}</td>
+                <td>{{ nc.fecha|date:"d/m/Y" }}</td>
+                <td class="text-right">
+                    ${{ nc.total|floatformat:2|formato_precio }}
+                </td>
+                <td class="text-right">
+                    <a href="{% url 'detalle_nota_credito' nc.id %}"
+                    class="text-blue-600 underline">
+                        Ver
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Botones solo visibles fuera de impresión -->
+    <div class="no-print mt-4 flex justify-between">
+        {% if request.user.empresa.config_impresora_ticket.microservicio_url %}
+            <button onclick="imprimirVenta({{ venta.id }})"
+                    class="bg-green-700 text-white px-2 py-1 rounded text-[8px] hover:bg-green-800">
+                Imprimir
+            </button>
+        {% else %}
+            <button onclick="window.print()"
+                    class="bg-green-600 text-white px-2 py-1 rounded text-[8px] hover:bg-green-700">
+                Imprimir
+            </button>
+        {% endif %}
+
+        <a href="{% url 'ticket_pdf_prueba' venta.id %}"
+           target="_blank"
+           class="bg-blue-600 text-white px-2 mx-2 py-1 rounded text-[8px]">
+            Imprimir prueba
+        </a>
+
+        <a href="{% url 'crear_nota_credito' venta.id %}"
+           class="bg-yellow-500 text-white px-2 py-1 rounded text-[8px] hover:bg-yellow-600">
+            Crear NC
+        </a>
+    </div>
+
+</div>
+
+<style>
+@page {
+    size: 58mm auto;
+    margin: 0;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.boleta {
+    width: 54mm;
+    padding: 2mm;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+    font-size: 9px;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+table {
+    width: 100%;
+    table-layout: fixed;
+}
+</style>
+
+<!--Imprimir con microservicio-->
+{% if request.user.empresa.config_impresora_ticket.microservicio_url %}
+<script>
+const csrftoken = '{{ csrf_token }}';
+
+function imprimirVenta(ventaId) {
+    fetch(`/ventas/enviar-ticket/${ventaId}/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrftoken},
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            alert("Ticket impreso vía microservicio");
+        } else if (data.status === 'fallback') {
+            window.print();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+</script>
+{% endif %}
+
+{% endblock %}

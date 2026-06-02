@@ -1,0 +1,471 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Boleta A4 - Venta #{{ venta.numero_empresa }}{% endblock %}
+
+{% block content %}
+<div class="boleta-a4 mx-auto bg-white shadow-sm">
+
+    <!-- ===== ENCABEZADO EMPRESA ===== -->
+    <div class="header-empresa">
+        <div class="empresa-info">
+            {% if empresa.logo %}
+                <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}" class="empresa-logo">
+            {% endif %}
+            <div>
+                <h1 class="empresa-nombre">{{ empresa.nombre }}</h1>
+                {% if empresa.cuit %}
+                    <p class="empresa-dato">CUIT: {{ empresa.cuit }}</p>
+                {% endif %}
+                {% if empresa.direccion %}
+                    <p class="empresa-dato">{{ empresa.direccion }}</p>
+                {% endif %}
+                {% if empresa.condicion_iva %}
+                    <p class="empresa-dato">{{ empresa.condicion_iva }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="comprobante-box">
+            <p class="comprobante-label">Comprobante</p>
+            <p class="comprobante-numero">#{{ venta.numero_empresa|stringformat:"06d" }}</p>
+            <p class="comprobante-fecha">{{ venta.fecha|date:"d/m/Y H:i" }}</p>
+        </div>
+    </div>
+
+    <!-- ===== CLIENTE / DETALLES ===== -->
+    <div class="info-grid">
+        <div>
+            <p class="seccion-label">Cliente</p>
+            {% if venta.cliente %}
+                <p class="info-principal">{{ venta.cliente.nombre }}</p>
+                {% if venta.cliente.cuit %}
+                    <p class="info-secundaria">CUIT / DNI: {{ venta.cliente.cuit }}</p>
+                {% endif %}
+                {% if venta.cliente.direccion %}
+                    <p class="info-secundaria">{{ venta.cliente.direccion }}</p>
+                {% endif %}
+            {% else %}
+                <p class="info-principal">Consumidor Final</p>
+            {% endif %}
+        </div>
+        <div>
+            <p class="seccion-label">Detalles</p>
+            <p class="info-secundaria"><span class="label-muted">Vendedor:</span> {{ venta.usuario.get_full_name|default:venta.usuario.username }}</p>
+            <p class="info-secundaria"><span class="label-muted">Forma de pago:</span> {{ venta.get_tipo_pago_display }}</p>
+            {% if venta.cuenta_corriente %}
+                <p class="info-secundaria"><span class="label-muted">Cuenta corriente:</span> Sí</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ===== TABLA PRODUCTOS ===== -->
+    <table class="tabla-productos">
+        <thead>
+            <tr>
+                <th class="col-producto">Producto</th>
+                <th class="col-cant">Cant.</th>
+                <th class="col-precio">P. Unit.</th>
+                <th class="col-desc">Desc.</th>
+                <th class="col-subtotal">Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in venta.detalles.all %}
+            <tr>
+                <td class="col-producto">
+                    {{ item.producto.nombre }}
+                    {% if item.detalle %}
+                        <br><small class="detalle-item">{{ item.detalle }}</small>
+                    {% endif %}
+                </td>
+                <td class="col-cant">{{ item.cantidad }}</td>
+                <td class="col-precio">${{ item.precio_unitario|floatformat:2|formato_precio }}</td>
+                <td class="col-desc">
+                    {% if item.producto.precio_venta > item.precio_unitario %}
+                        <span class="badge-desc">-{{ item.precio_unitario|calcular_descuento:item.producto.precio_venta }}%</span>
+                    {% else %}
+                        <span class="sin-desc">—</span>
+                    {% endif %}
+                </td>
+                <td class="col-subtotal">${{ item.subtotal|floatformat:2|formato_precio }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- ===== TOTALES ===== -->
+    <div class="totales-wrap">
+        <div class="totales-box">
+            <div class="totales-row totales-row-sub">
+                <span>Total productos</span>
+                <span>{{ total_productos }}</span>
+            </div>
+            <div class="totales-divider"></div>
+            <div class="totales-row totales-total">
+                <span>Total</span>
+                <span>${{ venta.total|floatformat:2|formato_precio }}</span>
+            </div>
+            {% if venta.tipo_pago == 'EF' and venta.importe_entregado %}
+            <div class="totales-row totales-row-sub">
+                <span>Entregado</span>
+                <span>${{ venta.importe_entregado|floatformat:2|formato_precio }}</span>
+            </div>
+            <div class="totales-row totales-row-sub">
+                <span>Vuelto</span>
+                <span>${{ venta.vuelto|floatformat:2|formato_precio }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ===== NOTA ===== -->
+    {% if venta.nota %}
+    <div class="nota-box">
+        <strong>Nota:</strong> {{ venta.nota }}
+    </div>
+    {% endif %}
+
+    <!-- ===== ARCA ===== -->
+    {% if venta.comprobante_arca %}
+    <div class="arca-box">
+        <p class="seccion-label">ARCA</p>
+        {% if venta.comprobante_arca.estado == "aprobado" %}
+            <p class="arca-aprobado">Aprobado</p>
+            {% if venta.comprobante_arca.cae %}
+                <p class="info-secundaria">CAE: {{ venta.comprobante_arca.cae }}</p>
+                <p class="info-secundaria">Vto. CAE: {{ venta.comprobante_arca.vencimiento_cae|date:"d/m/Y" }}</p>
+            {% endif %}
+        {% elif venta.comprobante_arca.estado == "error" %}
+            <p class="arca-error no-print">Error al emitir</p>
+        {% else %}
+            <p class="arca-pendiente no-print">Pendiente de envío</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ===== NOTAS DE CRÉDITO ===== -->
+    {% if venta.notas_credito.exists %}
+    <div class="no-print" style="margin-top: 1.5rem;">
+        <p class="seccion-label">Notas de crédito</p>
+        <table class="tabla-productos" style="margin-top: 0.5rem;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Fecha</th>
+                    <th class="col-subtotal">Total</th>
+                    <th class="col-subtotal">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nc in venta.notas_credito.all %}
+                <tr>
+                    <td>{{ nc.id }}</td>
+                    <td>{{ nc.fecha|date:"d/m/Y H:i" }}</td>
+                    <td class="col-subtotal">${{ nc.total|floatformat:2|formato_precio }}</td>
+                    <td class="col-subtotal"><a href="{% url 'detalle_nota_credito' nc.id %}" class="link-accion">Ver</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- ===== PIE ===== -->
+    <div class="footer-doc">
+        <p>Documento no válido como factura</p>
+        <p>Generado por el sistema de ventas</p>
+    </div>
+
+    <!-- ===== ALERTAS STOCK ===== -->
+    {% if alertas_stock %}
+    <div class="no-print" style="margin-top: 1.5rem;">
+        {% for alerta in alertas_stock %}
+        <div class="alerta-stock">
+            ⚠️ Stock bajo: <strong>{{ alerta.nombre }}</strong> — quedan {{ alerta.stock }} unidades
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ===== BOTONES ===== -->
+    <div class="no-print acciones-botones">
+        <button onclick="window.print()"
+                class="btn-imprimir">
+            Imprimir
+        </button>
+        <a href="{% url 'crear_nota_credito' venta.id %}"
+           class="btn-nc">
+            Crear nota de crédito
+        </a>
+    </div>
+</div>
+
+<style>
+@page {
+    size: A4;
+    margin: 15mm 15mm 20mm 15mm;
+}
+
+.boleta-a4 {
+    width: 100%;
+    max-width: 740px;
+    padding: 2rem 2.5rem;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    color: #1a1a1a;
+}
+
+/* Header */
+.header-empresa {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 2px solid #1a1a1a;
+}
+.empresa-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+.empresa-logo {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 4px;
+}
+.empresa-nombre {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0 0 4px;
+}
+.empresa-dato {
+    font-size: 11px;
+    color: #555;
+    margin: 0;
+}
+.comprobante-box {
+    text-align: right;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 16px;
+    min-width: 140px;
+}
+.comprobante-label {
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 2px;
+}
+.comprobante-numero {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0 0 4px;
+}
+.comprobante-fecha {
+    font-size: 11px;
+    color: #555;
+    margin: 0;
+}
+
+/* Info grid */
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+.seccion-label {
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 6px;
+}
+.info-principal {
+    font-size: 14px;
+    font-weight: bold;
+    margin: 0 0 3px;
+}
+.info-secundaria {
+    font-size: 12px;
+    color: #444;
+    margin: 0 0 2px;
+}
+.label-muted {
+    color: #888;
+}
+
+/* Tabla */
+.tabla-productos {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.25rem;
+    font-size: 12px;
+    table-layout: fixed;
+}
+.tabla-productos thead tr {
+    border-bottom: 1px solid #1a1a1a;
+}
+.tabla-productos th {
+    padding: 6px 8px 8px;
+    font-weight: bold;
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: right;
+}
+.tabla-productos th.col-producto,
+.tabla-productos td.col-producto { text-align: left; }
+.col-producto { width: 42%; }
+.col-cant    { width: 10%; text-align: center !important; }
+.col-precio  { width: 16%; }
+.col-desc    { width: 12%; }
+.col-subtotal{ width: 14%; }
+.tabla-productos td {
+    padding: 8px;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: right;
+    vertical-align: top;
+}
+.tabla-productos td.col-cant { text-align: center; }
+.detalle-item {
+    font-size: 11px;
+    color: #777;
+    font-style: italic;
+}
+.badge-desc {
+    color: #1a7a4a;
+    font-size: 11px;
+}
+.sin-desc {
+    color: #bbb;
+}
+
+/* Totales */
+.totales-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1.25rem;
+}
+.totales-box {
+    width: 260px;
+}
+.totales-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 12px;
+    color: #444;
+}
+.totales-row-sub {
+    border-bottom: 1px solid #f0f0f0;
+}
+.totales-divider {
+    border-top: 1px solid #1a1a1a;
+    margin: 4px 0;
+}
+.totales-total {
+    font-size: 16px;
+    font-weight: bold;
+    color: #1a1a1a;
+    padding: 8px 0;
+}
+
+/* Nota */
+.nota-box {
+    background: #f9f9f9;
+    border-left: 3px solid #ccc;
+    border-radius: 0 4px 4px 0;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #555;
+    margin-bottom: 1.25rem;
+}
+
+/* ARCA */
+.arca-box {
+    margin-bottom: 1.25rem;
+    padding: 10px 14px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 12px;
+}
+.arca-aprobado { color: #1a7a4a; font-weight: bold; margin: 2px 0; }
+.arca-error    { color: #c0392b; font-weight: bold; margin: 2px 0; }
+.arca-pendiente{ color: #e67e22; font-weight: bold; margin: 2px 0; }
+
+/* Footer */
+.footer-doc {
+    border-top: 1px solid #e0e0e0;
+    padding-top: 1rem;
+    margin-top: 1rem;
+    font-size: 10px;
+    color: #aaa;
+    text-align: center;
+}
+.footer-doc p { margin: 0 0 2px; }
+
+/* Alertas stock */
+.alerta-stock {
+    background: #fffbe6;
+    border: 1px solid #ffe58f;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    margin-bottom: 6px;
+    color: #7d5a00;
+}
+
+/* Link */
+.link-accion {
+    color: #2563eb;
+    text-decoration: underline;
+    font-size: 11px;
+}
+
+/* Botones */
+.acciones-botones {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 10px;
+}
+.btn-imprimir {
+    background: #16a34a;
+    color: white;
+    border: none;
+    padding: 7px 16px;
+    border-radius: 5px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.btn-imprimir:hover { background: #15803d; }
+.btn-nc {
+    background: #d97706;
+    color: white;
+    padding: 7px 16px;
+    border-radius: 5px;
+    font-size: 12px;
+    text-decoration: none;
+}
+.btn-nc:hover { background: #b45309; }
+
+@media print {
+    .no-print { display: none !important; }
+    .boleta-a4 {
+        padding: 0;
+        box-shadow: none;
+        max-width: 100%;
+    }
+}
+</style>
+
+{% endblock %}

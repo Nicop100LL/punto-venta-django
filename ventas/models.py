@@ -8,8 +8,9 @@ from caja.models import CierreCaja
 
 
 TIPO_COMPROBANTE_CHOICES = [
-    ('ticket', 'Consumidor Final (Ticket)'),
-    ('factura_afip', 'Factura AFIP'),
+    ('58mm', 'Ticket 58 mm'),
+    ('80mm', 'Ticket 80 mm'),
+    ('a4', 'Hoja A4'),
 ]
 
 
@@ -42,7 +43,7 @@ class Venta(models.Model):
     tipo_comprobante = models.CharField(
         max_length=20,
         choices=TIPO_COMPROBANTE_CHOICES,
-        default='ticket'
+        default='80mm'
     )
     nota = models.TextField(blank=True, null=True)  
     caja = models.ForeignKey(

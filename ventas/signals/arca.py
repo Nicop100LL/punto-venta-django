@@ -18,7 +18,11 @@ def crear_comprobante_automatico(sender, instance, created, **kwargs):
 
     decision = decidir_arca(instance)
 
-    if decision.get("subir_a_arca") and not hasattr(instance, 'comprobante_arca'):
+    if (
+        decision.get("subir_a_arca")
+        and decision.get("tipo")
+        and not hasattr(instance, "comprobante_arca")
+    ):
         ComprobanteArca.objects.create(
             venta=instance,
             tipo=decision["tipo"],

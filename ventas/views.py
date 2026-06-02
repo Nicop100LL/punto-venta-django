@@ -102,7 +102,7 @@ def nueva_venta(request):
         request.session['carrito'] = []
 
     carrito = request.session['carrito']
-    tipo_comprobante = request.session.get('tipo_comprobante', 'ticket')
+    tipo_comprobante = request.session.get('tipo_comprobante', request.user.empresa.formato_ticket)
     tipo_pago = request.session.get('tipo_pago', 'EF')
     cliente_id = request.session.get('cliente_id')
     cuenta_corriente = request.session.get('cuenta_corriente', False)
@@ -255,6 +255,7 @@ def nueva_venta(request):
                     'tipo_pago': tipo_pago,
                     'abrir_modal_caja': abrir_modal_caja,
                     'caja_abierta': caja_abierta,
+                    'formato_ticket': request.user.empresa.formato_ticket,
                 })
             
             venta_form = VentaForm(request.POST)
@@ -352,6 +353,8 @@ def nueva_venta(request):
                     request.session.pop(key, None)
                 request.session.pop('nota', None)
                 # alertas_stock NO se borra acá, se lee y borra en nueva_venta GET
+                # Resetear tipo_comprobante al formato configurado en la empresa
+                request.session['tipo_comprobante'] = request.user.empresa.formato_ticket
 
                 return redirect(
                     f"{reverse('detalle_venta', args=[venta.id])}?tipo={tipo_comprobante}"
@@ -425,7 +428,7 @@ def nueva_venta(request):
         'total_tj': total_tj,
         'total_tr': total_tr,
         'total_cc': total_cc,
-        
+        'formato_ticket': request.user.empresa.formato_ticket, 
     })
 
 
@@ -495,14 +498,15 @@ def detalle_venta(request, venta_id):
     # ⚠️ Leer y limpiar alertas de stock de la sesión
     alertas_stock = request.session.pop('alertas_stock', [])
     
-    if venta.tipo_comprobante == 'factura_afip':
-        total = float(venta.total)
-        neto = round(total / 1.21, 2)
-        iva = round(total - neto, 2)
-        template = 'ventas/detalle_factura_afip.html'
-    else:
-        neto = None
-        iva = None
+    neto = None
+    iva = None
+
+    # Determinar template según formato configurado
+    if venta.tipo_comprobante == 'a4':
+        template = 'ventas/detalle_ticket_a4.html'
+    elif venta.tipo_comprobante == '58mm':
+        template = 'ventas/detalle_ticket_58mm.html'
+    else:  # 80mm por defecto
         template = 'ventas/detalle_ticket.html'
 
         # ✅ Contar productos: al menos 1 por línea, más si la cantidad entera >1

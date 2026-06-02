@@ -1,0 +1,132 @@
+diff --git a/usuarios/admin.py b/usuarios/admin.py
+index 46f2028..4f04c48 100644
+--- a/usuarios/admin.py
++++ b/usuarios/admin.py
+@@ -19,7 +19,7 @@ class EmpresaAdmin(admin.ModelAdmin):
+     list_editable = ("usa_arca",)
+     fieldsets = (
+         ("Datos generales", {
+-            "fields": ("nombre", "cuit", "direccion", "condicion_iva", "logo", "activo")
++            "fields": ("nombre", "cuit", "direccion", "condicion_iva", "logo", "formato_ticket", "activo")
+         }),
+         ("Configuración ARCA", {
+             "fields": (
+diff --git a/usuarios/models.py b/usuarios/models.py
+index c1835a0..2db7a27 100644
+--- a/usuarios/models.py
++++ b/usuarios/models.py
+@@ -1,6 +1,12 @@
+ from django.contrib.auth.models import AbstractUser
+ from django.db import models
+ 
++FORMATO_TICKET_CHOICES = [
++    ('80mm', 'Ticket 80mm (térmica)'),
++    ('58mm', 'Ticket 58mm (térmica)'),
++    ('a4', 'Boleta A4'),
++]
++
+ class Empresa(models.Model):
+     nombre = models.CharField(max_length=100)
+     cuit = models.CharField(max_length=13, blank=True, null=True)
+@@ -8,6 +14,12 @@ class Empresa(models.Model):
+     condicion_iva = models.CharField(max_length=100, blank=True, null=True)
+     logo = models.ImageField(upload_to='logos/', blank=True, null=True)  # logo opcional
+     activo = models.BooleanField(default=True)  # empresa activa o no
++    formato_ticket = models.CharField(
++        max_length=10,
++        choices=FORMATO_TICKET_CHOICES,
++        default='80mm',
++        help_text="Formato del comprobante tipo ticket para esta empresa"
++    )
+     
+     # --- CONFIGURACIÓN ARCA ---
+     usa_arca = models.BooleanField(
+diff --git a/ventas/templates/ventas/nueva_venta.html b/ventas/templates/ventas/nueva_venta.html
+index c47dc25..e83b7c9 100644
+--- a/ventas/templates/ventas/nueva_venta.html
++++ b/ventas/templates/ventas/nueva_venta.html
+@@ -101,12 +101,15 @@
+     <div>
+         <label for="tipo_comprobante" class="block text-gray-700 font-bold mb-1 text-sm">Comprobante</label>
+         <select name="tipo_comprobante" id="tipo_comprobante" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+-        <option value="ticket" {% if tipo_comprobante|stringformat:"s" == "ticket" %}selected{% endif %}>
+-            Consumidor Final (Ticket)
+-        </option>
+-        <option value="factura_afip" {% if tipo_comprobante|stringformat:"s" == "factura_afip" %}selected{% endif %}>
+-            Factura AFIP
+-        </option>
++            <option value="58mm" {% if tipo_comprobante == "58mm" %}selected{% endif %}>
++                Ticket 58mm (térmica)
++            </option>
++            <option value="80mm" {% if tipo_comprobante == "80mm" %}selected{% endif %}>
++                Ticket 80mm (térmica)
++            </option>
++            <option value="a4" {% if tipo_comprobante == "a4" %}selected{% endif %}>
++                Boleta A4
++            </option>
+         </select>
+     </div>
+ 
+diff --git a/ventas/views.py b/ventas/views.py
+index cd136f6..72abcf1 100644
+--- a/ventas/views.py
++++ b/ventas/views.py
+@@ -100,7 +100,7 @@ def nueva_venta(request):
+         request.session['carrito'] = []
+ 
+     carrito = request.session['carrito']
+-    tipo_comprobante = request.session.get('tipo_comprobante', 'ticket')
++    tipo_comprobante = request.session.get('tipo_comprobante', request.user.empresa.formato_ticket)
+     tipo_pago = request.session.get('tipo_pago', 'EF')
+     cliente_id = request.session.get('cliente_id')
+     cuenta_corriente = request.session.get('cuenta_corriente', False)
+@@ -253,6 +253,7 @@ def nueva_venta(request):
+                     'tipo_pago': tipo_pago,
+                     'abrir_modal_caja': abrir_modal_caja,
+                     'caja_abierta': caja_abierta,
++                    'formato_ticket': request.user.empresa.formato_ticket,
+                 })
+             
+             venta_form = VentaForm(request.POST)
+@@ -350,6 +351,8 @@ def nueva_venta(request):
+                     request.session.pop(key, None)
+                 request.session.pop('nota', None)
+                 # alertas_stock NO se borra acá, se lee y borra en nueva_venta GET
++                # Resetear tipo_comprobante al formato configurado en la empresa
++                request.session['tipo_comprobante'] = request.user.empresa.formato_ticket
+ 
+                 return redirect(
+                     f"{reverse('detalle_venta', args=[venta.id])}?tipo={tipo_comprobante}"
+@@ -423,7 +426,7 @@ def nueva_venta(request):
+         'total_tj': total_tj,
+         'total_tr': total_tr,
+         'total_cc': total_cc,
+-        
++        'formato_ticket': request.user.empresa.formato_ticket, 
+     })
+ 
+ 
+@@ -493,14 +496,15 @@ def detalle_venta(request, venta_id):
+     # ⚠️ Leer y limpiar alertas de stock de la sesión
+     alertas_stock = request.session.pop('alertas_stock', [])
+     
+-    if venta.tipo_comprobante == 'factura_afip':
+-        total = float(venta.total)
+-        neto = round(total / 1.21, 2)
+-        iva = round(total - neto, 2)
+-        template = 'ventas/detalle_factura_afip.html'
+-    else:
+-        neto = None
+-        iva = None
++    neto = None
++    iva = None
++
++    # Determinar template según formato configurado
++    if venta.tipo_comprobante == 'a4':
++        template = 'ventas/detalle_ticket_a4.html'
++    elif venta.tipo_comprobante == '58mm':
++        template = 'ventas/detalle_ticket_58mm.html'
++    else:  # 80mm por defecto
+         template = 'ventas/detalle_ticket.html'
+ 
+         # ✅ Contar productos: al menos 1 por línea, más si la cantidad entera >1

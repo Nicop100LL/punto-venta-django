@@ -97,6 +97,14 @@ def decidir_arca(venta):
             "tipo": None,
         }
 
+    if not regla.tipo_comprobante:
+        return {
+            "subir_a_arca": False,
+            "obligatorio": False,
+            "tipo": None,
+            "error": "Regla ARCA sin tipo de comprobante configurado",
+        }
+    
     if regla.tipo_comprobante in ("factura_a", "factura_b"):
         if not venta.cliente or not venta.cliente.cuit:
             return {
