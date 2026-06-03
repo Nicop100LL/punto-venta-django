@@ -171,11 +171,13 @@
     {% endif %}
 
     <!-- ===== PIE ===== -->
+    <!--
     <div class="footer-doc">
         <p>Documento no válido como factura</p>
         <p>Generado por el sistema de ventas</p>
     </div>
-
+    -->
+    
     <!-- ===== ALERTAS STOCK ===== -->
     {% if alertas_stock %}
     <div class="no-print" style="margin-top: 1.5rem;">
@@ -221,8 +223,8 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding-bottom: 1.25rem;
-    margin-bottom: 1.25rem;
+    
+    margin-bottom: 0.25rem;
     border-bottom: 2px solid #1a1a1a;
 }
 .empresa-info {
@@ -278,8 +280,8 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
-    margin-bottom: 1.25rem;
-    padding-bottom: 1.25rem;
+    
+    
     border-bottom: 1px solid #e0e0e0;
 }
 .seccion-label {
@@ -331,7 +333,7 @@
 .col-desc    { width: 12%; }
 .col-subtotal{ width: 14%; }
 .tabla-productos td {
-    padding: 8px;
+    padding: 2px;
     border-bottom: 1px solid #f0f0f0;
     text-align: right;
     vertical-align: top;
