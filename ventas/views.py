@@ -127,14 +127,20 @@ def nueva_venta(request):
         # -------------------------
         # GUARDAR CONFIGURACIÓN
         # -------------------------
-        tipo_pago = request.POST.get('tipo_pago', 'EF')
-        tipo_comprobante = request.POST.get('tipo_comprobante', 'ticket')
-        cuenta_corriente = request.POST.get('cuenta_corriente') == 'on'
+        if request.POST.get('tipo_pago'):
+            tipo_pago = request.POST.get('tipo_pago')
+            request.session['tipo_pago'] = tipo_pago
 
-        request.session['tipo_pago'] = tipo_pago
-        request.session['tipo_comprobante'] = tipo_comprobante
-        request.session['cuenta_corriente'] = cuenta_corriente
-        request.session['nota'] = request.POST.get('nota', '')
+        if request.POST.get('tipo_comprobante'):
+            tipo_comprobante = request.POST.get('tipo_comprobante')
+            request.session['tipo_comprobante'] = tipo_comprobante
+
+        if 'cuenta_corriente' in request.POST or 'finalizar' in request.POST or 'agregar' in request.POST:
+            cuenta_corriente = request.POST.get('cuenta_corriente') == 'on'
+            request.session['cuenta_corriente'] = cuenta_corriente
+
+        if request.POST.get('nota') is not None:
+            request.session['nota'] = request.POST.get('nota', '')
 
         # =========================
         # AGREGAR PRODUCTO
