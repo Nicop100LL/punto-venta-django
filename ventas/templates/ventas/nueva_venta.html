@@ -5,7 +5,7 @@
 {% block title %}Nueva Venta{% endblock %}
 
 {% block content %}
-<h2 class="text-xl font-bold mb-4">Nueva Venta</h2>
+
 <!-- ⚠️ Alertas de stock bajo -->
 {% if alertas_stock %}
 <div id="toast-stock-container" class="fixed top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none">
@@ -57,7 +57,7 @@
 <p class="text-red-600 font-semibold mb-2">{{ error }}</p>
 {% endif %}
 
-<form method="post" class="mb-6" id="form-agregar">
+<form method="post" class="mb-3" id="form-agregar">
     {% csrf_token %}
     <input type="hidden" name="precio_unitario" id="precio_unitario">
     <input type="hidden" id="codigo_unico_varios" name="codigo_unico_varios">
@@ -246,36 +246,36 @@
 <div id="bloque-carrito"
      class="{% if not carrito %}hidden{% endif %} transition-opacity duration-150">
 
-<h3 class="text-lg font-semibold mb-2">Carrito</h3>
+<h3 class="text-lg font-semibold mb-1">Carrito</h3>
 <table class="w-full border border-gray-300 mb-4">
-    <thead>
-        <tr class="bg-gray-200 text-left">
-            <th class="p-2">Producto</th>
-            <th class="p-2">Cantidad</th>
-            <th class="p-2">Precio Unitario</th>
-            <th class="p-2">Subtotal</th>
-            <th class="p-2">Acción</th>
+    <thead class="block w-full">
+    <tr class="bg-gray-200 text-left flex w-full">
+            <th class="p-2 w-2/5">Producto</th>
+            <th class="p-2 w-1/5">Cantidad</th>
+            <th class="p-2 w-1/5">Precio Unitario</th>
+            <th class="p-2 w-1/5">Subtotal</th>
+            <th class="p-2 w-1/6">Acción</th>
         </tr>
     </thead>
-    <tbody>
+    <tbody id="carrito-tbody" class="block max-h-64 overflow-y-auto">
         {% for item in carrito %}
-        <tr class="border-t border-gray-300">
-            <td class="p-2">{{ item.nombre }}
+        <tr class="border-t border-gray-300 flex w-full">
+            <td class="p-2 w-2/5">{{ item.nombre }}
                 {% if item.detalle %}
                     <br><small class="text-gray-500 italic">{{ item.detalle }}</small>
                 {% endif %}
             </td>
-            <td class="p-2">{{ item.cantidad }}</td>
-            <td class="p-2">{{ item.precio_unitario|formato_precio }}</td>
-            <td class="p-2">{{ item.subtotal|formato_precio }}
+            <td class="p-2 w-1/5">{{ item.cantidad }}</td>
+            <td class="p-2 w-1/5">{{ item.precio_unitario|formato_precio }}</td>
+            <td class="p-2 w-1/5">{{ item.subtotal|formato_precio }}
                 {% if item.descuento > 0 %}
                 <br>
                 <small class="text-blue-600">
                     Descuento aplicado: -{{ item.descuento }}%
                 </small>
-                     {% endif %}
+                {% endif %}
             </td>
-            <td class="p-2">
+            <td class="p-2 w-1/6">
                 <form method="post" style="display:inline;">
                     {% csrf_token %}
                     {% if item.codigo_unico %}
@@ -307,6 +307,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (scrollY !== null) {
         window.scrollTo(0, parseInt(scrollY));
         sessionStorage.removeItem('venta_scrollY');
+    }
+
+    // Scroll automático al último producto del carrito
+    const tbody = document.getElementById('carrito-tbody');
+    if (tbody) {
+        tbody.scrollTop = tbody.scrollHeight;
     }
 
     setTimeout(() => {

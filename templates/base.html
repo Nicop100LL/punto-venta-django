@@ -57,7 +57,7 @@
             class="w-64 bg-white h-screen shadow-md fixed top-0 left-0 z-30 transform transition-transform duration-300 ease-in-out"
             :class="open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
 
-            <div class="p-4 flex items-center border-b border-gray-200">
+            <div class="p-2 flex items-center border-b border-gray-200">
                 <!-- Logo -->
                 <img src="{% static 'logo.png' %}" alt="Logo"
                     class="w-10 h-10 mr-3 transition-transform duration-300 hover:scale-110">
@@ -127,7 +127,7 @@
         <!-- Contenido principal -->
         <div class="flex-1 min-h-screen flex flex-col ml-0 md:ml-64">
             <!-- Encabezado -->
-            <header class="bg-white shadow p-4 flex justify-between items-center">
+            <header class="bg-white shadow p-2 flex justify-between items-center">
                 <!-- Lado izquierdo -->
                 <div class="flex items-center space-x-4">
                     <!-- Botón hamburguesa -->
@@ -208,7 +208,7 @@
 
 
             <!-- Contenido -->
-            <main class="p-6 flex-1 bg-gray-50">
+            <main class="p-3 flex-1 bg-gray-50">
                 <!-- Mensajes flash -->
                 {% if messages %}
                 <div
