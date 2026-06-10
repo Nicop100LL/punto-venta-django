@@ -31,12 +31,21 @@ def parse_decimal(value):
 def lista_productos(request):
     productos = Producto.objects.filter(empresa=request.user.empresa)
     categorias = Categoria.objects.filter(empresa=request.user.empresa)
+    
+    # Nueva — para el modal del PDF
+    categorias_pdf = (
+        Producto.objects
+        .filter(empresa=request.user.empresa)
+        .values_list('categoria__nombre', flat=True)
+        .distinct()
+        .order_by('categoria__nombre')
+    )
+
     return render(request, 'productos/lista_productos.html', {
         'productos': productos,
         'categorias': categorias,
+        'categorias_pdf': list(categorias_pdf),  # nueva
     })
-
-
 @login_required
 def nuevo_producto(request):
     if request.method == 'POST' and request.headers.get('X-Requested-With', '').lower() == 'xmlhttprequest':
@@ -109,6 +118,14 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 
+from collections import defaultdict
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
+from django.shortcuts import render
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+ 
+
 # Si ya tenés parse_decimal y querés seguir usándolo, puedes usarlo en lugar
 # de Decimal(...) después de limpiar la cadena. Aquí uso Decimal directamente.
 
@@ -132,6 +149,8 @@ def _clean_number_string(s):
     # Reemplazar coma decimal por punto
     s = s.replace(',', '.')
     return s
+
+
 @login_required
 def editar_producto(request, id):
     producto = get_object_or_404(
@@ -259,75 +278,124 @@ def eliminar_producto(request, id):
     messages.success(request, 'Producto eliminado correctamente.')
     return redirect('lista_productos')
 
+
+# -------------------------------------------------------------------
+# PASO 1 — Pantalla para seleccionar y ordenar categorías
+# -------------------------------------------------------------------
+@login_required
+def seleccionar_categorias_pdf(request):
+    """
+    Muestra un formulario con las categorías disponibles.
+    El usuario puede activar/desactivar y arrastrar para reordenar.
+    Al confirmar, hace POST a exportar_productos_pdf.
+    """
+    from .models import Producto  # ajustá el import según tu proyecto
+
+    categorias = (
+        Producto.objects
+        .filter(empresa=request.user.empresa)
+        .values_list('categoria__nombre', flat=True)
+        .distinct()
+        .order_by('categoria__nombre')
+    )
+
+    return render(request, 'seleccionar_categorias_pdf.html', {
+        'categorias': list(categorias),
+    })
+
+
+# -------------------------------------------------------------------
+# PASO 2 — Generar el PDF con el orden y selección recibidos
+# -------------------------------------------------------------------
 @login_required
 def exportar_productos_pdf(request):
+    from .models import Producto  # ajustá el import según tu proyecto
 
-    # --- Formatear precio ---
     def formatear_precio(valor):
-        valor_int = int(valor)
-        return "${:,}".format(valor_int).replace(",", ".")
+        return "${:,}".format(int(valor)).replace(",", ".")
 
-    productos = Producto.objects.filter(empresa=request.user.empresa).order_by('categoria__nombre')
+    # ------------------------------------------------------------------
+    # Leer categorías seleccionadas y su orden desde el POST
+    # Si viene por GET (acceso directo), usar todas en orden alfabético
+    # ------------------------------------------------------------------
+    if request.method == 'POST':
+        # El template envía: categorias_orden = "Gaseosas,Arroz,Lácteos"
+        orden_raw = request.POST.get('categorias_orden', '')
+        categorias_ordenadas = [c.strip() for c in orden_raw.split(',') if c.strip()]
+    else:
+        categorias_ordenadas = []   # se completa abajo con el orden por defecto
+
+    # Traer todos los productos de la empresa
+    productos_qs = Producto.objects.filter(
+        empresa=request.user.empresa
+    ).select_related('categoria')
+
+    # Agrupar por nombre de categoría
     productos_por_categoria = defaultdict(list)
-
-    for prod in productos:
+    for prod in productos_qs:
         productos_por_categoria[prod.categoria.nombre].append(prod)
 
+    # Si no vino orden (GET), usar alfabético
+    if not categorias_ordenadas:
+        categorias_ordenadas = sorted(productos_por_categoria.keys())
+
+    # Filtrar sólo las categorías que existen en la DB
+    # (por si el usuario mandó nombres inválidos)
+    categorias_finales = [
+        c for c in categorias_ordenadas
+        if c in productos_por_categoria
+    ]
+
+    # ------------------------------------------------------------------
+    # Generar PDF
+    # ------------------------------------------------------------------
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename=\"productos.pdf\"'
+    response['Content-Disposition'] = 'attachment; filename="productos.pdf"'
 
     p = canvas.Canvas(response, pagesize=A4)
     width, height = A4
     y = height - 50
-
-    # Coordenada fija para alinear precios
     X_PRECIO = 500
 
-    # --- Título principal ---
-    p.setFont("Helvetica-Bold", 16)
-    p.drawString(50, y, f"📄 Lista de Productos - {request.user.empresa.nombre}")
-    y -= 40
+    def imprimir_titulo():
+        nonlocal y
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(50, y, f"Lista de Productos - {request.user.empresa.nombre}")
+        y -= 40
 
-    # -----------------------------------
-    # RECORRER CATEGORÍAS
-    # -----------------------------------
-    for categoria, productos_categoria in productos_por_categoria.items():
+    imprimir_titulo()
 
-        # Salto de página si no hay espacio
+    for categoria in categorias_finales:
+        productos_categoria = productos_por_categoria[categoria]
+
+        # Salto de página si no hay espacio para el encabezado de categoría
         if y < 100:
             p.showPage()
             y = height - 50
-            p.setFont("Helvetica-Bold", 16)
-            p.drawString(50, y, f"📄 Lista de Productos - {request.user.empresa.nombre}")
-            y -= 40
+            imprimir_titulo()
 
-        # Nombre categoría
+        # Encabezado de categoría
         p.setFont("Helvetica-Bold", 14)
-        p.drawString(50, y, f"▶ {categoria}")
+        p.drawString(50, y, f"  {categoria}")
         y -= 25
 
-        # Encabezados de tabla
+        # Encabezados de columnas
         p.setFont("Helvetica-Bold", 12)
         p.drawString(70, y, "Código")
         p.drawString(170, y, "Nombre")
-        p.drawRightString(X_PRECIO, y, "Precio")  # Alineado con los valores
+        p.drawRightString(X_PRECIO, y, "Precio")
         y -= 20
 
         p.setFont("Helvetica", 10)
 
-        # -----------------------------------
-        # PRODUCTOS DENTRO DE LA CATEGORÍA
-        # -----------------------------------
         for prod in productos_categoria:
-
-            # Si no hay espacio, salto de página
             if y < 60:
                 p.showPage()
                 y = height - 50
 
-                # Reimprimir encabezado de la categoría
+                # Reimprimir encabezado de categoría en la nueva página
                 p.setFont("Helvetica-Bold", 14)
-                p.drawString(50, y, f"▶ {categoria}")
+                p.drawString(50, y, f"  {categoria} (continuación)")
                 y -= 25
 
                 p.setFont("Helvetica-Bold", 12)
@@ -338,24 +406,17 @@ def exportar_productos_pdf(request):
 
                 p.setFont("Helvetica", 10)
 
-            # Datos de producto
             p.drawString(70, y, str(prod.codigo))
             p.drawString(170, y, prod.nombre)
             p.drawRightString(X_PRECIO, y, formatear_precio(prod.precio_venta))
-
-            # Línea separadora
             p.line(50, y - 2, width - 50, y - 2)
-
             y -= 18
 
         y -= 15
 
-    # Cerrar PDF
     p.showPage()
     p.save()
-
     return response
-
 @login_required
 @require_POST
 def nueva_categoria(request):

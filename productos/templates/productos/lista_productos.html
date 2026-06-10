@@ -13,10 +13,13 @@
           <span class="hidden sm:inline">✏️ </span>Edición Masiva
         </a>
         
-        <a href="{% url 'exportar_productos_pdf' %}" 
-          class="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-center text-sm sm:text-base">
+        <button
+          type="button"
+          onclick="document.getElementById('modal-pdf').classList.remove('hidden')"
+          class="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-center text-sm sm:text-base"
+        >
           <span class="hidden sm:inline">📄 </span>PDF
-        </a>
+        </button>
         
         <a href="{% url 'exportar_productos_excel' %}" 
           class="px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-center text-sm sm:text-base">
@@ -649,6 +652,144 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 });
+</script>
+
+
+{# ── MODAL ── #}
+<div
+  id="modal-pdf"
+  class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+  onclick="cerrarModalSiFondo(event)"
+>
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+ 
+    {# Encabezado #}
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold text-gray-800">Exportar PDF</h2>
+      <button
+        type="button"
+        onclick="document.getElementById('modal-pdf').classList.add('hidden')"
+        class="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+      >&times;</button>
+    </div>
+ 
+    <p class="text-sm text-gray-500 mb-4">
+      Seleccioná las categorías y arrastralas para cambiar el orden.
+    </p>
+ 
+    {# Formulario → POST a la vista que genera el PDF #}
+    <form method="post" action="{% url 'exportar_productos_pdf' %}">
+      {% csrf_token %}
+      <input type="hidden" name="categorias_orden" id="categorias_orden">
+ 
+      {# Lista drag & drop #}
+      <ul id="lista-categorias" class="space-y-2 mb-5 max-h-72 overflow-y-auto pr-1">
+        {% for cat in categorias_pdf %}
+        <li
+          draggable="true"
+          data-nombre="{{ cat }}"
+          class="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing select-none"
+        >
+          <span class="text-gray-400 text-base leading-none">⠿</span>
+ 
+          <input
+            type="checkbox"
+            class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 checkbox-cat"
+            checked
+          >
+ 
+          <span class="flex-1 text-sm text-gray-800">{{ cat }}</span>
+ 
+          <span class="pos-badge text-xs text-gray-400 w-5 text-right"></span>
+        </li>
+        {% endfor %}
+      </ul>
+ 
+      {# Acciones #}
+      <div class="flex justify-end gap-3">
+        <button
+          type="button"
+          onclick="document.getElementById('modal-pdf').classList.add('hidden')"
+          class="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          id="btn-exportar"
+          class="px-4 py-2 text-sm rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium"
+        >
+          📄 Exportar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+ 
+ 
+{# ── LÓGICA: drag & drop + checkboxes ── #}
+<script>
+(function () {
+  const lista  = document.getElementById('lista-categorias');
+  const hidden = document.getElementById('categorias_orden');
+  const btn    = document.getElementById('btn-exportar');
+  let dragging = null;
+ 
+  function actualizarOrden() {
+    const items = [...lista.querySelectorAll('li')];
+    let pos = 1;
+    items.forEach(li => {
+      const activo = li.querySelector('.checkbox-cat').checked;
+      li.querySelector('.pos-badge').textContent = activo ? pos++ : '—';
+      li.style.opacity = activo ? '1' : '0.4';
+    });
+    const seleccionadas = items
+      .filter(li => li.querySelector('.checkbox-cat').checked)
+      .map(li => li.dataset.nombre);
+    hidden.value = seleccionadas.join(',');
+    btn.disabled = seleccionadas.length === 0;
+    btn.classList.toggle('opacity-50', seleccionadas.length === 0);
+    btn.classList.toggle('cursor-not-allowed', seleccionadas.length === 0);
+  }
+ 
+  lista.addEventListener('change', e => {
+    if (e.target.classList.contains('checkbox-cat')) actualizarOrden();
+  });
+ 
+  lista.addEventListener('dragstart', e => {
+    dragging = e.target.closest('li');
+    dragging.classList.add('opacity-50');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+ 
+  lista.addEventListener('dragend', () => {
+    if (dragging) { dragging.classList.remove('opacity-50'); dragging = null; }
+    actualizarOrden();
+  });
+ 
+  lista.addEventListener('dragover', e => {
+    e.preventDefault();
+    const target = e.target.closest('li');
+    if (target && target !== dragging) {
+      const mitad = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+      lista.insertBefore(dragging, e.clientY < mitad ? target : target.nextSibling);
+    }
+  });
+ 
+  // Cerrar modal al hacer click en el fondo oscuro
+  window.cerrarModalSiFondo = function(e) {
+    if (e.target === document.getElementById('modal-pdf')) {
+      e.target.classList.add('hidden');
+    }
+  };
+ 
+  // También cerrar con la tecla Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.getElementById('modal-pdf').classList.add('hidden');
+  });
+ 
+  actualizarOrden();
+})();
 </script>
 
 {% endblock %}
