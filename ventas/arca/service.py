@@ -5,13 +5,13 @@ from ventas.models import ReglaArcaPago, ComprobanteArca
 
 
 TIPO_CBT = {
-    "cf":        11,
-    "boleta":    11,
-    "factura_a":  1,
-    "factura_b":  6,
-    "nc_a":       3,
-    "nc_b":       8,
-    "nc_c":      13,
+    "cf":        6,    
+    "boleta":    6,    
+    "factura_a": 1,
+    "factura_b": 6,
+    "nc_a":      3,
+    "nc_b":      8,
+    "nc_c":     13,
 }
 
 def enviar_a_arca(comprobante):
@@ -137,7 +137,7 @@ def crear_nota_credito(venta_original, motivo="Anulación"):
             "factura_a": "nc_a",
             "factura_b": "nc_b",
             "cf":        "nc_b",
-            "boleta":    "nc_c",
+            "boleta":    "nc_b",
         }
         tipo_nc = tipo_nc_map.get(comp_original.tipo)
         if not tipo_nc:
