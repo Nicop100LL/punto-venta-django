@@ -187,6 +187,14 @@ class ComprobanteArca(models.Model):
             ("nc_c",      "Nota de Crédito C"),  # ← agregar
         ]
     )
+    
+    alicuota_iva = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Ej: 10.5 o 21.0. Si es null usa el default de la empresa."
+    )
 
     numero = models.IntegerField(blank=True, null=True)
 

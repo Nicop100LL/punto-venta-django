@@ -53,6 +53,13 @@ class Empresa(models.Model):
         default="homologacion"
     )
     
+    arca_alicuota_iva_default = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=10.5,
+        help_text="Alícuota de IVA por defecto para comprobantes ARCA (ej: 10.5 o 21.0)"
+    )
+    
     def __str__(self):
         return self.nombre
 

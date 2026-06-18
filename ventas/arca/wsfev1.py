@@ -58,16 +58,15 @@ def enviar_comprobante(client, token, sign, cuit, datos):
     
     # Determinar alícuota según tipo de comprobante
     # NC de facturas viejas (21%) vs comprobantes nuevos (10.5%)
-    es_nc = datos.get("comprobante_asociado") is not None
-    
-    if es_nc:
-        divisor = 1.21   # Las facturas originales tienen IVA 21%
-        id_iva  = 5      # ID 5 = 21%
-    else:
-        divisor = 1.105  # Comprobantes nuevos con IVA 10.5%
-        id_iva  = 4      # ID 4 = 10.5%
-    
-    neto = round(total / divisor, 2)
+    IVA_CONFIG = {
+        10.5: {"divisor": 1.105, "id_iva": 4},
+        21.0: {"divisor": 1.21,  "id_iva": 5},
+        0.0:  {"divisor": 1.0,   "id_iva": 3},
+    }
+    alicuota = float(datos.get("alicuota_iva", 10.5))
+    config = IVA_CONFIG.get(alicuota, IVA_CONFIG[10.5])
+
+    neto = round(total / config["divisor"], 2)
     iva  = round(total - neto, 2)
     
     detalle = {
@@ -87,7 +86,7 @@ def enviar_comprobante(client, token, sign, cuit, datos):
         "MonCotiz": 1,
         "Iva": {
             "AlicIva": [{
-                "Id": id_iva,
+                "Id": config["id_iva"],
                 "BaseImp": neto,
                 "Importe": iva,
             }]

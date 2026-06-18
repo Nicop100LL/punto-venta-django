@@ -3,16 +3,15 @@ from ventas.arca.wsaa import obtener_token
 from ventas.arca.wsfev1 import get_client, obtener_ultimo_numero, enviar_comprobante
 from ventas.models import ReglaArcaPago, ComprobanteArca
 
+
 TIPO_CBT = {
-    "cf":        6,
-    "boleta":    6,
-    "ticket":    6,
-    "factura_a": 1,
-    "factura_b": 6,
-    
-    "nc_a":       3,  # Nota de Crédito A
-    "nc_b":       8,  # Nota de Crédito B
-    "nc_c":      13,  # Nota de Crédito C
+    "cf":        11,
+    "boleta":    11,
+    "factura_a":  1,
+    "factura_b":  6,
+    "nc_a":       3,
+    "nc_b":       8,
+    "nc_c":      13,
 }
 
 def enviar_a_arca(comprobante):
@@ -55,6 +54,7 @@ def enviar_a_arca(comprobante):
         "numero":      numero,
         "fecha":       fecha,
         "total":       float(venta.total),
+        "alicuota_iva": float(comprobante.alicuota_iva or empresa.arca_alicuota_iva_default),
     }
     
     # ⬇️ AGREGAR: Si es NC, incluir comprobante asociado
@@ -160,6 +160,7 @@ def crear_nota_credito(venta_original, motivo="Anulación"):
             comprobante_asociado_tipo=TIPO_CBT[comp_original.tipo],
             comprobante_asociado_pto_vta=venta_original.empresa.arca_punto_venta,
             comprobante_asociado_nro=comp_original.numero,
+            alicuota_iva=comp_original.alicuota_iva,
         )
 
         return comp_nc

@@ -11,9 +11,9 @@ from ventas.models import ReglaArcaPago
 def crear_comprobante_automatico(sender, instance, created, **kwargs):
     if not created:
         return
-
-    # Evitar crear comprobante si es una venta NC (ya lo crea crear_nota_credito)
     if instance.total < 0:
+        return
+    if not instance.empresa.arca_punto_venta:  
         return
 
     decision = decidir_arca(instance)
@@ -27,6 +27,7 @@ def crear_comprobante_automatico(sender, instance, created, **kwargs):
             venta=instance,
             tipo=decision["tipo"],
             estado="pendiente",
+            alicuota_iva=instance.empresa.arca_alicuota_iva_default,
         )
 
 

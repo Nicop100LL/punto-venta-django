@@ -28,6 +28,7 @@ class EmpresaAdmin(admin.ModelAdmin):
                 "arca_punto_venta",
                 "arca_certificado",
                 "arca_clave_privada",
+                "arca_alicuota_iva_default", 
             ),
             "classes": ("collapse",),
             "description": "Completar solo si la empresa factura con ARCA."
