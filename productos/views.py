@@ -11,6 +11,8 @@ from django.db.models.functions import Substr, Cast
 from django.db.models import IntegerField, Max
 from decimal import Decimal, ROUND_HALF_UP
 from .models import Producto, Categoria
+from django.utils import timezone
+from datetime import timedelta
 
 
 def parse_decimal(value):
@@ -46,6 +48,8 @@ def lista_productos(request):
         'categorias': categorias,
         'categorias_pdf': list(categorias_pdf),  # nueva
     })
+    
+    
 @login_required
 def nuevo_producto(request):
     if request.method == 'POST' and request.headers.get('X-Requested-With', '').lower() == 'xmlhttprequest':
@@ -72,7 +76,11 @@ def nuevo_producto(request):
             stock_minimo_alerta = int(stock_minimo_alerta) if stock_minimo_alerta else 0
         else:
             stock_minimo_alerta = None
-            
+
+        fecha_vencimiento = request.POST.get('fecha_vencimiento') or None
+        dias_aviso_str = request.POST.get('dias_aviso_vencimiento')
+        dias_aviso_vencimiento = int(dias_aviso_str) if dias_aviso_str else 7
+
         if Producto.objects.filter(codigo=codigo, empresa=request.user.empresa).exists():
             return JsonResponse({'success': False, 'message': 'El código de producto ya existe para esta empresa.'})
 
@@ -92,6 +100,8 @@ def nuevo_producto(request):
             porcentaje_descuento=porcentaje_descuento,
             alerta_stock_bajo=alerta_stock_bajo,
             stock_minimo_alerta=stock_minimo_alerta,
+            fecha_vencimiento=fecha_vencimiento,
+            dias_aviso_vencimiento=dias_aviso_vencimiento,
         )
 
         return JsonResponse({
@@ -107,6 +117,7 @@ def nuevo_producto(request):
                 'tipo_venta': producto.tipo_venta,
                 'alerta_stock_bajo': producto.alerta_stock_bajo,
                 'stock_minimo_alerta': producto.stock_minimo_alerta,
+                'fecha_vencimiento': producto.fecha_vencimiento.isoformat() if producto.fecha_vencimiento else None,
             }
         })
 
@@ -259,7 +270,12 @@ def editar_producto(request, id):
                 producto.stock_minimo_alerta = 0
         else:
             producto.stock_minimo_alerta = None
-        
+
+        # --- FECHA DE VENCIMIENTO ---
+        producto.fecha_vencimiento = request.POST.get('fecha_vencimiento') or None
+        dias_aviso_str = request.POST.get('dias_aviso_vencimiento')
+        producto.dias_aviso_vencimiento = int(dias_aviso_str) if dias_aviso_str else 7
+
         producto.save()
         messages.success(request, 'Producto actualizado correctamente.')
         return redirect('lista_productos')

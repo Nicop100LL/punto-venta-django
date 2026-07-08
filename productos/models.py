@@ -32,6 +32,8 @@ class Producto(models.Model):
 
     alerta_stock_bajo = models.BooleanField(default=False)
     stock_minimo_alerta = models.PositiveIntegerField(null=True, blank=True)
+    fecha_vencimiento = models.DateField(null=True, blank=True)
+    dias_aviso_vencimiento = models.PositiveIntegerField(null=True, blank=True, default=7)
     
     class Meta:
         unique_together = ('codigo', 'empresa')
@@ -49,3 +51,8 @@ class Producto(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.codigo})"
+    
+    
+class ControlAvisoVencimiento(models.Model):
+    empresa = models.OneToOneField(Empresa, on_delete=models.CASCADE)
+    ultimo_aviso = models.DateTimeField(null=True, blank=True)

@@ -302,7 +302,7 @@
                                 </span>
                             </label>
 
-                            <div id="campos-alerta-stock" class="{% if not producto.alerta_stock_bajo %}hidden{% endif %} mt-3">
+                           <div id="campos-alerta-stock" class="{% if not producto.alerta_stock_bajo %}hidden{% endif %} mt-3">
                                 <label for="stock_minimo_alerta" class="block text-sm font-medium text-gray-700 mb-2">
                                     Avisar cuando sea menor o igual a:
                                 </label>
@@ -314,6 +314,39 @@
                                     min="0" 
                                     step="1"
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN 3.5: VENCIMIENTO -->
+                    <div class="border-b border-gray-200 pb-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Vencimiento</h2>
+
+                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label for="fecha_vencimiento" class="block text-sm font-medium text-gray-700 mb-2">
+                                    📅 Fecha de vencimiento
+                                </label>
+                                <input
+                                    type="date"
+                                    id="fecha_vencimiento"
+                                    name="fecha_vencimiento"
+                                    value="{{ producto.fecha_vencimiento|date:'Y-m-d' }}"
+                                    min="{% now 'Y-m-d' %}"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition">
+                            </div>
+                            <div>
+                                <label for="dias_aviso_vencimiento" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Avisar (días antes de vencer)
+                                </label>
+                                <input
+                                    type="number"
+                                    id="dias_aviso_vencimiento"
+                                    name="dias_aviso_vencimiento"
+                                    value="{{ producto.dias_aviso_vencimiento|default:7 }}"
+                                    min="0"
+                                    step="1"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition">
                             </div>
                         </div>
                     </div>

@@ -278,6 +278,14 @@
         <input type="number" name="stock_actual" step="0.01" class="w-full border px-3 py-2 rounded" required />
       </div>
 
+      <!-- VENCIMIENTO -->
+      <div class="mb-4 space-y-2">
+        <label class="block text-sm font-medium text-gray-700">📅 Fecha de vencimiento (opcional)</label>
+        <input type="date" name="fecha_vencimiento" min="{% now 'Y-m-d' %}" class="w-full border px-3 py-2 rounded">
+        <label class="block text-sm font-medium text-gray-700">Avisar (días antes de vencer)</label>
+        <input type="number" name="dias_aviso_vencimiento" value="7" min="0" step="1" class="w-full border px-3 py-2 rounded">
+      </div>
+
       <!-- DESCUENTO -->
       <div class="flex items-center gap-2">
         <input type="checkbox" id="aplica_descuento" name="aplica_descuento" value="True"
@@ -791,5 +799,7 @@ document.addEventListener('DOMContentLoaded', function () {
   actualizarOrden();
 })();
 </script>
+
+
 
 {% endblock %}

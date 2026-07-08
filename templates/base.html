@@ -283,6 +283,46 @@
             
                 {% block content %}{% endblock %}
             </main>
+
+            <!-- ⏰ Aviso de vencimiento -->
+            {% if productos_por_vencer %}
+            {{ productos_por_vencer|json_script:"productos-por-vencer-data" }}
+            <script>
+            document.addEventListener('DOMContentLoaded', function () {
+              const data = JSON.parse(document.getElementById('productos-por-vencer-data').textContent);
+              const items = data.map(p => `${p.nombre} (vence ${p.fecha_vencimiento_legible})`).join(', ');
+
+              const toast = document.createElement('div');
+              toast.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+              toast.style.opacity = '0';
+              toast.style.transform = 'translateX(16px)';
+              toast.className = 'fixed top-20 right-4 z-50 flex items-start gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium bg-orange-500 text-white max-w-xs';
+              toast.innerHTML = `
+                <span class="text-lg leading-none">⏰</span>
+                <div>
+                  <div class="font-bold">Productos por vencer</div>
+                  <div class="text-orange-100">${items}</div>
+                </div>
+              `;
+              document.body.appendChild(toast);
+
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  toast.style.opacity = '1';
+                  toast.style.transform = 'translateX(0)';
+                });
+              });
+
+              setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(16px)';
+                setTimeout(() => toast.remove(), 500);
+              }, 8000);
+            });
+            </script>
+            {% endif %}
+
+
             <!-- Footer -->
         <footer class="bg-white border-t border-gray-200 text-gray-500 text-sm p-4 text-center">
             &copy; {{ now|date:"Y" }} {% if empresa %}{{ empresa.nombre }}{% else %}Mi Empresa{% endif %}
