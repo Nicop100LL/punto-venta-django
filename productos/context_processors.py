@@ -6,10 +6,13 @@ HORAS_ENTRE_AVISOS = 8  # cada cuántas horas se repite el aviso (8 = ~3 veces p
 
 
 def productos_por_vencer_context(request):
-    if not request.user.is_authenticated or not hasattr(request.user, 'empresa'):
+    if not request.user.is_authenticated:
         return {}
 
-    empresa = request.user.empresa
+    empresa = getattr(request.user, 'empresa', None)
+
+    if empresa is None:
+        return {}
     ahora = timezone.now()
     hoy = ahora.date()
 
