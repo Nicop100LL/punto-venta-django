@@ -398,6 +398,53 @@
                         </div>
                     </div>
 
+                    <!-- SECCIÓN 5: BULTO -->
+                    <div class="pb-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Venta por Bulto</h2>
+
+                        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    id="vende_por_bulto" 
+                                    name="vende_por_bulto"
+                                    class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                                    {% if producto.vende_por_bulto %}checked{% endif %}>
+                                <span class="text-sm font-medium text-gray-700">
+                                    Vende por bulto
+                                </span>
+                            </label>
+
+                            <div id="campos-bulto" class="{% if not producto.vende_por_bulto %}hidden{% endif %} mt-4 space-y-4">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="unidades_por_bulto" class="block text-sm font-medium text-gray-700 mb-2">
+                                            ¿A partir de cuántas unidades?
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            id="unidades_por_bulto" 
+                                            name="unidades_por_bulto"
+                                            value="{{ producto.unidades_por_bulto|default_if_none:'' }}"
+                                            min="1" step="1"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                                    </div>
+                                    <div>
+                                        <label for="precio_por_bulto" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Precio del bulto
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            id="precio_por_bulto" 
+                                            name="precio_por_bulto"
+                                            value="{{ producto.precio_por_bulto|default_if_none:''|formato_precio }}"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- Botones de Acción -->
@@ -429,6 +476,13 @@
 
     const checkAlerta = document.getElementById('alerta_stock_bajo');
     const camposAlerta = document.getElementById('campos-alerta-stock');
+
+    const checkBulto = document.getElementById('vende_por_bulto');
+    const camposBulto = document.getElementById('campos-bulto');
+
+    checkBulto.addEventListener('change', function () {
+        camposBulto.classList.toggle('hidden', !this.checked);
+    });
     
     checkAlerta.addEventListener('change', function () {
         camposAlerta.classList.toggle('hidden', !this.checked);

@@ -268,7 +268,12 @@
             <td class="p-2 w-1/5">{{ item.cantidad }}</td>
             <td class="p-2 w-1/5">{{ item.precio_unitario|formato_precio }}</td>
             <td class="p-2 w-1/5">{{ item.subtotal|formato_precio }}
-                {% if item.descuento > 0 %}
+                {% if item.tipo_precio == 'bulto' %}
+                <br>
+                <small class="text-green-600 font-semibold">
+                    📦 Precio por bulto aplicado
+                </small>
+                {% elif item.descuento > 0 %}
                 <br>
                 <small class="text-blue-600">
                     Descuento aplicado: -{{ item.descuento }}%

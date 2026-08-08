@@ -159,6 +159,8 @@ def calcular_alto_etiqueta_mm(modelo, producto):
     # Precio (línea simple)
     if modelo.mostrar_precio:
         alto_pt += modelo.precio_tamano * 1.4
+        if producto.aplica_descuento and producto.precio_con_descuento():
+            alto_pt += modelo.precio_tamano * 0.6 * 1.4 
 
     # Barcode
     if modelo.mostrar_barcode:
@@ -294,7 +296,7 @@ def imprimir_etiquetas_pdf(request):
         if modelo.mostrar_precio:
             font_name = "Helvetica-Bold" if modelo.precio_negrita else "Helvetica"
             precio_texto = f"${producto.precio_venta:,.0f}".replace(",", ".")
-            
+
             font_size = modelo.precio_tamano
             c.setFont(font_name, font_size)
             while c.stringWidth(precio_texto, font_name, font_size) > ancho_util and font_size > 6:
@@ -304,6 +306,19 @@ def imprimir_etiquetas_pdf(request):
             y -= font_size
             c.drawCentredString(ancho / 2, y, precio_texto)
             y -= 2 * mm
+
+            # ---- NUEVO: precio con descuento ----
+            precio_desc = producto.precio_con_descuento()
+            if precio_desc:
+                texto_desc = f"{producto.cantidad_minima_descuento} o más: ${precio_desc:,.0f}".replace(",", ".")
+                fs = int(modelo.precio_tamano * 0.6)
+                c.setFont(font_name, fs)
+                while c.stringWidth(texto_desc, font_name, fs) > ancho_util and fs > 6:
+                    fs -= 1
+                    c.setFont(font_name, fs)
+                y -= fs
+                c.drawCentredString(ancho / 2, y, texto_desc)
+                y -= 2 * mm
 
        
         # ===== BARCODE =====

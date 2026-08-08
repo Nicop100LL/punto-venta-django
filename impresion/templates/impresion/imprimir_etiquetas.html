@@ -56,6 +56,20 @@ body {
     font-size: {{ modelo.precio_tamano }}px;
     font-weight: {{ modelo.precio_negrita|yesno:"bold,normal" }};
 }
+
+.precio-secundario {
+    color: {{ modelo.precio_color }};
+    font-size: calc({{ modelo.precio_tamano }}px * 0.55);
+    font-weight: normal;
+    margin-top: 1px;
+}
+
+.precio-secundario-inline {
+    font-size: calc({{ modelo.precio_tamano }}px * 0.4);
+    color: {{ modelo.precio_color }};
+    font-weight: normal;
+}
+
 /* ====== BARCODE ====== */
 .barcode {
     display: flex;

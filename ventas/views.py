@@ -165,7 +165,17 @@ def nueva_venta(request):
                 def calcular_precio(cant):
                     # 🔥 PRODUCTO VARIOS → precio manual, sin descuento
                     if producto.codigo == PRODUCTO_VARIOS_CODIGO and precio_manual:
-                        return Decimal(precio_manual), 0
+                        return Decimal(precio_manual), 0, None
+
+                    # Venta por bulto: si alcanza la cantidad mínima del bulto
+                    if (
+                        producto.vende_por_bulto and
+                        producto.unidades_por_bulto and
+                        producto.precio_por_bulto and
+                        cant >= producto.unidades_por_bulto
+                    ):
+                        precio_unitario_bulto = producto.precio_por_bulto / producto.unidades_por_bulto
+                        return precio_unitario_bulto, 0, 'bulto'
 
                     # Productos normales con descuento
                     if (
@@ -175,21 +185,23 @@ def nueva_venta(request):
                     ):
                         return (
                             producto.precio_venta * (1 - producto.porcentaje_descuento / 100),
-                            producto.porcentaje_descuento
+                            producto.porcentaje_descuento,
+                            'descuento'
                         )
 
-                    return producto.precio_venta, 0
+                    return producto.precio_venta, 0, None
 
 
                 if item and producto.codigo != PRODUCTO_VARIOS_CODIGO:
 
                     item['cantidad'] += float(cantidad)
-                    precio, descuento = calcular_precio(item['cantidad'])
+                    precio, descuento, tipo_precio = calcular_precio(item['cantidad'])
                     item['precio_unitario'] = float(precio)
                     item['subtotal'] = item['cantidad'] * item['precio_unitario']
                     item['descuento'] = float(descuento)
+                    item['tipo_precio'] = tipo_precio
                 else:
-                    precio, descuento = calcular_precio(cantidad)
+                    precio, descuento, tipo_precio = calcular_precio(cantidad)
                     item_dict = {
                         'producto_id': producto.id,
                         'nombre': producto.nombre,
@@ -197,6 +209,7 @@ def nueva_venta(request):
                         'cantidad': float(cantidad),
                         'subtotal': float(precio * cantidad),
                         'descuento': float(descuento),
+                        'tipo_precio': tipo_precio,
                     }
 
                     # 🔹 Agregamos codigo_unico solo para VARIOS

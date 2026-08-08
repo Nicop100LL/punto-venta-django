@@ -35,15 +35,21 @@ class Producto(models.Model):
     fecha_vencimiento = models.DateField(null=True, blank=True)
     dias_aviso_vencimiento = models.PositiveIntegerField(null=True, blank=True, default=7)
     
+    # ===== VENTA POR BULTO (opcional) =====
+    vende_por_bulto = models.BooleanField(default=False)
+    unidades_por_bulto = models.PositiveIntegerField(null=True, blank=True)
+    precio_por_bulto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
     class Meta:
         unique_together = ('codigo', 'empresa')
-
-
-
+        
     def clean(self):
         # Evita stock negativo
         if self.stock_actual < 0:
-            self.stock_actual = 0  # Forzamos a cero
+            self.stock_actual = 0 # Forzamos a cero
+
+        if self.vende_por_bulto and (not self.unidades_por_bulto or not self.precio_por_bulto):
+            raise ValidationError("Si vende por bulto, indicá las unidades y el precio del bulto.")    
 
     def save(self, *args, **kwargs):
         self.full_clean()  # Llama a clean antes de guardar
@@ -51,6 +57,17 @@ class Producto(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.codigo})"
+    
+    def precio_con_descuento(self):
+        if self.aplica_descuento and self.porcentaje_descuento:
+            descuento = self.precio_venta * (self.porcentaje_descuento / 100)
+            return self.precio_venta - descuento
+        return None
+    
+    def precio_unitario_bulto(self):
+        if self.vende_por_bulto and self.unidades_por_bulto and self.precio_por_bulto:
+            return self.precio_por_bulto / self.unidades_por_bulto
+        return None
     
     
 class ControlAvisoVencimiento(models.Model):

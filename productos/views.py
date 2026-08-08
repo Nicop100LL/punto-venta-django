@@ -69,6 +69,14 @@ def nuevo_producto(request):
         else:
             cantidad_minima_descuento = None
             porcentaje_descuento = None
+            
+        vende_por_bulto = 'vende_por_bulto' in request.POST
+        if vende_por_bulto:
+            unidades_por_bulto = request.POST.get('unidades_por_bulto')
+            precio_por_bulto = parse_decimal(request.POST.get('precio_por_bulto'))
+        else:
+            unidades_por_bulto = None
+            precio_por_bulto = None    
 
         alerta_stock_bajo = 'alerta_stock_bajo' in request.POST
         if alerta_stock_bajo:
@@ -98,6 +106,9 @@ def nuevo_producto(request):
             aplica_descuento=aplica_descuento,
             cantidad_minima_descuento=int(cantidad_minima_descuento) if cantidad_minima_descuento else 0,
             porcentaje_descuento=porcentaje_descuento,
+            vende_por_bulto=vende_por_bulto,
+            unidades_por_bulto=int(unidades_por_bulto) if unidades_por_bulto else None,
+            precio_por_bulto=precio_por_bulto,
             alerta_stock_bajo=alerta_stock_bajo,
             stock_minimo_alerta=stock_minimo_alerta,
             fecha_vencimiento=fecha_vencimiento,
@@ -118,6 +129,9 @@ def nuevo_producto(request):
                 'alerta_stock_bajo': producto.alerta_stock_bajo,
                 'stock_minimo_alerta': producto.stock_minimo_alerta,
                 'fecha_vencimiento': producto.fecha_vencimiento.isoformat() if producto.fecha_vencimiento else None,
+                'vende_por_bulto': producto.vende_por_bulto,                                   
+                'unidades_por_bulto': producto.unidades_por_bulto,                            
+                'precio_por_bulto': float(producto.precio_por_bulto) if producto.precio_por_bulto else None,
             }
         })
 
@@ -256,7 +270,35 @@ def editar_producto(request, id):
         else:
             producto.cantidad_minima_descuento = 0
             producto.porcentaje_descuento = None
+        
+        producto.vende_por_bulto = 'vende_por_bulto' in request.POST
 
+        if producto.vende_por_bulto:
+            raw_unidades_bulto = request.POST.get('unidades_por_bulto')
+            unidades_bulto_str = _clean_number_string(raw_unidades_bulto)
+
+            try:
+                producto.unidades_por_bulto = (
+                    int(Decimal(unidades_bulto_str))
+                    if unidades_bulto_str is not None else None
+                )
+            except (InvalidOperation, ValueError, TypeError):
+                producto.unidades_por_bulto = None
+
+            raw_precio_bulto = request.POST.get('precio_por_bulto')
+            precio_bulto_str = _clean_number_string(raw_precio_bulto)
+
+            try:
+                producto.precio_por_bulto = (
+                    Decimal(precio_bulto_str)
+                    if precio_bulto_str is not None else None
+                )
+            except (InvalidOperation, ValueError, TypeError):
+                producto.precio_por_bulto = None
+        else:
+            producto.unidades_por_bulto = None
+            producto.precio_por_bulto = None
+        
         # --- ALERTA STOCK BAJO ---
         producto.alerta_stock_bajo = 'alerta_stock_bajo' in request.POST
         if producto.alerta_stock_bajo:

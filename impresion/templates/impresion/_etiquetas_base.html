@@ -12,12 +12,31 @@
                 <div class="codigo">{{ producto.codigo }}</div>
             {% endif %}
 
-
-
             {% if modelo.mostrar_precio %}
-                <div class="precio">$ {{ producto.precio_venta|formato_precio }}</div>
+                {% if producto.vende_por_bulto or producto.aplica_descuento %}
+                    <div class="precio">Llevando 1: $ {{ producto.precio_venta|formato_precio }}</div>
+                {% else %}
+                    <div class="precio">$ {{ producto.precio_venta|formato_precio }}</div>
+                {% endif %}
+
+                {% if producto.aplica_descuento and producto.precio_con_descuento %}
+                    <div style="color: {{ modelo.precio_secundario_color }};
+                                font-size: {{ modelo.precio_secundario_tamano }}px;
+                                font-weight: {{ modelo.precio_secundario_negrita|yesno:'bold,normal' }};">
+                        Llevando {{ producto.cantidad_minima_descuento }} o más: $ {{ producto.precio_con_descuento|formato_precio }}
+                    </div>
+                {% endif %}
+
+                {% if producto.vende_por_bulto and producto.unidades_por_bulto and producto.precio_por_bulto %}
+                    <div class="precio">
+                        Bulto x{{ producto.unidades_por_bulto }}: $ {{ producto.precio_por_bulto|formato_precio }}
+                        <span class="precio-secundario-inline">
+                            (c/u $ {{ producto.precio_unitario_bulto|formato_precio }})
+                        </span>
+                    </div>
+                {% endif %}
             {% endif %}
-        
+
         </div>
     {% endfor %}
 </div>

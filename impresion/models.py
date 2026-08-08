@@ -63,6 +63,11 @@ class ModeloImpresion(models.Model):
     precio_tamano = models.PositiveIntegerField(default=28)
     precio_negrita = models.BooleanField(default=True)
     
+    # ===== PRECIO CON DESCUENTO / BULTO (línea secundaria) =====
+    precio_secundario_color = models.CharField(max_length=20, default="#555555")
+    precio_secundario_tamano = models.PositiveIntegerField(default=10)
+    precio_secundario_negrita = models.BooleanField(default=False)
+    
     # ===== CÓDIGO DE BARRAS =====
     mostrar_barcode = models.BooleanField(default=False)
 

@@ -48,6 +48,9 @@
 
             {% if modelo.mostrar_precio %}
                 <div class="precio">${{ producto.precio }}</div>
+                {% if producto.aplica_descuento and producto.precio_con_descuento %}
+                    <div class="precio-descuento">{{ producto.cantidad_minima_descuento }} o más: ${{ producto.precio_con_descuento|floatformat:0 }}</div>
+                {% endif %}
             {% endif %}
 
             {% if modelo.mostrar_barcode %}

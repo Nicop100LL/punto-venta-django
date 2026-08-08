@@ -304,6 +304,24 @@
         </div>
       </div>
 
+      <!-- BULTO -->
+      <div class="flex items-center gap-2 mt-4">
+        <input type="checkbox" id="vende_por_bulto" name="vende_por_bulto" value="True"
+          class="rounded border-gray-300 text-blue-600 shadow-sm">
+        <label for="vende_por_bulto" class="text-sm font-medium text-gray-700">Vende por bulto</label>
+      </div>
+
+      <div id="bulto-campos" class="space-y-4 hidden mt-2">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">¿A partir de cuántas unidades es bulto?</label>
+          <input type="number" name="unidades_por_bulto" min="1" step="1" class="w-full border px-3 py-2 rounded">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Precio por bulto</label>
+          <input type="number" name="precio_por_bulto" step="0.01" min="0" class="w-full border px-3 py-2 rounded">
+        </div>
+      </div>
+
       <!-- Alerta stock bajo -->
       <div class="flex items-center gap-2">
           <input type="checkbox" id="modal-alerta_stock_bajo" name="alerta_stock_bajo"
@@ -432,6 +450,12 @@ document.addEventListener('DOMContentLoaded', function () {
       formData.delete("porcentaje_descuento");
     }
 
+    // Si NO vende por bulto, eliminar campos vacíos          👈 NUEVO
+    if (!document.getElementById("vende_por_bulto").checked) {
+      formData.delete("unidades_por_bulto");
+      formData.delete("precio_por_bulto");
+    }
+
     fetch(form.action, {
       method: "POST",
       headers: {
@@ -499,6 +523,21 @@ document.addEventListener('DOMContentLoaded', function () {
   document.addEventListener("DOMContentLoaded", function () {
     const check = document.getElementById("aplica_descuento");
     const campos = document.getElementById("descuento-campos");
+
+    function toggle() {
+      campos.classList.toggle("hidden", !check.checked);
+    }
+
+    check.addEventListener("change", toggle);
+    toggle();
+  });
+</script>
+
+<!-- Bulto -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const check = document.getElementById("vende_por_bulto");
+    const campos = document.getElementById("bulto-campos");
 
     function toggle() {
       campos.classList.toggle("hidden", !check.checked);
