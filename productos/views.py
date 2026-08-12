@@ -65,10 +65,10 @@ def nuevo_producto(request):
         aplica_descuento = 'aplica_descuento' in request.POST
         if aplica_descuento:
             cantidad_minima_descuento = request.POST.get('cantidad_minima_descuento')
-            porcentaje_descuento = parse_decimal(request.POST.get('porcentaje_descuento'))
+            precio_descuento_manual = parse_decimal(request.POST.get('precio_descuento_manual'))
         else:
             cantidad_minima_descuento = None
-            porcentaje_descuento = None
+            precio_descuento_manual = None
             
         vende_por_bulto = 'vende_por_bulto' in request.POST
         if vende_por_bulto:
@@ -105,7 +105,7 @@ def nuevo_producto(request):
             tipo_venta=tipo_venta,
             aplica_descuento=aplica_descuento,
             cantidad_minima_descuento=int(cantidad_minima_descuento) if cantidad_minima_descuento else 0,
-            porcentaje_descuento=porcentaje_descuento,
+            precio_descuento_manual=precio_descuento_manual,
             vende_por_bulto=vende_por_bulto,
             unidades_por_bulto=int(unidades_por_bulto) if unidades_por_bulto else None,
             precio_por_bulto=precio_por_bulto,
@@ -257,19 +257,18 @@ def editar_producto(request, id):
             except (InvalidOperation, ValueError, TypeError):
                 producto.cantidad_minima_descuento = 0
 
-            raw_porcentaje = request.POST.get('porcentaje_descuento')
-            porcentaje_str = _clean_number_string(raw_porcentaje)
+            raw_precio_manual = request.POST.get('precio_descuento_manual')
+            precio_manual_str = _clean_number_string(raw_precio_manual)
 
             try:
-                producto.porcentaje_descuento = (
-                    Decimal(porcentaje_str)
-                    if porcentaje_str is not None else None
+                producto.precio_descuento_manual = (
+                    Decimal(precio_manual_str) if precio_manual_str is not None else None
                 )
             except (InvalidOperation, ValueError, TypeError):
-                producto.porcentaje_descuento = None
+                producto.precio_descuento_manual = None
         else:
             producto.cantidad_minima_descuento = 0
-            producto.porcentaje_descuento = None
+            producto.precio_descuento_manual = None
         
         producto.vende_por_bulto = 'vende_por_bulto' in request.POST
 

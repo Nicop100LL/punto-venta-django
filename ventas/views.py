@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth.decorators import login_required
 from productos.models import Producto
@@ -181,11 +181,12 @@ def nueva_venta(request):
                     if (
                         producto.aplica_descuento and
                         producto.cantidad_minima_descuento and
-                        cant >= producto.cantidad_minima_descuento
+                        cant >= producto.cantidad_minima_descuento and
+                        producto.precio_descuento_manual
                     ):
                         return (
-                            producto.precio_venta * (1 - producto.porcentaje_descuento / 100),
-                            producto.porcentaje_descuento,
+                            producto.precio_descuento_manual,
+                            0,
                             'descuento'
                         )
 
@@ -200,6 +201,7 @@ def nueva_venta(request):
                     item['subtotal'] = item['cantidad'] * item['precio_unitario']
                     item['descuento'] = float(descuento)
                     item['tipo_precio'] = tipo_precio
+                    item['ahorro_unitario'] = float(producto.precio_venta - precio) if tipo_precio == 'descuento' else 0
                 else:
                     precio, descuento, tipo_precio = calcular_precio(cantidad)
                     item_dict = {
@@ -210,6 +212,7 @@ def nueva_venta(request):
                         'subtotal': float(precio * cantidad),
                         'descuento': float(descuento),
                         'tipo_precio': tipo_precio,
+                        'ahorro_unitario': float(producto.precio_venta - precio) if tipo_precio == 'descuento' else 0,
                     }
 
                     # 🔹 Agregamos codigo_unico solo para VARIOS

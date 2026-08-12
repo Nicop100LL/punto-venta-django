@@ -287,20 +287,20 @@
       </div>
 
       <!-- DESCUENTO -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 mt-2">
         <input type="checkbox" id="aplica_descuento" name="aplica_descuento" value="True"
           class="rounded border-gray-300 text-blue-600 shadow-sm">
-        <label for="aplica_descuento" class="text-sm font-medium text-gray-700">Aplicar descuento</label>
+        <label for="aplica_descuento" class="text-sm font-medium text-gray-700">Aplicar descuento por cantidad</label>
       </div>
 
-      <div id="descuento-campos" class="space-y-4 hidden">
+      <div id="descuento-campos" class="space-y-4 hidden mt-2">
         <div>
           <label class="block text-sm font-medium text-gray-700">Cantidad mínima para descuento</label>
           <input type="number" name="cantidad_minima_descuento" min="0" class="w-full border px-3 py-2 rounded">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700">Porcentaje de descuento</label>
-          <input type="number" name="porcentaje_descuento" step="0.01" min="0" max="100" class="w-full border px-3 py-2 rounded">
+          <label class="block text-sm font-medium text-gray-700">Precio con descuento (por unidad)</label>
+          <input type="number" name="precio_descuento_manual" step="0.01" min="0" class="w-full border px-3 py-2 rounded" placeholder="Ej: 900">
         </div>
       </div>
 
@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Si NO aplica descuento, eliminar campos vacíos
     if (!document.getElementById("aplica_descuento").checked) {
       formData.delete("cantidad_minima_descuento");
-      formData.delete("porcentaje_descuento");
+      formData.delete("precio_descuento_manual");
     }
 
     // Si NO vende por bulto, eliminar campos vacíos          👈 NUEVO
@@ -532,6 +532,7 @@ document.addEventListener('DOMContentLoaded', function () {
     toggle();
   });
 </script>
+
 
 <!-- Bulto -->
 <script>

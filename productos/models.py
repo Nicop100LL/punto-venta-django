@@ -39,6 +39,7 @@ class Producto(models.Model):
     vende_por_bulto = models.BooleanField(default=False)
     unidades_por_bulto = models.PositiveIntegerField(null=True, blank=True)
     precio_por_bulto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    precio_descuento_manual = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     class Meta:
         unique_together = ('codigo', 'empresa')

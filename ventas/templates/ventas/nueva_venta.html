@@ -273,10 +273,10 @@
                 <small class="text-green-600 font-semibold">
                     📦 Precio por bulto aplicado
                 </small>
-                {% elif item.descuento > 0 %}
+                {% elif item.tipo_precio == 'descuento' %}
                 <br>
                 <small class="text-blue-600">
-                    Descuento aplicado: -{{ item.descuento }}%
+                    💲 Ahorro: ${{ item.ahorro_unitario|floatformat:0|formato_precio }} por unidad
                 </small>
                 {% endif %}
             </td>
