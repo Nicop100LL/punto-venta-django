@@ -364,20 +364,53 @@ def seleccionar_categorias_pdf(request):
 # -------------------------------------------------------------------
 # PASO 2 — Generar el PDF con el orden y selección recibidos
 # -------------------------------------------------------------------
+
 @login_required
 def exportar_productos_pdf(request):
-    from .models import Producto  # ajustá el import según tu proyecto
+    from .models import Producto
 
     def formatear_precio(valor):
         return "${:,}".format(int(valor)).replace(",", ".")
 
     # ------------------------------------------------------------------
-    # Leer categorías seleccionadas y su orden desde el POST
-    # Si viene por GET (acceso directo), usar todas en orden alfabético
+    # Divide el nombre en líneas según el ancho disponible
+    # ------------------------------------------------------------------
+    def dividir_texto(texto, fuente, tamaño, ancho_max):
+        palabras = texto.split()
+        lineas = []
+        linea = ""
+
+        for palabra in palabras:
+
+            if not linea:
+                prueba = palabra
+            else:
+                prueba = linea + " " + palabra
+
+            if p.stringWidth(prueba, fuente, tamaño) <= ancho_max:
+                linea = prueba
+            else:
+                if linea:
+                    lineas.append(linea)
+
+                linea = palabra
+
+        if linea:
+            lineas.append(linea)
+
+        return lineas
+
+    # ------------------------------------------------------------------
+    # Categorías seleccionadas
     # ------------------------------------------------------------------
     if request.method == 'POST':
         orden_raw = request.POST.get('categorias_orden', '')
-        categorias_ordenadas = [c.strip() for c in orden_raw.split(',') if c.strip()]
+
+        categorias_ordenadas = [
+            c.strip()
+            for c in orden_raw.split(',')
+            if c.strip()
+        ]
     else:
         categorias_ordenadas = []
 
@@ -386,111 +419,354 @@ def exportar_productos_pdf(request):
     ).select_related('categoria')
 
     productos_por_categoria = defaultdict(list)
+
     for prod in productos_qs:
         productos_por_categoria[prod.categoria.nombre].append(prod)
 
     if not categorias_ordenadas:
-        categorias_ordenadas = sorted(productos_por_categoria.keys())
+        categorias_ordenadas = sorted(
+            productos_por_categoria.keys()
+        )
 
     categorias_finales = [
-        c for c in categorias_ordenadas
+        c
+        for c in categorias_ordenadas
         if c in productos_por_categoria
     ]
 
     # ------------------------------------------------------------------
-    # Generar PDF
+    # PDF
     # ------------------------------------------------------------------
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="productos.pdf"'
+    response = HttpResponse(
+        content_type='application/pdf'
+    )
 
-    p = canvas.Canvas(response, pagesize=A4)
+    response['Content-Disposition'] = (
+        'attachment; filename="productos.pdf"'
+    )
+
+    p = canvas.Canvas(
+        response,
+        pagesize=A4
+    )
+
     width, height = A4
+
     y = height - 50
 
-    # Columnas (right-aligned para los precios, con más espacio horizontal)
-    X_CODIGO = 50
-    X_NOMBRE = 135
-    X_PRECIO = 370
-    X_DESCUENTO = 460
-    X_BULTO = 545  # cerca del margen derecho (width - 50 ≈ 545)
+    # ------------------------------------------------------------------
+    # COLUMNAS
+    # ------------------------------------------------------------------
 
+    X_CODIGO = 50
+
+    X_NOMBRE = 120
+
+    # El nombre termina 20 puntos antes del precio
+    X_PRECIO = 370
+
+    X_DESCUENTO = 460
+
+    X_BULTO = 545
+
+    # --------------------------------------------------------------
+    # ESTE ES EL ANCHO REAL DEL NOMBRE
+    # --------------------------------------------------------------
+    ANCHO_NOMBRE = X_PRECIO - X_NOMBRE - 20
+
+    # ------------------------------------------------------------------
+    # Título
+    # ------------------------------------------------------------------
     def imprimir_titulo():
+
         nonlocal y
-        p.setFont("Helvetica-Bold", 16)
-        p.drawString(50, y, f"Lista de Productos - {request.user.empresa.nombre}")
+
+        p.setFont(
+            "Helvetica-Bold",
+            16
+        )
+
+        p.drawString(
+            50,
+            y,
+            f"Lista de Productos - {request.user.empresa.nombre}"
+        )
+
         y -= 40
 
+    # ------------------------------------------------------------------
+    # Encabezados
+    # ------------------------------------------------------------------
     def imprimir_encabezados_columnas():
+
         nonlocal y
-        p.setFont("Helvetica-Bold", 12)
-        p.drawString(X_CODIGO, y, "Código")
-        p.drawString(X_NOMBRE, y, "Nombre")
-        p.drawRightString(X_PRECIO, y, "Precio")
-        p.drawRightString(X_DESCUENTO, y, "P. Desc.")
-        p.drawRightString(X_BULTO, y, "P. Bulto")
+
+        p.setFont(
+            "Helvetica-Bold",
+            12
+        )
+
+        p.drawString(
+            X_CODIGO,
+            y,
+            "Código"
+        )
+
+        p.drawString(
+            X_NOMBRE,
+            y,
+            "Nombre"
+        )
+
+        p.drawRightString(
+            X_PRECIO,
+            y,
+            "Precio"
+        )
+
+        p.drawRightString(
+            X_DESCUENTO,
+            y,
+            "P. Desc."
+        )
+
+        p.drawRightString(
+            X_BULTO,
+            y,
+            "P. Bulto"
+        )
+
         y -= 20
 
+    # ------------------------------------------------------------------
+    # Inicio
+    # ------------------------------------------------------------------
     imprimir_titulo()
 
+    # ------------------------------------------------------------------
+    # Categorías
+    # ------------------------------------------------------------------
     for categoria in categorias_finales:
-        productos_categoria = productos_por_categoria[categoria]
 
+        productos_categoria = productos_por_categoria[
+            categoria
+        ]
+
+        # --------------------------------------------------------------
+        # Espacio para categoría
+        # --------------------------------------------------------------
         if y < 100:
+
             p.showPage()
+
             y = height - 50
+
             imprimir_titulo()
 
-        p.setFont("Helvetica-Bold", 14)
-        p.drawString(50, y, f"  {categoria}")
+        # --------------------------------------------------------------
+        # Nombre categoría
+        # --------------------------------------------------------------
+        p.setFont(
+            "Helvetica-Bold",
+            14
+        )
+
+        p.drawString(
+            50,
+            y,
+            f"  {categoria}"
+        )
+
         y -= 25
 
         imprimir_encabezados_columnas()
 
-        p.setFont("Helvetica", 10)
+        p.setFont(
+            "Helvetica",
+            10
+        )
 
+        # ==============================================================
+        # PRODUCTOS
+        # ==============================================================
         for prod in productos_categoria:
-            if y < 60:
+
+            # ----------------------------------------------------------
+            # Nombre dividido
+            # ----------------------------------------------------------
+            lineas_nombre = dividir_texto(
+                prod.nombre,
+                "Helvetica",
+                10,
+                ANCHO_NOMBRE
+            )
+
+            alto_linea = 14
+
+            alto_producto = (
+                len(lineas_nombre) * alto_linea
+            )
+
+            # ----------------------------------------------------------
+            # Si no entra el producto completo
+            # ----------------------------------------------------------
+            if y - alto_producto < 60:
+
                 p.showPage()
+
                 y = height - 50
 
-                p.setFont("Helvetica-Bold", 14)
-                p.drawString(50, y, f"  {categoria} (continuación)")
+                p.setFont(
+                    "Helvetica-Bold",
+                    14
+                )
+
+                p.drawString(
+                    50,
+                    y,
+                    f"  {categoria} (continuación)"
+                )
+
                 y -= 25
 
                 imprimir_encabezados_columnas()
 
-                p.setFont("Helvetica", 10)
+                p.setFont(
+                    "Helvetica",
+                    10
+                )
 
-            p.drawString(X_CODIGO, y, str(prod.codigo))
-            p.drawString(X_NOMBRE, y, prod.nombre)
-            p.drawRightString(X_PRECIO, y, formatear_precio(prod.precio_venta))
+            # ----------------------------------------------------------
+            # DATOS
+            # ----------------------------------------------------------
 
-            # Precio con descuento por cantidad (usa precio_descuento_manual, ver nota arriba)
-            if prod.aplica_descuento and prod.precio_descuento_manual:
-                texto_desc = formatear_precio(prod.precio_descuento_manual)
+            # Código
+            p.drawString(
+                X_CODIGO,
+                y,
+                str(prod.codigo)
+            )
+
+            # Precio normal
+            texto_precio = formatear_precio(
+                prod.precio_venta
+            )
+
+            # Descuento
+            if (
+                prod.aplica_descuento
+                and prod.precio_descuento_manual
+            ):
+
+                texto_desc = formatear_precio(
+                    prod.precio_descuento_manual
+                )
+
                 if prod.cantidad_minima_descuento:
-                    texto_desc += f" ({prod.cantidad_minima_descuento}+)"
+
+                    texto_desc += (
+                        f" ({prod.cantidad_minima_descuento}+)"
+                    )
+
             else:
+
                 texto_desc = "-"
-            p.drawRightString(X_DESCUENTO, y, texto_desc)
 
-            # Precio por bulto
-            if prod.vende_por_bulto and prod.precio_por_bulto:
-                texto_bulto = formatear_precio(prod.precio_por_bulto)
+            # Bulto
+            if (
+                prod.vende_por_bulto
+                and prod.precio_por_bulto
+            ):
+
+                texto_bulto = formatear_precio(
+                    prod.precio_por_bulto
+                )
+
                 if prod.unidades_por_bulto:
-                    texto_bulto += f" (x{prod.unidades_por_bulto})"
-            else:
-                texto_bulto = "-"
-            p.drawRightString(X_BULTO, y, texto_bulto)
 
-            p.line(50, y - 2, width - 50, y - 2)
+                    texto_bulto += (
+                        f" (x{prod.unidades_por_bulto})"
+                    )
+
+            else:
+
+                texto_bulto = "-"
+
+            # ----------------------------------------------------------
+            # PRIMERA LÍNEA
+            # ----------------------------------------------------------
+
+            p.drawString(
+                X_NOMBRE,
+                y,
+                lineas_nombre[0]
+            )
+
+            p.drawRightString(
+                X_PRECIO,
+                y,
+                texto_precio
+            )
+
+            p.drawRightString(
+                X_DESCUENTO,
+                y,
+                texto_desc
+            )
+
+            p.drawRightString(
+                X_BULTO,
+                y,
+                texto_bulto
+            )
+
+            # ----------------------------------------------------------
+            # RESTO DEL NOMBRE
+            # ----------------------------------------------------------
+
+            for linea in lineas_nombre[1:]:
+
+                y -= alto_linea
+
+                p.drawString(
+                    X_NOMBRE,
+                    y,
+                    linea
+                )
+
+            # ----------------------------------------------------------
+            # Línea divisoria
+            # ----------------------------------------------------------
+
+            p.line(
+                50,
+                y - 3,
+                width - 50,
+                y - 3
+            )
+
+            # ----------------------------------------------------------
+            # Separación entre productos
+            # ----------------------------------------------------------
+
             y -= 18
+
+        # --------------------------------------------------------------
+        # Separación entre categorías
+        # --------------------------------------------------------------
 
         y -= 15
 
+    # ------------------------------------------------------------------
+    # Guardar
+    # ------------------------------------------------------------------
     p.showPage()
+
     p.save()
+
     return response
+
+
 @login_required
 @require_POST
 def nueva_categoria(request):
