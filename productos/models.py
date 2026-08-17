@@ -60,9 +60,8 @@ class Producto(models.Model):
         return f"{self.nombre} ({self.codigo})"
     
     def precio_con_descuento(self):
-        if self.aplica_descuento and self.porcentaje_descuento:
-            descuento = self.precio_venta * (self.porcentaje_descuento / 100)
-            return self.precio_venta - descuento
+        if self.aplica_descuento and self.cantidad_minima_descuento and self.precio_descuento_manual:
+            return self.precio_descuento_manual
         return None
     
     def precio_unitario_bulto(self):

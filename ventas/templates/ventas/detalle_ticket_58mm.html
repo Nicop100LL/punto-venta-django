@@ -98,7 +98,12 @@
     <hr class="my-1 border-dashed">
 
     <!-- Totales -->
-    <p class="text-[8px]"><strong>Productos:</strong> {{ total_productos|floatformat:2|formato_precio }}</p>
+    {% if total_unidades %}
+    <p><strong>Unidades:</strong> {{ total_unidades|floatformat:0 }}</p>
+    {% endif %}
+    {% if total_bultos %}
+    <p><strong>Bultos:</strong> {{ total_bultos|floatformat:0 }}</p>
+    {% endif %}
     <hr class="my-1 border-dashed">
     <p class="text-sm mt-1 font-bold"><strong>Total:</strong> ${{ venta.total|floatformat:2|formato_precio }}</p>
     

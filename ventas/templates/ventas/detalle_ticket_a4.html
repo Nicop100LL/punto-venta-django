@@ -96,10 +96,12 @@
     <!-- ===== TOTALES ===== -->
     <div class="totales-wrap">
         <div class="totales-box">
-            <div class="totales-row totales-row-sub">
-                <span>Total productos</span>
-                <span>{{ total_productos }}</span>
-            </div>
+            {% if total_bultos %}
+            <p class="text-[8px]"><strong>Bultos:</strong> {{ total_bultos|floatformat:0 }} bulto{{ total_bultos|pluralize }}</p>
+            {% endif %}
+            {% if total_unidades %}
+            <p class="text-[8px]"><strong>Unidades:</strong> {{ total_unidades|floatformat:0 }} unidad{{ total_unidades|pluralize:"es" }}</p>
+            {% endif %}
             <div class="totales-divider"></div>
             <div class="totales-row totales-total">
                 <span>Total</span>

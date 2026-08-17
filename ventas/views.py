@@ -161,13 +161,10 @@ def nueva_venta(request):
                     None
                 )
 
-                # Calculamos precio con descuento
                 def calcular_precio(cant):
-                    # 🔥 PRODUCTO VARIOS → precio manual, sin descuento
                     if producto.codigo == PRODUCTO_VARIOS_CODIGO and precio_manual:
                         return Decimal(precio_manual), 0, None
 
-                    # Venta por bulto: si alcanza la cantidad mínima del bulto
                     if (
                         producto.vende_por_bulto and
                         producto.unidades_por_bulto and
@@ -177,24 +174,17 @@ def nueva_venta(request):
                         precio_unitario_bulto = producto.precio_por_bulto / producto.unidades_por_bulto
                         return precio_unitario_bulto, 0, 'bulto'
 
-                    # Productos normales con descuento
                     if (
                         producto.aplica_descuento and
                         producto.cantidad_minima_descuento and
                         cant >= producto.cantidad_minima_descuento and
                         producto.precio_descuento_manual
                     ):
-                        return (
-                            producto.precio_descuento_manual,
-                            0,
-                            'descuento'
-                        )
+                        return producto.precio_descuento_manual, 0, 'descuento'
 
                     return producto.precio_venta, 0, None
 
-
                 if item and producto.codigo != PRODUCTO_VARIOS_CODIGO:
-
                     item['cantidad'] += float(cantidad)
                     precio, descuento, tipo_precio = calcular_precio(item['cantidad'])
                     item['precio_unitario'] = float(precio)
@@ -214,21 +204,17 @@ def nueva_venta(request):
                         'tipo_precio': tipo_precio,
                         'ahorro_unitario': float(producto.precio_venta - precio) if tipo_precio == 'descuento' else 0,
                     }
-
-                    # 🔹 Agregamos codigo_unico solo para VARIOS
                     if producto.codigo == PRODUCTO_VARIOS_CODIGO:
                         item_dict['codigo_unico'] = request.POST.get('codigo_unico_varios')
-                        item_dict['detalle'] = request.POST.get('detalle_varios', '') 
-
+                        item_dict['detalle'] = request.POST.get('detalle_varios', '')
                     carrito.append(item_dict)
-
 
                 request.session['carrito'] = carrito
                 request.session.modified = True
                 return redirect('nueva_venta')
 
             except Producto.DoesNotExist:
-                pass  # se maneja abajo en render
+                pass
 
         # =========================
         # ELIMINAR PRODUCTO
@@ -340,6 +326,8 @@ def nueva_venta(request):
                 for item in carrito:
                     producto = Producto.objects.get(id=item['producto_id'])
 
+                    es_bulto = item.get('tipo_precio') == 'bulto'
+
                     DetalleVenta.objects.create(
                         venta=venta,
                         producto=producto,
@@ -347,6 +335,8 @@ def nueva_venta(request):
                         precio_unitario=item['precio_unitario'],
                         precio_compra=producto.precio_compra, 
                         detalle=item.get('detalle', ''),
+                        es_bulto=es_bulto,
+                        unidades_por_bulto=producto.unidades_por_bulto if es_bulto else None,
                     )
 
                     # 🔥 NO descontar stock para VARIOS
@@ -532,13 +522,23 @@ def detalle_venta(request, venta_id):
         template = 'ventas/detalle_ticket.html'
 
         # ✅ Contar productos: al menos 1 por línea, más si la cantidad entera >1
-    total_productos = sum(max(1, int(item.cantidad)) for item in venta.detalles.all())
+    detalles = venta.detalles.all()
+
+    total_unidades = sum(
+        max(1, int(item.cantidad))
+        for item in detalles if not item.es_bulto
+    )
+    total_bultos = sum(
+        (item.cantidad_bultos() or 0)
+        for item in detalles if item.es_bulto
+    )
 
     return render(request, template, {
         'venta': venta,
         'neto': neto,
         'iva': iva,
-        'total_productos': total_productos,
+        'total_unidades': total_unidades,
+        'total_bultos': total_bultos,   
         'empresa': request.user.empresa,
         'alertas_stock': alertas_stock, 
     })

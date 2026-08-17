@@ -95,6 +95,15 @@ class DetalleVenta(models.Model):
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     detalle = models.CharField(max_length=255, blank=True, default='')
     precio_compra = models.DecimalField(max_digits=10, decimal_places=3, default=0)
+    
+    es_bulto = models.BooleanField(default=False)
+    unidades_por_bulto = models.PositiveIntegerField(null=True, blank=True)
+
+    def cantidad_bultos(self):
+        """Cantidad de bultos vendidos (si aplica)."""
+        if self.es_bulto and self.unidades_por_bulto:
+            return self.cantidad / self.unidades_por_bulto
+        return None
 
     def subtotal(self):
         return self.cantidad * self.precio_unitario

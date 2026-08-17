@@ -80,7 +80,13 @@
 
     <!-- Totales -->
     <p><strong>Subtotal:</strong> ${{ venta.subtotal|default:venta.total|floatformat:2|formato_precio }}</p>
-    <p><strong>Total de productos:</strong> {{ total_productos|floatformat:2|formato_precio }}</p>
+    
+    {% if total_bultos %}
+    <p class="text-[8px]"><strong>Bultos:</strong> {{ total_bultos|floatformat:0 }} bulto{{ total_bultos|pluralize }}</p>
+    {% endif %}
+    {% if total_unidades %}
+    <p class="text-[8px]"><strong>Unidades:</strong> {{ total_unidades|floatformat:0 }} unidad{{ total_unidades|pluralize:"es" }}</p>
+    {% endif %}
     <hr class="my-2 border-dashed">
     <p class="text-lg mt-1 font-bold"><strong>Total:</strong> ${{ venta.total|floatformat:2|formato_precio }}</strong>
     </p>
