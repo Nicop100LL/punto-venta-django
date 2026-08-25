@@ -22,7 +22,10 @@ def configurar_impresion(request):
     # Modelos de etiqueta (58mm / 80mm)
     modelos_etiqueta = ModeloEtiqueta.objects.filter(empresa=empresa, activo=True)
     
-    productos = Producto.objects.filter(empresa=empresa)
+    productos = Producto.objects.filter(
+        empresa=empresa,
+        activo=True
+    )
 
     return render(request, "impresion/configurar.html", {
         "modelos_hoja": modelos_hoja,
@@ -49,7 +52,8 @@ def imprimir_etiquetas(request):
 
     productos_qs = Producto.objects.filter(
         id__in=ids,
-        empresa=request.user.empresa
+        empresa=request.user.empresa,
+        activo=True
     )
 
     productos = sorted(productos_qs, key=lambda p: ids.index(p.id))
@@ -99,7 +103,8 @@ def imprimir_etiquetas_prueba(request):
     ids = [int(i) for i in productos_ids.split(",") if i.isdigit()]
     productos_qs = Producto.objects.filter(
         id__in=ids,
-        empresa=request.user.empresa
+        empresa=request.user.empresa,
+        activo=True
     )
     # Mantener el orden
     productos = sorted(productos_qs, key=lambda p: ids.index(p.id))
@@ -238,7 +243,8 @@ def imprimir_etiquetas_pdf(request):
                 producto = get_object_or_404(
                     Producto,
                     id=int(pid),
-                    empresa=request.user.empresa
+                    empresa=request.user.empresa,
+                    activo=True
                 )
                 for _ in range(int(qty)):
                     productos.append(producto)
@@ -246,7 +252,8 @@ def imprimir_etiquetas_pdf(request):
             producto = get_object_or_404(
                 Producto,
                 id=int(par),
-                empresa=request.user.empresa
+                empresa=request.user.empresa,
+                activo=True
             )
             productos.append(producto)
 
