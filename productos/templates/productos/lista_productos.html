@@ -53,7 +53,7 @@
       <div id="productos-categoria-{{ categoria.id }}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for p in productos %}
         {% if p.categoria == categoria %}
-        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition producto-card" data-categoria="{{ p.categoria.id }}">
+        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition producto-card" data-categoria="{{ p.categoria.id }}" data-producto-id="{{ p.id }}">
           <h3 class="text-lg font-semibold">{{ p.nombre }}</h3>
           <p class="text-sm text-gray-500">Código: {{ p.codigo }}</p>
           <p>
@@ -65,10 +65,18 @@
             {% endif %}
           </p>
           <p>Precio: ${{ p.precio_venta|formato_precio }}</p>
-          <div class="flex justify-between mt-2">
-            <a href="{% url 'editar_producto' p.id %}" class="text-blue-600 hover:underline">Editar</a>
-            <!-- <a href="{% url 'eliminar_producto' p.id %}" class="text-red-600 hover:underline">Eliminar</a> -->
-          </div>
+                    <div class="flex items-center justify-between mt-3">
+                      <a href="{% url 'editar_producto' p.id %}"
+                        class="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition">
+                        ✏️ Editar
+                      </a>
+                      <button type="button"
+                              class="btn-eliminar-producto inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-800 transition"
+                              data-producto-id="{{ p.id }}"
+                              data-producto-nombre="{{ p.nombre }}">
+                        🗑️ Eliminar
+                      </button>
+                    </div>
         </div>
         {% endif %}
         {% endfor %}
@@ -372,6 +380,23 @@
   </div>
 </div>
 
+<!-- Modal confirmación eliminar producto -->
+<div id="modal-confirmar-eliminar" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+  <div class="bg-white p-6 rounded w-full max-w-sm">
+    <h2 class="text-lg font-bold mb-2">¿Eliminar producto?</h2>
+    <p class="text-sm text-gray-600 mb-4">
+      Vas a eliminar "<span id="nombre-producto-eliminar" class="font-semibold"></span>".
+      No podés deshacer esta acción desde acá.
+    </p>
+    <div class="flex justify-end gap-2">
+      <button type="button" onclick="cerrarModalEliminar()" class="px-4 py-2 bg-gray-300 rounded">Cancelar</button>
+      <button type="button" id="btn-confirmar-eliminar" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded">
+        Sí, eliminar
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
@@ -479,14 +504,24 @@ document.addEventListener('DOMContentLoaded', function () {
         if (grid) {
           const card = document.createElement("div");
           card.className = "bg-white p-4 rounded shadow producto-card";
+                    card.dataset.productoId = data.producto.id;
+          card.dataset.categoria = data.producto.categoria_id;
           card.innerHTML = `
             <h3 class="text-lg font-semibold">${escapeHtml(data.producto.nombre)}</h3>
             <p class="text-sm text-gray-500">Código: ${escapeHtml(data.producto.codigo)}</p>
             <p>Stock: ${data.producto.tipo_venta === "unidad" ? Math.round(data.producto.stock_actual) : Number(data.producto.stock_actual).toFixed(2)}</p>
             <p>Precio: $${Number(data.producto.precio_venta)}</p>
-            <div class="flex justify-between mt-2">
-              <a href="/productos/editar/${data.producto.id}/" class="text-blue-600 hover:underline">Editar</a>
-              <a href="/productos/eliminar/${data.producto.id}/" class="text-red-600 hover:underline">Eliminar</a>
+            <div class="flex items-center justify-between mt-3">
+              <a href="/productos/editar/${data.producto.id}/"
+                 class="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition">
+                ✏️ Editar
+              </a>
+              <button type="button"
+                      class="btn-eliminar-producto inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-800 transition"
+                      data-producto-id="${data.producto.id}"
+                      data-producto-nombre="${escapeHtml(data.producto.nombre)}">
+                🗑️ Eliminar
+              </button>
             </div>
           `;
           grid.appendChild(card);
@@ -838,6 +873,75 @@ document.addEventListener('DOMContentLoaded', function () {
  
   actualizarOrden();
 })();
+</script>
+
+<!-- Modal confirmación de eliminación de producto -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  let productoAEliminarId = null;
+
+  const modalEliminar = document.getElementById('modal-confirmar-eliminar');
+  const nombreSpan     = document.getElementById('nombre-producto-eliminar');
+  const btnConfirmar   = document.getElementById('btn-confirmar-eliminar');
+  const URL_ELIMINAR_BASE = "{% url 'eliminar_producto' 0 %}"; // termina en /0/
+
+  // Delegación de eventos: funciona con las cards que ya están
+  // Y con las que se agregan después por AJAX, sin tener que re-enganchar nada.
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-eliminar-producto');
+    if (!btn) return;
+    productoAEliminarId = btn.dataset.productoId;
+    nombreSpan.textContent = btn.dataset.productoNombre;
+    modalEliminar.classList.remove('hidden');
+  });
+
+  window.cerrarModalEliminar = function () {
+    productoAEliminarId = null;
+    modalEliminar.classList.add('hidden');
+  };
+
+  btnConfirmar.addEventListener('click', function () {
+    if (!productoAEliminarId) return;
+    btnConfirmar.disabled = true;
+
+    const url = URL_ELIMINAR_BASE.replace('/0/', `/${productoAEliminarId}/`);
+
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+          const idEliminado = productoAEliminarId;
+
+          // Eliminar la card
+          const card = document.querySelector(
+              `.producto-card[data-producto-id="${idEliminado}"]`
+          );
+
+          if (card) {
+              card.remove();
+          }
+
+          // Cerrar modal inmediatamente
+          modalEliminar.classList.add('hidden');
+          productoAEliminarId = null;
+
+          // Mostrar mensaje
+          showToast('✅ Producto eliminado correctamente');
+
+      } else {
+          showToast('❌ No se pudo eliminar el producto', 'error');
+      }
+    })
+    .catch(() => showToast('❌ Error al eliminar el producto', 'error'))
+    .finally(() => btnConfirmar.disabled = false);
+  });
+});
 </script>
 
 

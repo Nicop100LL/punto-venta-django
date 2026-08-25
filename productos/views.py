@@ -31,7 +31,7 @@ def parse_decimal(value):
 
 @login_required
 def lista_productos(request):
-    productos = Producto.objects.filter(empresa=request.user.empresa)
+    productos = Producto.objects.filter(empresa=request.user.empresa, activo=True)
     categorias = Categoria.objects.filter(empresa=request.user.empresa)
     
     # Nueva — para el modal del PDF
@@ -329,9 +329,15 @@ def editar_producto(request, id):
 
 
 @login_required
+@require_POST
 def eliminar_producto(request, id):
     producto = get_object_or_404(Producto, id=id, empresa=request.user.empresa)
-    producto.delete()
+    producto.activo = False
+    producto.save(update_fields=['activo'])
+
+    if request.headers.get('X-Requested-With', '').lower() == 'xmlhttprequest':
+        return JsonResponse({'success': True})
+
     messages.success(request, 'Producto eliminado correctamente.')
     return redirect('lista_productos')
 
@@ -350,7 +356,10 @@ def seleccionar_categorias_pdf(request):
 
     categorias = (
         Producto.objects
-        .filter(empresa=request.user.empresa)
+        .filter(
+            empresa=request.user.empresa,
+            activo=True
+        )
         .values_list('categoria__nombre', flat=True)
         .distinct()
         .order_by('categoria__nombre')
@@ -431,7 +440,8 @@ def exportar_productos_pdf(request):
     # Productos
     # ------------------------------------------------------------------
     productos_qs = Producto.objects.filter(
-        empresa=request.user.empresa
+        empresa=request.user.empresa,
+        activo=True
     ).select_related('categoria')
 
     productos_por_categoria = defaultdict(list)
@@ -994,7 +1004,11 @@ def buscar_producto_por_codigo(request):
     codigo = request.GET.get('codigo')
     empresa = request.user.empresa
     try:
-        producto = Producto.objects.get(codigo=codigo, empresa=empresa)
+        producto = Producto.objects.get(
+                codigo=codigo,
+                empresa=empresa,
+                activo=True
+            )
         return JsonResponse({
             'success': True,
             'nombre': producto.nombre,
@@ -1103,7 +1117,10 @@ def actualizar_producto_inline(request):
 @login_required
 def lista_productos_edicion_masiva(request):
     from .models import Categoria
-    productos = Producto.objects.filter(empresa=request.user.empresa)
+    productos = Producto.objects.filter(
+        empresa=request.user.empresa,
+        activo=True
+    )
     categorias = Categoria.objects.filter(empresa=request.user.empresa)
     return render(request, 'productos/lista_productos_edicion_masiva.html', {
         'productos': productos,
@@ -1125,7 +1142,7 @@ def actualizar_precios_masivo(request):
         redondear_centenas = request.POST.get('redondear_centenas') == '1'
         margen_str = request.POST.get('margen_ganancia', '').strip()
  
-        productos = Producto.objects.filter(id__in=ids, empresa=request.user.empresa)
+        productos = Producto.objects.filter(id__in=ids, empresa=request.user.empresa, activo=True)
         factor = 1 + porcentaje / 100
  
         def aplicar_redondeo(valor):

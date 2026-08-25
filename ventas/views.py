@@ -153,7 +153,8 @@ def nueva_venta(request):
             try:
                 producto = Producto.objects.get(
                     codigo=codigo,
-                    empresa=request.user.empresa
+                    empresa=request.user.empresa,
+                    activo=True
                 )
 
                 item = next(
@@ -214,7 +215,10 @@ def nueva_venta(request):
                 return redirect('nueva_venta')
 
             except Producto.DoesNotExist:
-                pass
+                messages.error(
+                    request,
+                    f'Producto no encontrado o inactivo. Código: {codigo}'
+                )
 
         # =========================
         # ELIMINAR PRODUCTO
@@ -801,7 +805,7 @@ def buscar_producto_por_nombre(request):
 
     productos = (
         Producto.objects
-        .filter(nombre__icontains=q, empresa=empresa)  # 🔹 agregamos empresa
+        .filter(nombre__icontains=q, empresa=empresa, activo=True)  # 🔹 agregamos empresa
         .order_by('nombre')[:10]  # limitar a 10 resultados
     )
 
