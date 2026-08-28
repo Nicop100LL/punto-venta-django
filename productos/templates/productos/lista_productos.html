@@ -314,7 +314,7 @@
 
       <!-- BULTO -->
       <div class="flex items-center gap-2 mt-4">
-        <input type="checkbox" id="vende_por_bulto" name="vende_por_bulto" value="True"
+        <input type="checkbox" id="vende_por_bulto" name="vende_por_bulto" value="True" 
           class="rounded border-gray-300 text-blue-600 shadow-sm">
         <label for="vende_por_bulto" class="text-sm font-medium text-gray-700">Vende por bulto</label>
       </div>
@@ -503,14 +503,20 @@ document.addEventListener('DOMContentLoaded', function () {
       body: formData
     })
     .then(res => res.json())
-    .then(data => {
-      console.log("DEBUG: respuesta nuevo_producto:", data);
+        .then(data => {
+          console.log("DEBUG: respuesta nuevo_producto:", data);
 
-      if (data.success) {
-        closeModal();
-        showToast("✅ Producto agregado correctamente");
-        form.reset();
-        alerta.classList.add('hidden');
+          if (data.success) {
+            closeModal();
+
+            if (data.reactivado) {
+              showToast(`⚠️ El código pertenecía a un producto eliminado. Se reutilizó ese registro — los reportes históricos de ese código corresponden al producto anterior.`, "error");
+            } else {
+              showToast("✅ Producto agregado correctamente");
+            }
+
+            form.reset();
+            alerta.classList.add('hidden');
 
         // Insertar producto en su categoría por ID
         const grid = document.getElementById(`productos-categoria-${data.producto.categoria_id}`);

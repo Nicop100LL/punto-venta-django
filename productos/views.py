@@ -89,34 +89,40 @@ def nuevo_producto(request):
         dias_aviso_str = request.POST.get('dias_aviso_vencimiento')
         dias_aviso_vencimiento = int(dias_aviso_str) if dias_aviso_str else 7
 
-        if Producto.objects.filter(codigo=codigo, empresa=request.user.empresa).exists():
+        if Producto.objects.filter(codigo=codigo, empresa=request.user.empresa, activo=True).exists():
             return JsonResponse({'success': False, 'message': 'El código de producto ya existe para esta empresa.'})
+
+        producto_inactivo = Producto.objects.filter(codigo=codigo, empresa=request.user.empresa, activo=False).first()
 
         categoria = get_object_or_404(Categoria, id=categoria_id, empresa=request.user.empresa)
 
-        producto = Producto.objects.create(
-            nombre=nombre,
-            codigo=codigo,
-            categoria=categoria,
-            precio_venta=precio_venta,
-            precio_compra=precio_compra,
-            stock_actual=stock_actual,
-            empresa=request.user.empresa,
-            tipo_venta=tipo_venta,
-            aplica_descuento=aplica_descuento,
-            cantidad_minima_descuento=int(cantidad_minima_descuento) if cantidad_minima_descuento else 0,
-            precio_descuento_manual=precio_descuento_manual,
-            vende_por_bulto=vende_por_bulto,
-            unidades_por_bulto=int(unidades_por_bulto) if unidades_por_bulto else None,
-            precio_por_bulto=precio_por_bulto,
-            alerta_stock_bajo=alerta_stock_bajo,
-            stock_minimo_alerta=stock_minimo_alerta,
-            fecha_vencimiento=fecha_vencimiento,
-            dias_aviso_vencimiento=dias_aviso_vencimiento,
-        )
+        if producto_inactivo:
+            producto = producto_inactivo
+            producto.activo = True
+        else:
+            producto = Producto(empresa=request.user.empresa, codigo=codigo)
+
+        producto.nombre = nombre
+        producto.categoria = categoria
+        producto.precio_venta = precio_venta
+        producto.precio_compra = precio_compra
+        producto.stock_actual = stock_actual
+        producto.tipo_venta = tipo_venta
+        producto.aplica_descuento = aplica_descuento
+        producto.cantidad_minima_descuento = int(cantidad_minima_descuento) if cantidad_minima_descuento else 0
+        producto.precio_descuento_manual = precio_descuento_manual
+        producto.vende_por_bulto = vende_por_bulto
+        producto.unidades_por_bulto = int(unidades_por_bulto) if unidades_por_bulto else None
+        producto.precio_por_bulto = precio_por_bulto
+        producto.alerta_stock_bajo = alerta_stock_bajo
+        producto.stock_minimo_alerta = stock_minimo_alerta
+        producto.fecha_vencimiento = fecha_vencimiento
+        producto.dias_aviso_vencimiento = dias_aviso_vencimiento
+        producto.save()
 
         return JsonResponse({
             'success': True,
+            'reactivado': producto_inactivo is not None,  # el frontend usa esto para el aviso
             'producto': {
                 'id': producto.id,
                 'nombre': producto.nombre,
@@ -129,8 +135,8 @@ def nuevo_producto(request):
                 'alerta_stock_bajo': producto.alerta_stock_bajo,
                 'stock_minimo_alerta': producto.stock_minimo_alerta,
                 'fecha_vencimiento': producto.fecha_vencimiento.isoformat() if producto.fecha_vencimiento else None,
-                'vende_por_bulto': producto.vende_por_bulto,                                   
-                'unidades_por_bulto': producto.unidades_por_bulto,                            
+                'vende_por_bulto': producto.vende_por_bulto,
+                'unidades_por_bulto': producto.unidades_por_bulto,
                 'precio_por_bulto': float(producto.precio_por_bulto) if producto.precio_por_bulto else None,
             }
         })
@@ -190,17 +196,30 @@ def editar_producto(request, id):
         # --- VALIDACIÓN DE CÓDIGO DUPLICADO ---
         codigo_post = request.POST.get('codigo', '').strip()
 
-        if Producto.objects.filter(
+        conflicto = Producto.objects.filter(
             empresa=request.user.empresa,
             codigo=codigo_post
-        ).exclude(id=producto.id).exists():
+        ).exclude(id=producto.id).first()
 
+        if conflicto and conflicto.activo:
             messages.error(request, "Ya existe un producto con ese código.")
             categorias = Categoria.objects.filter(empresa=request.user.empresa)
             return render(request, 'productos/editar_producto.html', {
                 'producto': producto,
                 'categorias': categorias,
             })
+
+        if conflicto and not conflicto.activo:
+            # Libera el código del producto inactivo para no romper unique_together
+            conflicto.codigo = f"{conflicto.codigo}-ELIMINADO-{conflicto.id}"
+            conflicto.save(update_fields=['codigo'])
+            messages.warning(
+                request,
+                f'El código "{codigo_post}" pertenecía a un producto eliminado '
+                f'("{conflicto.nombre}"). Se liberó para asignarlo a este producto — '
+                f'tené en cuenta que los reportes históricos de ese código '
+                f'corresponden al producto anterior.'
+            )
 
         # ✅ ASIGNAMOS EL CÓDIGO SOLO SI PASÓ LA VALIDACIÓN
         producto.codigo = codigo_post
