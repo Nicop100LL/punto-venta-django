@@ -126,6 +126,26 @@
         </aside>
         <!-- Contenido principal -->
         <div class="flex-1 min-h-screen flex flex-col ml-0 md:ml-64">
+
+         <!-- 👇 Mensaje de aviso -->
+        <!-- 👇 AVISO DE PAGO - bloque nuevo -->
+            {% if empresa and empresa.mostrar_aviso %}
+                {% if empresa.tipo_aviso == "rojo" %}
+                    {% with grad_from="from-red-500" grad_to="to-rose-600" icono="🔴" %}
+                    {% include "_banner_aviso.html" %}
+                    {% endwith %}
+                {% elif empresa.tipo_aviso == "naranja" %}
+                    {% with grad_from="from-amber-400" grad_to="to-orange-500" icono="🟠" %}
+                    {% include "_banner_aviso.html" %}
+                    {% endwith %}
+                {% else %}
+                    {% with grad_from="from-blue-400" grad_to="to-sky-500" icono="🔵" %}
+                    {% include "_banner_aviso.html" %}
+                    {% endwith %}
+                {% endif %}
+            {% endif %}
+            <!-- 👆 FIN AVISO DE PAGO -->
+            
             <!-- Encabezado -->
             <header class="bg-white shadow p-2 flex justify-between items-center">
                 <!-- Lado izquierdo -->

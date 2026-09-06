@@ -15,11 +15,15 @@ class ReglaArcaPagoInline(admin.TabularInline):
 
 @admin.register(Empresa)
 class EmpresaAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "cuit", "usa_arca", "arca_modo", "arca_punto_venta")
-    list_editable = ("usa_arca",)
+    list_display = ("nombre", "cuit", "usa_arca", "arca_modo", "arca_punto_venta", "mostrar_aviso", "tipo_aviso")
+    list_editable = ("usa_arca", "mostrar_aviso", "tipo_aviso")
     fieldsets = (
         ("Datos generales", {
             "fields": ("nombre", "cuit", "direccion", "condicion_iva", "logo", "formato_ticket", "activo")
+        }),
+        ("Aviso para usuarios", {
+            "fields": ("mostrar_aviso", "tipo_aviso", "mensaje_aviso"),
+            "description": "Mensaje que se muestra arriba de todo el sistema a todos los usuarios (ej: recordatorio de pago)."
         }),
         ("Configuración ARCA", {
             "fields": (
