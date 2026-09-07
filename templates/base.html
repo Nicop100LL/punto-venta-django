@@ -258,7 +258,7 @@
                 
                 <!-- ⚠️ Alertas de stock bajo -->
                 {% if alertas_stock %}
-                <div id="toast-stock-container" class="fixed top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+                <div id="toast-stock-container" class="fixed top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none no-print">
                 </div>
                 <script>
                     const alertasStock = {{ alertas_stock|safe }};
