@@ -202,16 +202,32 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-2">
                                         Precio de Venta <span class="text-red-500">*</span>
                                     </label>
-                                    <input
-                                        type="text"
-                                        name="precio_venta"
-                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                        x-model="precioVentaTexto"
-                                        required
-                                    >
+
+                                    {% if producto.venta_por_caja %}
+                                        <input
+                                            type="text"
+                                            name="precio_venta"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-200 text-gray-500 cursor-not-allowed"
+                                            x-model="precioVentaTexto"
+                                            readonly
+                                            required
+                                        >
+
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            El precio por caja se calcula automáticamente según los m² por caja y el precio por m².
+                                        </p>
+                                    {% else %}
+                                        <input
+                                            type="text"
+                                            name="precio_venta"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                            x-model="precioVentaTexto"
+                                            required
+                                        >
+                                    {% endif %}
                                 </div>
                             </div>
-
+                            {% if not usa_venta_por_caja %}
                             <!-- CALCULADORA DE GANANCIA -->
                             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                 <label class="flex items-center gap-3 cursor-pointer">
@@ -268,8 +284,84 @@
                                     </label>
                                 </div>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
+
+                    {% if usa_venta_por_caja %}
+                    <!-- SECCIÓN 6: VENTA POR CAJA / M² -->
+                    <div class="pb-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                            Venta por Caja / m²
+                        </h2>
+
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    id="venta_por_caja"
+                                    name="venta_por_caja"
+                                    class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-2 focus:ring-green-500"
+                                    {% if producto.venta_por_caja %}checked{% endif %}
+                                >
+
+                                <span class="text-sm font-medium text-gray-700">
+                                    📦 Vende por caja
+                                </span>
+                            </label>
+
+                            <div
+                                id="campos-caja"
+                                class="{% if not producto.venta_por_caja %}hidden{% endif %} mt-4 space-y-4"
+                            >
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                                    <div>
+                                        <label
+                                            for="metros_cuadrados_por_caja"
+                                            class="block text-sm font-medium text-gray-700 mb-2"
+                                        >
+                                            Metros cuadrados por caja
+                                        </label>
+
+                                        <input
+                                            type="text"
+                                            id="metros_cuadrados_por_caja"
+                                            name="metros_cuadrados_por_caja"
+                                            value="{{ producto.metros_cuadrados_por_caja|default_if_none:'' }}"
+                                            inputmode="decimal"
+                                            placeholder="Ej: 2,16"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+                                        >
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            for="precio_por_m2"
+                                            class="block text-sm font-medium text-gray-700 mb-2"
+                                        >
+                                            Precio por m²
+                                        </label>
+
+                                        <input
+                                            type="text"
+                                            id="precio_por_m2"
+                                            name="precio_por_m2"
+                                            value="{{ producto.precio_por_m2|default_if_none:'' }}"
+                                            inputmode="decimal"
+                                            placeholder="Ej: 15000"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+                                        >
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <!-- SECCIÓN 3: STOCK -->
                     <div class="border-b border-gray-200 pb-6">
@@ -319,6 +411,7 @@
                     </div>
 
                     <!-- SECCIÓN 3.5: VENCIMIENTO -->
+                    {% if not producto.venta_por_caja %}
                     <div class="border-b border-gray-200 pb-6">
                         <h2 class="text-lg font-semibold text-gray-900 mb-4">Vencimiento</h2>
 
@@ -350,8 +443,10 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
 
                     <!-- SECCIÓN 4: DESCUENTOS -->
+                    {% if not producto.venta_por_caja %}
                     <div class="pb-6">
                         <h2 class="text-lg font-semibold text-gray-900 mb-4">Descuentos</h2>
                         
@@ -400,9 +495,10 @@
                             </div>  
                         </div>
                     </div>
+                    {% endif %}
 
                     <!-- SECCIÓN 5: BULTO -->
-                    <div class="pb-6">
+                    <div id="seccion-bulto" class="pb-6">
                         <h2 class="text-lg font-semibold text-gray-900 mb-4">Venta por Bulto</h2>
 
                         <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
@@ -473,20 +569,68 @@
     const checkbox = document.getElementById('aplica_descuento');
     const camposDescuento = document.getElementById('campos-descuento');
 
-    checkbox.addEventListener('change', function () {
-        camposDescuento.classList.toggle('hidden', !this.checked);
-    });
+    if (checkbox && camposDescuento) {
+        checkbox.addEventListener('change', function () {
+            camposDescuento.classList.toggle('hidden', !this.checked);
+        });
+    }
+
 
     const checkAlerta = document.getElementById('alerta_stock_bajo');
     const camposAlerta = document.getElementById('campos-alerta-stock');
 
+    if (checkAlerta && camposAlerta) {
+        checkAlerta.addEventListener('change', function () {
+            camposAlerta.classList.toggle('hidden', !this.checked);
+        });
+    }
+
+
     const checkBulto = document.getElementById('vende_por_bulto');
     const camposBulto = document.getElementById('campos-bulto');
 
-    checkBulto.addEventListener('change', function () {
-        camposBulto.classList.toggle('hidden', !this.checked);
-    });
-    
+    if (checkBulto && camposBulto) {
+        checkBulto.addEventListener('change', function () {
+            camposBulto.classList.toggle('hidden', !this.checked);
+        });
+    }
+
+
+    const checkVentaPorCaja = document.getElementById('venta_por_caja');
+    const camposCaja = document.getElementById('campos-caja');
+    const seccionBulto = document.getElementById('seccion-bulto');
+
+    if (checkVentaPorCaja && camposCaja) {
+
+        function toggleVentaPorCaja() {
+            const vendePorCaja = checkVentaPorCaja.checked;
+
+            // Mostrar/ocultar campos de caja
+            camposCaja.classList.toggle('hidden', !vendePorCaja);
+
+            // Si vende por caja, ocultar y desactivar bulto
+            if (seccionBulto && checkBulto) {
+
+                seccionBulto.classList.toggle('hidden', vendePorCaja);
+
+                if (vendePorCaja) {
+                    checkBulto.checked = false;
+
+                    if (camposBulto) {
+                        camposBulto.classList.add('hidden');
+                    }
+                }
+            }
+        }
+
+        checkVentaPorCaja.addEventListener(
+            'change',
+            toggleVentaPorCaja
+        );
+
+        // Estado inicial al cargar la página
+        toggleVentaPorCaja();
+    }
     checkAlerta.addEventListener('change', function () {
         camposAlerta.classList.toggle('hidden', !this.checked);
     });

@@ -42,6 +42,26 @@ class Producto(models.Model):
     precio_descuento_manual = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     activo = models.BooleanField(default=True)
     
+    # ===== VENTA POR CAJA / M² (opcional) =====
+    venta_por_caja = models.BooleanField(
+        default=False,
+        verbose_name="Venta por caja"
+    )
+    metros_cuadrados_por_caja = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        verbose_name="Metros cuadrados por caja"
+    )
+    precio_por_m2 = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Precio por m²"
+    )
+    
     class Meta:
         unique_together = ('codigo', 'empresa')
         
@@ -51,7 +71,15 @@ class Producto(models.Model):
             self.stock_actual = 0 # Forzamos a cero
 
         if self.vende_por_bulto and (not self.unidades_por_bulto or not self.precio_por_bulto):
-            raise ValidationError("Si vende por bulto, indicá las unidades y el precio del bulto.")    
+            raise ValidationError("Si vende por bulto, indicá las unidades y el precio del bulto.")  
+        
+        if self.venta_por_caja and (
+            not self.metros_cuadrados_por_caja or
+            not self.precio_por_m2
+        ):
+            raise ValidationError(
+                "Si vende por caja, indicá los m² por caja y el precio por m²."
+            )  
 
     def save(self, *args, **kwargs):
         self.full_clean()  # Llama a clean antes de guardar

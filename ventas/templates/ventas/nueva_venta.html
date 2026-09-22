@@ -265,19 +265,45 @@
                     <br><small class="text-gray-500 italic">{{ item.detalle }}</small>
                 {% endif %}
             </td>
-            <td class="p-2 w-1/5">{{ item.cantidad }}</td>
-            <td class="p-2 w-1/5">{{ item.precio_unitario|formato_precio }}</td>
+            <td class="p-2 w-1/5">
+                            {% if item.venta_por_caja %}
+                                <strong>{{ item.cantidad }} caja{{ item.cantidad|pluralize }}</strong>
+                                <br>
+                                <small class="text-blue-600 font-semibold">
+                                    {{ item.metros_totales|floatformat:3 }} m²
+                                </small>
+                            {% else %}
+                                {{ item.cantidad }}
+                            {% endif %}
+                        </td>
+                        <td class="p-2 w-1/5">
+                {{ item.precio_unitario|formato_precio }}
+
+                {% if item.venta_por_caja %}
+                    <br>
+                    <small class="text-gray-500">
+                        ${{ item.precio_m2|floatformat:2|formato_precio }} / m²
+                    </small>
+                {% endif %}
+            </td>
             <td class="p-2 w-1/5">{{ item.subtotal|formato_precio }}
-                {% if item.tipo_precio == 'bulto' %}
-                <br>
-                <small class="text-green-600 font-semibold">
-                    📦 Precio por bulto aplicado
-                </small>
+                {% if item.tipo_precio == 'caja' %}
+                    <br>
+                    <small class="text-green-600 font-semibold">
+                        📦 {{ item.metros_por_caja|floatformat:3 }} m² por caja
+                    </small>
+
+                {% elif item.tipo_precio == 'bulto' %}
+                    <br>
+                    <small class="text-green-600 font-semibold">
+                        📦 Precio por bulto aplicado
+                    </small>
+
                 {% elif item.tipo_precio == 'descuento' %}
-                <br>
-                <small class="text-blue-600">
-                    💲 Ahorro: ${{ item.ahorro_unitario|floatformat:0|formato_precio }} por unidad
-                </small>
+                    <br>
+                    <small class="text-blue-600">
+                        💲 Ahorro: ${{ item.ahorro_unitario|floatformat:0|formato_precio }} por unidad
+                    </small>
                 {% endif %}
             </td>
             <td class="p-2 w-1/6">
@@ -488,6 +514,328 @@ document.addEventListener('submit', () => {
 <!-- Audio para beep -->
 <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
+<!-- =========================================================
+     MODAL CALCULADOR DE M² / CAJAS
+========================================================= -->
+<div
+    id="calculador-caja"
+    class="fixed inset-0 hidden items-center justify-center
+           bg-black bg-opacity-50 z-[100]"
+>
+    <div
+        class="bg-white rounded-2xl shadow-2xl
+               w-full max-w-lg mx-4 p-5
+               max-h-[90vh] overflow-y-auto"
+    >
+
+        <!-- Encabezado -->
+        <div class="flex items-center justify-between mb-4">
+
+            <div>
+                <h2 class="text-xl font-bold text-gray-800">
+                    📐 Venta por caja
+                </h2>
+
+                <p class="text-sm text-gray-500">
+                    Calculá las cajas necesarias según los m² solicitados.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                id="btn-cerrar-calculador-caja"
+                class="text-gray-400 hover:text-red-600
+                       text-2xl leading-none"
+                title="Cerrar"
+            >
+                ✕
+            </button>
+
+        </div>
+
+
+        <!-- Producto -->
+        <div class="bg-blue-50 border border-blue-200
+                    rounded-xl p-4 mb-4">
+
+            <div class="text-xs text-gray-500 uppercase font-semibold">
+                Producto
+            </div>
+
+            <div
+                id="calculador-producto-nombre"
+                class="text-lg font-bold text-blue-800 mt-1"
+            >
+                -
+            </div>
+
+        </div>
+
+
+        <!-- Información del producto -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+
+            <div class="border rounded-xl p-3 bg-gray-50">
+                <div class="text-xs text-gray-500">
+                    m² por caja
+                </div>
+
+                <div
+                    id="calculador-m2-caja"
+                    class="text-lg font-bold text-blue-700"
+                >
+                    -
+                </div>
+            </div>
+
+
+            <div class="border rounded-xl p-3 bg-gray-50">
+                <div class="text-xs text-gray-500">
+                    Precio por m²
+                </div>
+
+                <div
+                    id="calculador-precio-m2"
+                    class="text-lg font-bold text-gray-700"
+                >
+                    -
+                </div>
+            </div>
+
+
+            <div class="border rounded-xl p-3 bg-gray-50">
+                <div class="text-xs text-gray-500">
+                    Precio por caja
+                </div>
+
+                <div
+                    id="calculador-precio-caja"
+                    class="text-lg font-bold text-green-700"
+                >
+                    -
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- Ingreso de m² -->
+        <div class="border border-blue-200
+                    rounded-xl p-4 mb-4">
+
+            <label
+                for="calculador-m2-necesarios"
+                class="block text-sm font-bold text-gray-700 mb-2"
+            >
+                ¿Cuántos m² necesita el cliente?
+            </label>
+
+            <input
+                type="number"
+                id="calculador-m2-necesarios"
+                min="0.001"
+                step="0.001"
+                placeholder="Ej: 25"
+                autocomplete="off"
+                class="w-full border border-gray-300
+                       rounded-xl px-4 py-3
+                       text-2xl font-bold text-right
+                       focus:outline-none
+                       focus:ring-2 focus:ring-blue-500"
+            >
+
+        </div>
+
+
+        <!-- Resultado -->
+        <div
+            id="calculador-resultado"
+            class="hidden grid grid-cols-2 gap-3 mb-4"
+        >
+
+            <div class="bg-blue-50 border border-blue-200
+                        rounded-xl p-3">
+
+                <div class="text-xs text-gray-500">
+                    Cajas necesarias
+                </div>
+
+                <div
+                    id="calculador-cajas"
+                    class="text-2xl font-extrabold text-blue-700"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="bg-green-50 border border-green-200
+                        rounded-xl p-3">
+
+                <div class="text-xs text-gray-500">
+                    m² que llevará
+                </div>
+
+                <div
+                    id="calculador-m2-real"
+                    class="text-2xl font-extrabold text-green-700"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="bg-orange-50 border border-orange-200
+                        rounded-xl p-3">
+
+                <div class="text-xs text-gray-500">
+                    Sobrante
+                </div>
+
+                <div
+                    id="calculador-sobrante"
+                    class="text-xl font-bold text-orange-600"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="bg-green-50 border border-green-200
+                        rounded-xl p-3">
+
+                <div class="text-xs text-gray-500">
+                    Total
+                </div>
+
+                <div
+                    id="calculador-total"
+                    class="text-2xl font-extrabold text-green-700"
+                >
+                    $0
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- =========================================================
+            VENTA DIRECTA POR CANTIDAD DE CAJAS
+        ========================================================= -->
+        <div class="border border-green-200 rounded-xl p-4 mb-4 bg-green-50">
+
+            <div class="flex items-center gap-2 mb-3">
+                <span class="text-xl">📦</span>
+
+                <div>
+                    <div class="text-sm font-bold text-gray-800">
+                        ¿Ya sabe cuántas cajas quiere?
+                    </div>
+
+                    <div class="text-xs text-gray-500">
+                        Ingrese directamente la cantidad de cajas.
+                    </div>
+                </div>
+            </div>
+
+            <label
+                for="calculador-cajas-directas"
+                class="block text-sm font-bold text-gray-700 mb-2"
+            >
+                Cantidad de cajas
+            </label>
+
+            <input
+                type="number"
+                id="calculador-cajas-directas"
+                min="1"
+                step="1"
+                value="1"
+                inputmode="numeric"
+                autocomplete="off"
+                class="w-full border border-gray-300 rounded-xl px-4 py-3
+                    text-2xl font-bold text-right
+                    focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+
+            <div
+                id="calculador-directo-resultado"
+                class="mt-3 bg-white border border-green-200 rounded-xl p-3"
+            >
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">
+                        m² que llevará:
+                    </span>
+
+                    <strong
+                        id="calculador-directo-m2"
+                        class="text-green-700"
+                    >
+                        0
+                    </strong>
+                </div>
+
+                <div class="flex justify-between text-sm mt-1">
+                    <span class="text-gray-500">
+                        Total:
+                    </span>
+
+                    <strong
+                        id="calculador-directo-total"
+                        class="text-lg text-green-700"
+                    >
+                        $0
+                    </strong>
+                </div>
+            </div>
+
+            <button
+                type="button"
+                id="btn-agregar-cajas-directas"
+                class="w-full mt-3 bg-green-600 text-white
+                    px-5 py-3 rounded-lg font-semibold
+                    hover:bg-green-700"
+            >
+                📦 Agregar cajas al carrito
+            </button>
+
+        </div>
+
+        <!-- Botones -->
+        <div class="flex flex-col-reverse sm:flex-row
+                    justify-end gap-2">
+
+            <button
+                type="button"
+                id="btn-cerrar-calculador-caja-2"
+                class="bg-gray-200 text-gray-700
+                       px-5 py-3 rounded-lg
+                       hover:bg-gray-300"
+            >
+                Cancelar
+            </button>
+
+            <button
+                type="button"
+                id="btn-agregar-cajas-calculador"
+                disabled
+                class="bg-blue-600 text-white
+                       px-5 py-3 rounded-lg font-semibold
+                       hover:bg-blue-700
+                       disabled:bg-gray-400
+                       disabled:cursor-not-allowed"
+            >
+                📦 Agregar al carrito
+            </button>
+
+        </div>
+
+    </div>
+</div>
+
 <!-- Modal para ingreso de kilos -->
 <div id="modalKilos" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 hidden">
     <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
@@ -528,15 +876,56 @@ document.addEventListener('submit', () => {
         
         
         <div id="detalle-producto" class="mb-4 hidden">
+
+            <!-- Datos generales -->
             <p class="text-gray-800 text-base mb-1">
                 <span class="font-semibold text-gray-600">Producto:</span>
                 <span id="producto-nombre" class="font-bold text-blue-700"></span>
             </p>
-            <p class="text-gray-800 text-base mb-1">
-                <span class="font-semibold text-gray-600">Precio:</span>
-                <span id="producto-precio" class="text-2xl font-extrabold text-green-600"></span>
-            </p>
-            <p id="producto-descuento" class="text-green-500 font-medium mt-2"></p>
+
+            <!-- Producto normal -->
+            <div id="detalle-producto-normal">
+
+                <p class="text-gray-800 text-base mb-1">
+                    <span class="font-semibold text-gray-600">Precio:</span>
+                    <span id="producto-precio"
+                        class="text-2xl font-extrabold text-green-600"></span>
+                </p>
+
+                <p id="producto-descuento"
+                class="text-green-500 font-medium mt-2"></p>
+
+            </div>
+
+            <!-- Producto vendido por caja -->
+            <div id="detalle-producto-caja" class="hidden">
+
+                <p class="text-gray-800 text-base mb-1">
+                    <span class="font-semibold text-gray-600">
+                        Precio por caja:
+                    </span>
+                    <span id="producto-precio-caja"
+                        class="text-2xl font-extrabold text-green-600"></span>
+                </p>
+
+                <p class="text-gray-800 text-base mb-1">
+                    <span class="font-semibold text-gray-600">
+                        m² por caja:
+                    </span>
+                    <span id="producto-m2-caja"
+                        class="font-bold text-blue-700"></span>
+                </p>
+
+                <p class="text-gray-800 text-base mb-1">
+                    <span class="font-semibold text-gray-600">
+                        Precio por m²:
+                    </span>
+                    <span id="producto-precio-m2"
+                        class="font-bold text-gray-700"></span>
+                </p>
+
+            </div>
+
         </div>
 
         <div class="flex justify-end space-x-2 mt-4">
@@ -710,9 +1099,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalScan = document.getElementById('modal-scan');
     const inputScan = document.getElementById('input-scan');
     const detalleProducto = document.getElementById('detalle-producto');
+
     const productoNombre = document.getElementById('producto-nombre');
+
+    // Producto normal
+    const detalleProductoNormal = document.getElementById('detalle-producto-normal');
     const productoPrecio = document.getElementById('producto-precio');
     const productoDescuento = document.getElementById('producto-descuento');
+
+    // Producto por caja
+    const detalleProductoCaja = document.getElementById('detalle-producto-caja');
+    const productoPrecioCaja = document.getElementById('producto-precio-caja');
+    const productoM2Caja = document.getElementById('producto-m2-caja');
+    const productoPrecioM2 = document.getElementById('producto-precio-m2');
+
     const btnAgregar = document.getElementById('btn-agregar');
     const btnCancelar = document.getElementById('btn-cancelar');
 
@@ -723,6 +1123,420 @@ document.addEventListener('DOMContentLoaded', function () {
     const saldoDiv = document.getElementById('saldo-cliente');
 
     let productoActual = null;
+
+    // =========================================================
+    // CALCULADOR DE M² / CAJAS
+    // =========================================================
+
+    const calculadorCaja = document.getElementById('calculador-caja');
+    const calculadorProductoNombre =
+        document.getElementById('calculador-producto-nombre');
+
+    const calculadorM2Caja =
+        document.getElementById('calculador-m2-caja');
+
+    const calculadorPrecioM2 =
+        document.getElementById('calculador-precio-m2');
+
+    const calculadorPrecioCaja =
+        document.getElementById('calculador-precio-caja');
+
+    const calculadorM2Necesarios =
+        document.getElementById('calculador-m2-necesarios');
+
+    const calculadorResultado =
+        document.getElementById('calculador-resultado');
+
+    const calculadorCajas =
+        document.getElementById('calculador-cajas');
+
+    const calculadorM2Real =
+        document.getElementById('calculador-m2-real');
+
+    const calculadorSobrante =
+        document.getElementById('calculador-sobrante');
+
+    const calculadorTotal =
+        document.getElementById('calculador-total');
+
+    const btnAgregarCajasCalculador =
+        document.getElementById('btn-agregar-cajas-calculador');
+
+    const btnCerrarCalculadorCaja =
+        document.getElementById('btn-cerrar-calculador-caja');
+
+    const btnCerrarCalculadorCaja2 =
+        document.getElementById('btn-cerrar-calculador-caja-2'); 
+
+    const calculadorCajasDirectas =
+        document.getElementById('calculador-cajas-directas');  
+
+    const calculadorDirectoM2 =
+        document.getElementById('calculador-directo-m2');
+
+    const calculadorDirectoTotal =
+        document.getElementById('calculador-directo-total');
+
+    const btnAgregarCajasDirectas =
+        document.getElementById('btn-agregar-cajas-directas');       
+
+
+    function formatoMoneda(valor) {
+        return '$' + Number(valor).toLocaleString('es-AR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+
+    function formatoNumero(valor, decimales = 3) {
+        return Number(valor).toLocaleString('es-AR', {
+            minimumFractionDigits: decimales,
+            maximumFractionDigits: decimales
+        });
+    }
+
+
+    function mostrarCalculadorCaja(data) {
+
+        if (
+            !data ||
+            !data.venta_por_caja ||
+            !data.metros_cuadrados_por_caja ||
+            !data.precio_por_m2
+        ) {
+            ocultarCalculadorCaja();
+            return;
+        }
+
+        productoActual = data;
+
+        calculadorProductoNombre.textContent =
+            data.nombre || 'Producto';
+
+        const m2Caja =
+            parseFloat(data.metros_cuadrados_por_caja);
+
+        const precioM2 =
+            parseFloat(data.precio_por_m2);
+
+        const precioCaja =
+            parseFloat(productoActual.precio_venta);
+
+        calculadorM2Caja.textContent =
+            formatoNumero(m2Caja) + ' m²';
+
+        calculadorPrecioM2.textContent =
+            formatoMoneda(precioM2) + ' / m²';
+
+        calculadorPrecioCaja.textContent =
+            formatoMoneda(precioCaja);
+
+        calculadorM2Necesarios.value = '';
+
+        calculadorCajasDirectas.value = '1';
+        calcularCajasDirectas();
+
+        calculadorResultado.classList.add('hidden');
+
+        btnAgregarCajasCalculador.disabled = true;
+
+        // Abrir como modal
+        calculadorCaja.classList.remove('hidden');
+        calculadorCaja.classList.add('flex');
+
+        // Marcar modal activo para que
+        // el foco no vuelva al código.
+        setModalActivo(
+            'calculador_caja',
+            calculadorM2Necesarios
+        );
+    }
+
+
+    function ocultarCalculadorCaja() {
+
+        calculadorCaja.classList.add('hidden');
+        calculadorCaja.classList.remove('flex');
+
+        calculadorResultado.classList.add('hidden');
+
+        calculadorM2Necesarios.value = '';
+
+        calculadorCajasDirectas.value = '1';
+
+        btnAgregarCajasCalculador.disabled = true;
+
+        calculadorCaja.dataset.cajas = '';
+        calculadorCaja.dataset.m2Real = '';
+        calculadorCaja.dataset.precioCaja = '';
+        calculadorCaja.dataset.total = '';
+
+        cerrarModalActivo();
+    }
+
+
+    function calcularCajas() {
+
+        if (
+            !productoActual ||
+            !productoActual.venta_por_caja
+        ) {
+            return;
+        }
+
+        const m2Necesarios =
+            parseFloat(calculadorM2Necesarios.value);
+
+        const m2PorCaja =
+            parseFloat(productoActual.metros_cuadrados_por_caja);
+
+        const precioM2 =
+            parseFloat(productoActual.precio_por_m2);
+
+        if (
+            !m2Necesarios ||
+            m2Necesarios <= 0 ||
+            !m2PorCaja ||
+            m2PorCaja <= 0 ||
+            !precioM2 ||
+            precioM2 <= 0
+        ) {
+            calculadorResultado.classList.add('hidden');
+            btnAgregarCajasCalculador.disabled = true;
+            return;
+        }
+
+        // Cantidad de cajas necesarias.
+        // Siempre redondeamos hacia arriba porque no se puede
+        // vender una fracción de caja.
+        const cajas =
+            Math.ceil(m2Necesarios / m2PorCaja);
+
+        // Metros cuadrados reales que se lleva el cliente.
+        const m2Real =
+            cajas * m2PorCaja;
+
+        // Diferencia entre lo solicitado y lo que realmente
+        // se lleva por las cajas completas.
+        const sobrante =
+            m2Real - m2Necesarios;
+
+        // Precio de una caja.
+        const precioCaja =
+            parseFloat(productoActual.precio_venta);
+
+        // Total.
+        const total =
+            cajas * precioCaja;
+
+        calculadorCajas.textContent =
+            cajas + (cajas === 1 ? ' caja' : ' cajas');
+
+        calculadorM2Real.textContent =
+            formatoNumero(m2Real) + ' m²';
+
+        calculadorSobrante.textContent =
+            formatoNumero(sobrante) + ' m²';
+
+        calculadorTotal.textContent =
+            formatoMoneda(total);
+
+        calculadorResultado.classList.remove('hidden');
+
+        btnAgregarCajasCalculador.disabled = false;
+
+        // Guardamos los valores calculados para utilizarlos
+        // cuando el usuario presione "Agregar".
+        calculadorCaja.dataset.cajas = cajas;
+        calculadorCaja.dataset.m2Real = m2Real;
+        calculadorCaja.dataset.precioCaja = precioCaja;
+        calculadorCaja.dataset.total = total;
+    }
+
+    function calcularCajasDirectas() {
+
+        if (!productoActual) {
+            return;
+        }
+
+        const cantidadCajas =
+            parseInt(calculadorCajasDirectas.value);
+
+        const m2PorCaja =
+            parseFloat(productoActual.metros_cuadrados_por_caja);
+
+        const precioCaja =
+            parseFloat(productoActual.precio_venta);
+
+        if (
+            !cantidadCajas ||
+            cantidadCajas < 1 ||
+            !m2PorCaja ||
+            !precioCaja
+        ) {
+            calculadorDirectoM2.textContent = '0';
+            calculadorDirectoTotal.textContent = '$0';
+            return;
+        }
+
+        const m2Real =
+            cantidadCajas * m2PorCaja;
+
+        const total =
+            cantidadCajas * precioCaja;
+
+        calculadorDirectoM2.textContent =
+            formatoNumero(m2Real) + ' m²';
+
+        calculadorDirectoTotal.textContent =
+            formatoMoneda(total);
+    }
+
+    function agregarCajasDirectas() {
+
+        if (!productoActual) {
+            return;
+        }
+
+        const cantidadCajas =
+            parseInt(calculadorCajasDirectas.value);
+
+        if (
+            !cantidadCajas ||
+            cantidadCajas < 1
+        ) {
+            return;
+        }
+
+        inputCodigo.value =
+            productoActual.codigo;
+
+        inputCantidad.value =
+            cantidadCajas;
+
+        inputPrecio.value =
+            parseFloat(productoActual.precio_venta).toFixed(2);
+
+        inputPrecioUnitarioHidden.value =
+            parseFloat(productoActual.precio_venta).toFixed(2);
+
+        document
+            .querySelector('#form-agregar button[name="agregar"]')
+            .click();
+
+        ocultarCalculadorCaja();
+    }
+
+    function agregarCajasDesdeCalculador() {
+
+        if (!productoActual) {
+            return;
+        }
+
+        const cajas =
+            parseInt(calculadorCaja.dataset.cajas || '0');
+
+        if (!cajas || cajas <= 0) {
+            return;
+        }
+
+        // Utilizamos el flujo existente del formulario.
+        inputCodigo.value = productoActual.codigo;
+
+        inputCantidad.value = cajas;
+
+        inputPrecio.value =
+            parseFloat(productoActual.precio_venta).toFixed(2);
+
+        inputPrecioUnitarioHidden.value =
+            parseFloat(productoActual.precio_venta).toFixed(2);
+
+        // Agregar usando exactamente el mismo botón
+        // que utiliza el resto del sistema.
+        document.querySelector('button[name="agregar"]').click();
+
+        ocultarCalculadorCaja();
+    }
+
+
+    calculadorM2Necesarios.addEventListener(
+        'input',
+        calcularCajas
+    );
+
+
+    calculadorM2Necesarios.addEventListener(
+        'keydown',
+        (e) => {
+
+            if (e.key === 'Enter') {
+
+                e.preventDefault();
+
+                if (!btnAgregarCajasCalculador.disabled) {
+                    agregarCajasDesdeCalculador();
+                }
+            }
+
+            if (e.key === 'Escape') {
+
+                e.preventDefault();
+
+                ocultarCalculadorCaja();
+
+                inputCodigo.focus();
+                inputCodigo.select();
+            }
+        }
+    );
+
+    calculadorCajasDirectas.addEventListener(
+        'input',
+        calcularCajasDirectas
+    );
+
+    calculadorCajasDirectas.addEventListener(
+        'keydown',
+        function(event) {
+
+            if (event.key === 'Enter') {
+
+                event.preventDefault();
+
+                agregarCajasDirectas();
+            }
+        }
+    );
+
+    btnAgregarCajasDirectas.addEventListener(
+        'click',
+        agregarCajasDirectas
+    );
+
+
+    btnAgregarCajasCalculador.addEventListener(
+        'click',
+        agregarCajasDesdeCalculador
+    );
+
+
+    function cancelarCalculadorCaja() {
+        ocultarCalculadorCaja();
+
+        inputCodigo.focus();
+        inputCodigo.select();
+    }
+
+    btnCerrarCalculadorCaja.addEventListener(
+        'click',
+        cancelarCalculadorCaja
+    );
+
+    btnCerrarCalculadorCaja2.addEventListener(
+        'click',
+        cancelarCalculadorCaja
+    );
 
     // == PRODUCTO VARIOS ==
     const modalVarios = document.getElementById('modal-varios');
@@ -932,10 +1746,31 @@ document.addEventListener('DOMContentLoaded', function () {
                 feedbackScanner();
                 inputPrecio.value = data.precio_venta;
 
+                // ==========================================
+                // PRODUCTO VENDIDO POR CAJA
+                // ==========================================
+                if (data.venta_por_caja) {
+
+                    mostrarCalculadorCaja(data);
+
+                    return;
+                }
+
+                // ==========================================
+                // PRODUCTO VENDIDO POR KILO
+                // ==========================================
                 if (data.tipo_venta === 'kilo') {
+
                     mostrarModalKilos(data);
+
                 } else {
-                    document.querySelector('button[name="agregar"]').click();
+
+                    // ==========================================
+                    // PRODUCTO NORMAL
+                    // ==========================================
+                    document.querySelector(
+                        'button[name="agregar"]'
+                    ).click();
                 }
             })
             .catch(() => {
@@ -946,29 +1781,103 @@ document.addEventListener('DOMContentLoaded', function () {
     // == ESCANEO CON F9 == //
 
     function buscarProductoScan(codigo) {
-        fetch(`/productos/buscar-producto/?codigo=${codigo}`)
-            .then(res => res.json())
-            .then(data => {
-                if (!data.success) {
-                    feedbackErrorScanner();
-                    mostrarError(data.message || 'Producto no encontrado');
-                    detalleProducto.classList.add('hidden');
-                    productoActual = null;
-                    return;
+    fetch(`/productos/buscar-producto/?codigo=${codigo}`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                feedbackErrorScanner();
+                mostrarError(data.message || 'Producto no encontrado');
+
+                detalleProducto.classList.add('hidden');
+                productoActual = null;
+
+                return;
+            }
+
+            feedbackScanner();
+
+            productoActual = data;
+
+            // ==========================
+            // DATOS GENERALES
+            // ==========================
+            productoNombre.textContent = data.nombre;
+
+            // ==========================
+            // PRODUCTO VENDIDO POR CAJA
+            // ==========================
+            if (data.venta_por_caja) {
+
+                // Ocultar datos de producto normal
+                detalleProductoNormal.classList.add('hidden');
+
+                    // Mostrar datos de caja
+                    detalleProductoCaja.classList.remove('hidden');
+
+                    // Precio de una caja
+                    productoPrecioCaja.textContent =
+                        '$' + Number(data.precio_venta).toLocaleString(
+                            'es-AR',
+                            {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }
+                        );
+
+                    // m² por caja
+                    productoM2Caja.textContent =
+                        Number(data.metros_cuadrados_por_caja).toLocaleString(
+                            'es-AR',
+                            {
+                                minimumFractionDigits: 3,
+                                maximumFractionDigits: 3
+                            }
+                        ) + ' m²';
+
+                    // Precio por m²
+                    productoPrecioM2.textContent =
+                        '$' + Number(data.precio_por_m2).toLocaleString(
+                            'es-AR',
+                            {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }
+                        );
+
+                } else {
+
+                    // ==========================
+                    // PRODUCTO NORMAL
+                    // ==========================
+
+                    // Mostrar datos normales
+                    detalleProductoNormal.classList.remove('hidden');
+
+                    // Ocultar datos de caja
+                    detalleProductoCaja.classList.add('hidden');
+
+                    // Precio normal
+                    productoPrecio.textContent =
+                        '$' + Number(data.precio_venta).toLocaleString(
+                            'es-AR',
+                            {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }
+                        );
+
+                    // Por ahora mantenemos el comportamiento
+                    // existente del descuento.
+                    productoDescuento.style.display = 'none';
                 }
 
-                feedbackScanner();
-                productoActual = data;
-                productoNombre.textContent = data.nombre;
-                productoPrecio.textContent = parseFloat(data.precio_venta).toFixed(2);
-                productoDescuento.style.display = 'none';
+                // Mostrar detalle del producto
                 detalleProducto.classList.remove('hidden');
             })
             .catch(() => {
                 mostrarError('Error al buscar el producto');
             });
     }
-
 
     // Evento para botón Buscar Producto (F9)
     document.getElementById('btn-f9').addEventListener('click', abrirModalScan);
@@ -996,6 +1905,18 @@ document.addEventListener('DOMContentLoaded', function () {
             alert('No hay producto para agregar.');
             return;
         }
+        // ==========================================
+        // PRODUCTO VENDIDO POR CAJA
+        // ==========================================
+        if (productoActual.venta_por_caja) {
+
+            cerrarModalScan();
+
+            mostrarCalculadorCaja(productoActual);
+
+            return;
+        }
+
         // 🔥 VARIOS
         if (productoActual.codigo === CODIGO_VARIOS) {
             cerrarModalScan();

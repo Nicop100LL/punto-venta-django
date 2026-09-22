@@ -166,20 +166,50 @@ def nueva_venta(request):
                     if producto.codigo == PRODUCTO_VARIOS_CODIGO and precio_manual:
                         return Decimal(precio_manual), 0, None
 
+                    # =========================
+                    # VENTA POR CAJA / M²
+                    # =========================
                     if (
-                        producto.vende_por_bulto and
-                        producto.unidades_por_bulto and
-                        producto.precio_por_bulto and
-                        cant >= producto.unidades_por_bulto
+                        request.user.empresa.usa_venta_por_caja
+                        and producto.venta_por_caja
+                        and producto.metros_cuadrados_por_caja
+                        and producto.precio_por_m2
                     ):
-                        precio_unitario_bulto = producto.precio_por_bulto / producto.unidades_por_bulto
+                        precio_por_caja = (
+                            producto.metros_cuadrados_por_caja *
+                            producto.precio_por_m2
+                        )
+
+                        return precio_por_caja, 0, 'caja'
+
+                    # =========================
+                    # VENTA POR BULTO
+                    # =========================
+                    if (
+                        not (
+                            request.user.empresa.usa_venta_por_caja
+                            and producto.venta_por_caja
+                        )
+                        and producto.vende_por_bulto
+                        and producto.unidades_por_bulto
+                        and producto.precio_por_bulto
+                        and cant >= producto.unidades_por_bulto
+                    ):
+                        precio_unitario_bulto = (
+                            producto.precio_por_bulto /
+                            producto.unidades_por_bulto
+                        )
+
                         return precio_unitario_bulto, 0, 'bulto'
 
+                    # =========================
+                    # DESCUENTO
+                    # =========================
                     if (
-                        producto.aplica_descuento and
-                        producto.cantidad_minima_descuento and
-                        cant >= producto.cantidad_minima_descuento and
-                        producto.precio_descuento_manual
+                        producto.aplica_descuento
+                        and producto.cantidad_minima_descuento
+                        and cant >= producto.cantidad_minima_descuento
+                        and producto.precio_descuento_manual
                     ):
                         return producto.precio_descuento_manual, 0, 'descuento'
 
@@ -187,12 +217,44 @@ def nueva_venta(request):
 
                 if item and producto.codigo != PRODUCTO_VARIOS_CODIGO:
                     item['cantidad'] += float(cantidad)
-                    precio, descuento, tipo_precio = calcular_precio(item['cantidad'])
+
+                    precio, descuento, tipo_precio = calcular_precio(
+                        item['cantidad']
+                    )
+
                     item['precio_unitario'] = float(precio)
-                    item['subtotal'] = item['cantidad'] * item['precio_unitario']
+                    item['subtotal'] = (
+                        item['cantidad'] *
+                        item['precio_unitario']
+                    )
                     item['descuento'] = float(descuento)
                     item['tipo_precio'] = tipo_precio
-                    item['ahorro_unitario'] = float(producto.precio_venta - precio) if tipo_precio == 'descuento' else 0
+                    item['ahorro_unitario'] = (
+                        float(producto.precio_venta - precio)
+                        if tipo_precio == 'descuento'
+                        else 0
+                    )
+
+                    # =========================
+                    # DATOS VENTA POR CAJA
+                    # =========================
+                    if tipo_precio == 'caja':
+                        item['venta_por_caja'] = True
+                        item['metros_por_caja'] = float(
+                            producto.metros_cuadrados_por_caja
+                        )
+                        item['metros_totales'] = (
+                            item['cantidad'] *
+                            item['metros_por_caja']
+                        )
+                        item['precio_m2'] = float(
+                            producto.precio_por_m2
+                        )
+                    else:
+                        item.pop('venta_por_caja', None)
+                        item.pop('metros_por_caja', None)
+                        item.pop('metros_totales', None)
+                        item.pop('precio_m2', None)
                 else:
                     precio, descuento, tipo_precio = calcular_precio(cantidad)
                     item_dict = {
@@ -203,8 +265,26 @@ def nueva_venta(request):
                         'subtotal': float(precio * cantidad),
                         'descuento': float(descuento),
                         'tipo_precio': tipo_precio,
-                        'ahorro_unitario': float(producto.precio_venta - precio) if tipo_precio == 'descuento' else 0,
+                        'ahorro_unitario': (
+                            float(producto.precio_venta - precio)
+                            if tipo_precio == 'descuento'
+                            else 0
+                        ),
+                        'venta_por_caja': tipo_precio == 'caja',
                     }
+                    # =========================
+                    # DATOS VENTA POR CAJA
+                    # =========================
+                    if tipo_precio == 'caja':
+                        item_dict['metros_por_caja'] = float(
+                            producto.metros_cuadrados_por_caja
+                        )
+                        item_dict['metros_totales'] = float(
+                            cantidad * producto.metros_cuadrados_por_caja
+                        )
+                        item_dict['precio_m2'] = float(
+                            producto.precio_por_m2
+                        )
                     if producto.codigo == PRODUCTO_VARIOS_CODIGO:
                         item_dict['codigo_unico'] = request.POST.get('codigo_unico_varios')
                         item_dict['detalle'] = request.POST.get('detalle_varios', '')
@@ -337,13 +417,21 @@ def nueva_venta(request):
                         producto=producto,
                         cantidad=item['cantidad'],
                         precio_unitario=item['precio_unitario'],
-                        precio_compra=producto.precio_compra, 
+                        precio_compra=producto.precio_compra,
                         detalle=item.get('detalle', ''),
                         es_bulto=es_bulto,
-                        unidades_por_bulto=producto.unidades_por_bulto if es_bulto else None,
+                        unidades_por_bulto=(
+                            producto.unidades_por_bulto
+                            if es_bulto
+                            else None
+                        ),
+
+                        # ===== VENTA POR CAJA / M² =====
+                        metros_por_caja=item.get('metros_por_caja'),
+                        metros_totales=item.get('metros_totales'),
+                        precio_m2=item.get('precio_m2'),
                     )
 
-                    # 🔥 NO descontar stock para VARIOS
                     if producto.codigo != PRODUCTO_VARIOS_CODIGO:
                         producto.stock_actual -= Decimal(str(item['cantidad']))
                         producto.save()
@@ -519,9 +607,14 @@ def detalle_venta(request, venta_id):
 
     # Determinar template según formato configurado
     if venta.tipo_comprobante == 'a4':
-        template = 'ventas/detalle_ticket_a4.html'
+        if request.user.empresa.usa_venta_por_caja:
+            template = 'ventas/detalle_ticket_a4_caja.html'
+        else:
+            template = 'ventas/detalle_ticket_a4.html'
+
     elif venta.tipo_comprobante == '58mm':
         template = 'ventas/detalle_ticket_58mm.html'
+
     else:  # 80mm por defecto
         template = 'ventas/detalle_ticket.html'
 
@@ -530,11 +623,20 @@ def detalle_venta(request, venta_id):
 
     total_unidades = sum(
         max(1, int(item.cantidad))
-        for item in detalles if not item.es_bulto
+        for item in detalles
+        if not item.es_bulto and not item.metros_por_caja
     )
+
     total_bultos = sum(
         (item.cantidad_bultos() or 0)
-        for item in detalles if item.es_bulto
+        for item in detalles
+        if item.es_bulto
+    )
+
+    total_metros = sum(
+        item.metros_totales or 0
+        for item in detalles
+        if item.metros_totales
     )
 
     return render(request, template, {
@@ -544,7 +646,8 @@ def detalle_venta(request, venta_id):
         'total_unidades': total_unidades,
         'total_bultos': total_bultos,   
         'empresa': request.user.empresa,
-        'alertas_stock': alertas_stock, 
+        'alertas_stock': alertas_stock,
+        'total_metros': total_metros, 
     })
 
 @login_required

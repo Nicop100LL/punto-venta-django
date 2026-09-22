@@ -14,6 +14,13 @@ class Empresa(models.Model):
     condicion_iva = models.CharField(max_length=100, blank=True, null=True)
     logo = models.ImageField(upload_to='logos/', blank=True, null=True)  # logo opcional
     activo = models.BooleanField(default=True)  # empresa activa o no
+    
+    usa_venta_por_caja = models.BooleanField(
+        default=False,
+        verbose_name="Habilitar venta por caja / m²",
+        help_text="Permite utilizar la nueva modalidad de venta por caja y metros cuadrados."
+    )
+    
     mostrar_aviso = models.BooleanField(
         default=False,
         help_text="Tildar para mostrar el mensaje de aviso a todos los usuarios."

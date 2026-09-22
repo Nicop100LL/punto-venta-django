@@ -31,9 +31,15 @@ def parse_decimal(value):
 
 @login_required
 def lista_productos(request):
-    productos = Producto.objects.filter(empresa=request.user.empresa, activo=True)
-    categorias = Categoria.objects.filter(empresa=request.user.empresa)
-    
+    productos = Producto.objects.filter(
+        empresa=request.user.empresa,
+        activo=True
+    )
+
+    categorias = Categoria.objects.filter(
+        empresa=request.user.empresa
+    )
+
     # Nueva — para el modal del PDF
     categorias_pdf = (
         Producto.objects
@@ -46,10 +52,15 @@ def lista_productos(request):
     return render(request, 'productos/lista_productos.html', {
         'productos': productos,
         'categorias': categorias,
-        'categorias_pdf': list(categorias_pdf),  # nueva
+        'categorias_pdf': list(categorias_pdf),
+
+        # Habilita/deshabilita toda la funcionalidad de venta por caja/m²
+        'usa_venta_por_caja': (
+            request.user.empresa
+            and request.user.empresa.usa_venta_por_caja
+        ),
     })
-    
-    
+     
 @login_required
 def nuevo_producto(request):
     if request.method == 'POST' and request.headers.get('X-Requested-With', '').lower() == 'xmlhttprequest':
@@ -57,6 +68,11 @@ def nuevo_producto(request):
         codigo = request.POST.get('codigo')
         categoria_id = request.POST.get('categoria')
         tipo_venta = request.POST.get('tipo_venta')
+
+        # En venta por caja, el producto igualmente necesita
+        # un tipo de venta interno para poder guardarse.
+        if not tipo_venta and request.user.empresa and request.user.empresa.usa_venta_por_caja:
+            tipo_venta = 'unidad'
 
         precio_venta = parse_decimal(request.POST.get('precio_venta'))
         precio_compra = parse_decimal(request.POST.get('precio_compra', 0))
@@ -76,7 +92,24 @@ def nuevo_producto(request):
             precio_por_bulto = parse_decimal(request.POST.get('precio_por_bulto'))
         else:
             unidades_por_bulto = None
-            precio_por_bulto = None    
+            precio_por_bulto = None   
+            
+        # ===== VENTA POR CAJA / M² =====
+        venta_por_caja = False
+        metros_cuadrados_por_caja = None
+        precio_por_m2 = None
+
+        if request.user.empresa and request.user.empresa.usa_venta_por_caja:
+            venta_por_caja = request.POST.get("venta_por_caja") == "on"
+
+            if venta_por_caja:
+                metros_cuadrados_por_caja = parse_decimal(
+                    request.POST.get("metros_cuadrados_por_caja")
+                )
+
+                precio_por_m2 = parse_decimal(
+                    request.POST.get("precio_por_m2")
+                )     
 
         alerta_stock_bajo = 'alerta_stock_bajo' in request.POST
         if alerta_stock_bajo:
@@ -104,7 +137,21 @@ def nuevo_producto(request):
 
         producto.nombre = nombre
         producto.categoria = categoria
-        producto.precio_venta = precio_venta
+
+        # ===== PRECIO DE VENTA =====
+        # Si vende por caja, el precio de venta interno es
+        # el precio de una caja = m² por caja × precio por m².
+        if (
+            venta_por_caja
+            and metros_cuadrados_por_caja
+            and precio_por_m2
+        ):
+            producto.precio_venta = (
+                metros_cuadrados_por_caja * precio_por_m2
+            )
+        else:
+            producto.precio_venta = precio_venta
+
         producto.precio_compra = precio_compra
         producto.stock_actual = stock_actual
         producto.tipo_venta = tipo_venta
@@ -118,6 +165,9 @@ def nuevo_producto(request):
         producto.stock_minimo_alerta = stock_minimo_alerta
         producto.fecha_vencimiento = fecha_vencimiento
         producto.dias_aviso_vencimiento = dias_aviso_vencimiento
+        producto.venta_por_caja = venta_por_caja
+        producto.metros_cuadrados_por_caja = metros_cuadrados_por_caja
+        producto.precio_por_m2 = precio_por_m2
         producto.save()
 
         return JsonResponse({
@@ -138,6 +188,17 @@ def nuevo_producto(request):
                 'vende_por_bulto': producto.vende_por_bulto,
                 'unidades_por_bulto': producto.unidades_por_bulto,
                 'precio_por_bulto': float(producto.precio_por_bulto) if producto.precio_por_bulto else None,
+                'venta_por_caja': producto.venta_por_caja,
+                'metros_cuadrados_por_caja': (
+                    float(producto.metros_cuadrados_por_caja)
+                    if producto.metros_cuadrados_por_caja is not None
+                    else None
+                ),
+                'precio_por_m2': (
+                    float(producto.precio_por_m2)
+                    if producto.precio_por_m2 is not None
+                    else None
+                ),
             }
         })
 
@@ -207,6 +268,10 @@ def editar_producto(request, id):
             return render(request, 'productos/editar_producto.html', {
                 'producto': producto,
                 'categorias': categorias,
+                'usa_venta_por_caja': (
+                    request.user.empresa
+                    and request.user.empresa.usa_venta_por_caja
+                ),
             })
 
         if conflicto and not conflicto.activo:
@@ -253,6 +318,10 @@ def editar_producto(request, id):
             return render(request, 'productos/editar_producto.html', {
                 'producto': producto,
                 'categorias': categorias,
+                'usa_venta_por_caja': (
+                    request.user.empresa
+                    and request.user.empresa.usa_venta_por_caja
+                ),
             })
 
         categoria_id = request.POST.get('categoria')
@@ -316,7 +385,38 @@ def editar_producto(request, id):
         else:
             producto.unidades_por_bulto = None
             producto.precio_por_bulto = None
-        
+
+        # ===== VENTA POR CAJA / M² =====
+        producto.venta_por_caja = False
+        producto.metros_cuadrados_por_caja = None
+        producto.precio_por_m2 = None
+
+        if (
+            request.user.empresa
+            and request.user.empresa.usa_venta_por_caja
+        ):
+            producto.venta_por_caja = (
+                request.POST.get("venta_por_caja") == "on"
+            )
+
+            if producto.venta_por_caja:
+                producto.metros_cuadrados_por_caja = parse_decimal(
+                    request.POST.get("metros_cuadrados_por_caja")
+                )
+
+                producto.precio_por_m2 = parse_decimal(
+                    request.POST.get("precio_por_m2")
+                )
+
+                # Precio interno = precio de una caja
+                if (
+                    producto.metros_cuadrados_por_caja
+                    and producto.precio_por_m2
+                ):
+                    producto.precio_venta = (
+                        producto.metros_cuadrados_por_caja *
+                        producto.precio_por_m2
+                    ).quantize(Decimal('0.001'))
         # --- ALERTA STOCK BAJO ---
         producto.alerta_stock_bajo = 'alerta_stock_bajo' in request.POST
         if producto.alerta_stock_bajo:
@@ -344,6 +444,10 @@ def editar_producto(request, id):
     return render(request, 'productos/editar_producto.html', {
         'producto': producto,
         'categorias': categorias,
+        'usa_venta_por_caja': (
+            request.user.empresa
+            and request.user.empresa.usa_venta_por_caja
+        ),
     })
 
 
@@ -1022,12 +1126,14 @@ def crear_categoria(request):
 def buscar_producto_por_codigo(request):
     codigo = request.GET.get('codigo')
     empresa = request.user.empresa
+
     try:
         producto = Producto.objects.get(
-                codigo=codigo,
-                empresa=empresa,
-                activo=True
-            )
+            codigo=codigo,
+            empresa=empresa,
+            activo=True
+        )
+
         return JsonResponse({
             'success': True,
             'nombre': producto.nombre,
@@ -1035,12 +1141,29 @@ def buscar_producto_por_codigo(request):
             'stock_actual': float(producto.stock_actual),
             'tipo_venta': producto.tipo_venta,
             'codigo': producto.codigo,
+
+            # ===== VENTA POR CAJA / M² =====
+            'venta_por_caja': (
+                empresa.usa_venta_por_caja
+                and producto.venta_por_caja
+            ),
+            'metros_cuadrados_por_caja': (
+                float(producto.metros_cuadrados_por_caja)
+                if producto.metros_cuadrados_por_caja is not None
+                else None
+            ),
+            'precio_por_m2': (
+                float(producto.precio_por_m2)
+                if producto.precio_por_m2 is not None
+                else None
+            ),
         })
+
     except Producto.DoesNotExist:
-        return JsonResponse({'success': False, 'message': 'Producto no encontrado'})
-
-
-
+        return JsonResponse({
+            'success': False,
+            'message': 'Producto no encontrado'
+        })
 @login_required
 def generar_codigo_producto(request):
     empresa = request.user.empresa

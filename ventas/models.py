@@ -98,6 +98,28 @@ class DetalleVenta(models.Model):
     
     es_bulto = models.BooleanField(default=False)
     unidades_por_bulto = models.PositiveIntegerField(null=True, blank=True)
+    
+    # ===== VENTA POR CAJA / M² =====
+    metros_por_caja = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        null=True,
+        blank=True
+    )
+
+    metros_totales = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        null=True,
+        blank=True
+    )
+
+    precio_m2 = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
 
     def cantidad_bultos(self):
         """Cantidad de bultos vendidos (si aplica)."""

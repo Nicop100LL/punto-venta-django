@@ -64,7 +64,18 @@
             {{ p.stock_actual|floatformat:2 }}
             {% endif %}
           </p>
-          <p>Precio: ${{ p.precio_venta|formato_precio }}</p>
+          {% if p.venta_por_caja %}
+            <p>
+              Precio por caja:
+              ${{ p.precio_venta|formato_precio }}
+            </p>
+            <p class="text-sm text-gray-500">
+              {{ p.metros_cuadrados_por_caja|floatformat:3 }} m² por caja
+              · ${{ p.precio_por_m2|formato_precio }} / m²
+            </p>
+          {% else %}
+            <p>Precio: ${{ p.precio_venta|formato_precio }}</p>
+          {% endif %}
                     <div class="flex items-center justify-between mt-3">
                       <a href="{% url 'editar_producto' p.id %}"
                         class="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition">
@@ -151,6 +162,7 @@
       </div>
 
       <div
+        id="seccion-precios-producto"
         x-data="{
           precioCompra: 0,
           precioVenta: 0,
@@ -178,6 +190,7 @@
         }"
       >
         <!-- PRECIO COMPRA -->
+        {% if not usa_venta_por_caja %}
         <div class="mb-4">
           <label class="block text-sm font-medium text-gray-700">
             Precio de compra
@@ -192,8 +205,10 @@
             @input="calcularPrecio()"
           >
         </div>
+        {% endif %}
 
         <!-- CHECKBOX GANANCIA -->
+        {% if not usa_venta_por_caja %}
         <div class="flex items-center gap-2 mb-2">
           <input
             type="checkbox"
@@ -205,8 +220,10 @@
             Calcular precio con ganancia (%)
           </label>
         </div>
+        {% endif %}
 
         <!-- PORCENTAJE -->
+        {% if not usa_venta_por_caja %}
         <div x-show="usarGanancia" x-transition class="mb-4 relative">
           <label
             class="flex items-center gap-1 text-sm font-medium text-gray-700"
@@ -244,8 +261,10 @@
             @input="calcularPrecio()"
           >
         </div>
+        {% endif %}
 
         <!-- REDONDEAR -->
+        {% if not usa_venta_por_caja %}
         <div x-show="usarGanancia" class="flex items-center gap-2 mb-4">
           <input
             type="checkbox"
@@ -257,6 +276,7 @@
             Redondear precio
           </label>
         </div>
+        {% endif %}
 
         <!-- PRECIO VENTA -->
         <div class="mb-2">
@@ -272,7 +292,70 @@
         </div>
       </div>
 
+      {% if usa_venta_por_caja %}
+      <!-- VENTA POR CAJA / M² -->
+      <div class="mt-4 border-t pt-4 p-4">
+        <div class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="venta_por_caja"
+            name="venta_por_caja"
+            class="rounded border-gray-300 text-blue-600 shadow-sm"
+          >
 
+          <label
+            for="venta_por_caja"
+            class="text-sm font-medium text-gray-700"
+          >
+            📦 Vende por caja
+          </label>
+        </div>
+
+        <div id="caja-campos" class="space-y-4 hidden mt-3">
+
+          <div>
+            <label
+              for="metros_cuadrados_por_caja"
+              class="block text-sm font-medium text-gray-700"
+            >
+              Metros cuadrados por caja
+            </label>
+
+            <input
+              type="number"
+              id="metros_cuadrados_por_caja"
+              name="metros_cuadrados_por_caja"
+              step="0.01"
+              min="0"
+              class="w-full border px-3 py-2 rounded"
+              placeholder="Ej: 2.16"
+            >
+          </div>
+
+          <div>
+            <label
+              for="precio_por_m2"
+              class="block text-sm font-medium text-gray-700"
+            >
+              Precio por m²
+            </label>
+
+            <input
+              type="number"
+              id="precio_por_m2"
+              name="precio_por_m2"
+              step="0.01"
+              min="0"
+              class="w-full border px-3 py-2 rounded"
+              placeholder="Ej: 15000"
+            >
+          </div>
+
+        </div>
+      </div>
+      {% endif %}
+
+        {% if not usa_venta_por_caja %}
       <div class="mb-4">
         <label class="block">Tipo de venta</label>
         <select name="tipo_venta" class="w-full border px-3 py-2 rounded" required>
@@ -280,21 +363,34 @@
           <option value="kilo">Por kilo</option>
         </select>
       </div>
+      {% endif %}
 
       <div class="mb-4">
         <label class="block">Stock</label>
-        <input type="number" name="stock_actual" step="0.01" class="w-full border px-3 py-2 rounded" required />
+       <input
+          type="number"
+          name="stock_actual"
+          value="0"
+          step="0.01"
+          class="w-full border px-3 py-2 rounded"
+          required
+        />
       </div>
 
       <!-- VENCIMIENTO -->
-      <div class="mb-4 space-y-2">
-        <label class="block text-sm font-medium text-gray-700">📅 Fecha de vencimiento (opcional)</label>
-        <input type="date" name="fecha_vencimiento" min="{% now 'Y-m-d' %}" class="w-full border px-3 py-2 rounded">
-        <label class="block text-sm font-medium text-gray-700">Avisar (días antes de vencer)</label>
-        <input type="number" name="dias_aviso_vencimiento" value="7" min="0" step="1" class="w-full border px-3 py-2 rounded">
-      </div>
+      {% if not usa_venta_por_caja %}
+      <div id="seccion-descuento-producto">
+        <div id="seccion-vencimiento-producto" class="mb-4 space-y-2">
+          <label class="block text-sm font-medium text-gray-700">📅 Fecha de vencimiento (opcional)</label>
+          <input type="date" name="fecha_vencimiento" min="{% now 'Y-m-d' %}" class="w-full border px-3 py-2 rounded">
+          <label class="block text-sm font-medium text-gray-700">Avisar (días antes de vencer)</label>
+          <input type="number" name="dias_aviso_vencimiento" value="7" min="0" step="1" class="w-full border px-3 py-2 rounded">
+        </div>
+      </div>  
+      {% endif %}
 
       <!-- DESCUENTO -->
+      {% if not usa_venta_por_caja %}
       <div class="flex items-center gap-2 mt-2">
         <input type="checkbox" id="aplica_descuento" name="aplica_descuento" value="True"
           class="rounded border-gray-300 text-blue-600 shadow-sm">
@@ -311,24 +407,62 @@
           <input type="number" name="precio_descuento_manual" step="0.01" min="0" class="w-full border px-3 py-2 rounded" placeholder="Ej: 900">
         </div>
       </div>
+      {% endif %}
 
       <!-- BULTO -->
-      <div class="flex items-center gap-2 mt-4">
-        <input type="checkbox" id="vende_por_bulto" name="vende_por_bulto" value="True" 
-          class="rounded border-gray-300 text-blue-600 shadow-sm">
-        <label for="vende_por_bulto" class="text-sm font-medium text-gray-700">Vende por bulto</label>
-      </div>
+      {% if not usa_venta_por_caja %}
+      <div id="seccion-bulto" class="mt-4 border-t pt-4">
 
-      <div id="bulto-campos" class="space-y-4 hidden mt-2">
-        <div>
-          <label class="block text-sm font-medium text-gray-700">¿A partir de cuántas unidades es bulto?</label>
-          <input type="number" name="unidades_por_bulto" min="1" step="1" class="w-full border px-3 py-2 rounded">
+        <div class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="vende_por_bulto"
+            name="vende_por_bulto"
+            value="True"
+            class="rounded border-gray-300 text-blue-600 shadow-sm"
+          >
+
+          <label
+            for="vende_por_bulto"
+            class="text-sm font-medium text-gray-700"
+          >
+            Vende por bulto
+          </label>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Precio por bulto</label>
-          <input type="number" name="precio_por_bulto" step="0.01" min="0" class="w-full border px-3 py-2 rounded">
+
+        <div id="bulto-campos" class="space-y-4 hidden mt-2">
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              ¿A partir de cuántas unidades es bulto?
+            </label>
+
+            <input
+              type="number"
+              name="unidades_por_bulto"
+              min="1"
+              step="1"
+              class="w-full border px-3 py-2 rounded"
+            >
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">
+              Precio por bulto
+            </label>
+
+            <input
+              type="number"
+              name="precio_por_bulto"
+              step="0.01"
+              min="0"
+              class="w-full border px-3 py-2 rounded"
+            >
+          </div>
+
         </div>
       </div>
+      {% endif %}
 
       <!-- Alerta stock bajo -->
       <div class="flex items-center gap-2">
@@ -482,16 +616,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const formData = new FormData(form);
 
-    // Si NO aplica descuento, eliminar campos vacíos
-    if (!document.getElementById("aplica_descuento").checked) {
+    
+    // Si existe descuento y NO aplica, eliminar campos
+    const checkDescuento = document.getElementById("aplica_descuento");
+
+    if (checkDescuento && !checkDescuento.checked) {
       formData.delete("cantidad_minima_descuento");
       formData.delete("precio_descuento_manual");
     }
 
-    // Si NO vende por bulto, eliminar campos vacíos          👈 NUEVO
-    if (!document.getElementById("vende_por_bulto").checked) {
+    // Si existe bulto y NO vende por bulto, eliminar campos
+    const checkBulto = document.getElementById("vende_por_bulto");
+
+    if (checkBulto && !checkBulto.checked) {
       formData.delete("unidades_por_bulto");
       formData.delete("precio_por_bulto");
+    }
+
+    // Si NO vende por caja, eliminar campos de caja
+    const checkVentaPorCaja = document.getElementById("venta_por_caja");
+
+    if (checkVentaPorCaja && !checkVentaPorCaja.checked) {
+      formData.delete("metros_cuadrados_por_caja");
+      formData.delete("precio_por_m2");
+      formData.delete("venta_por_caja");
     }
 
     fetch(form.action, {
@@ -502,7 +650,18 @@ document.addEventListener('DOMContentLoaded', function () {
       },
       body: formData
     })
-    .then(res => res.json())
+    .then(async res => {
+      const texto = await res.text();
+
+      console.log("STATUS:", res.status);
+      console.log("RESPUESTA DEL SERVIDOR:", texto);
+
+      try {
+        return JSON.parse(texto);
+      } catch (error) {
+        throw new Error("El servidor no devolvió JSON: " + texto);
+      }
+    })
         .then(data => {
           console.log("DEBUG: respuesta nuevo_producto:", data);
 
@@ -526,15 +685,51 @@ document.addEventListener('DOMContentLoaded', function () {
                     card.dataset.productoId = data.producto.id;
           card.dataset.categoria = data.producto.categoria_id;
           card.innerHTML = `
-            <h3 class="text-lg font-semibold">${escapeHtml(data.producto.nombre)}</h3>
-            <p class="text-sm text-gray-500">Código: ${escapeHtml(data.producto.codigo)}</p>
-            <p>Stock: ${data.producto.tipo_venta === "unidad" ? Math.round(data.producto.stock_actual) : Number(data.producto.stock_actual).toFixed(2)}</p>
-            <p>Precio: $${Number(data.producto.precio_venta)}</p>
+            <h3 class="text-lg font-semibold">
+              ${escapeHtml(data.producto.nombre)}
+            </h3>
+
+            <p class="text-sm text-gray-500">
+              Código: ${escapeHtml(data.producto.codigo)}
+            </p>
+
+            <p>
+              Stock:
+              ${
+                data.producto.tipo_venta === "unidad"
+                  ? Math.round(data.producto.stock_actual)
+                  : Number(data.producto.stock_actual).toFixed(2)
+              }
+            </p>
+
+            ${
+              data.producto.venta_por_caja
+                ? `
+                  <p>
+                    Precio por caja:
+                    $${Number(data.producto.precio_venta).toLocaleString("es-AR")}
+                  </p>
+
+                  <p class="text-sm text-gray-500">
+                    ${Number(data.producto.metros_cuadrados_por_caja).toFixed(3)} m² por caja
+                    ·
+                    $${Number(data.producto.precio_por_m2).toLocaleString("es-AR")} / m²
+                  </p>
+                `
+                : `
+                  <p>
+                    Precio:
+                    $${Number(data.producto.precio_venta).toLocaleString("es-AR")}
+                  </p>
+                `
+            }
+
             <div class="flex items-center justify-between mt-3">
               <a href="/productos/editar/${data.producto.id}/"
-                 class="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition">
+                class="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition">
                 ✏️ Editar
               </a>
+
               <button type="button"
                       class="btn-eliminar-producto inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-800 transition"
                       data-producto-id="${data.producto.id}"
@@ -578,6 +773,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const check = document.getElementById("aplica_descuento");
     const campos = document.getElementById("descuento-campos");
 
+    if (!check || !campos) return;
+
     function toggle() {
       campos.classList.toggle("hidden", !check.checked);
     }
@@ -594,6 +791,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const check = document.getElementById("vende_por_bulto");
     const campos = document.getElementById("bulto-campos");
 
+    if (!check || !campos) return;
+
     function toggle() {
       campos.classList.toggle("hidden", !check.checked);
     }
@@ -602,6 +801,50 @@ document.addEventListener('DOMContentLoaded', function () {
     toggle();
   });
 </script>
+
+{% if usa_venta_por_caja %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const checkCaja = document.getElementById("venta_por_caja");
+  const camposCaja = document.getElementById("caja-campos");
+  const seccionPrecios = document.getElementById("seccion-precios-producto");
+  const seccionVencimiento = document.getElementById("seccion-vencimiento-producto");
+  const seccionDescuento = document.getElementById("seccion-descuento-producto");
+
+  const checkBulto = document.getElementById("vende_por_bulto");
+  const seccionBulto = document.getElementById("seccion-bulto");
+  const camposBulto = document.getElementById("bulto-campos");
+
+  if (!checkCaja || !camposCaja) return;
+
+  function toggleCaja() {
+    const vendePorCaja = checkCaja.checked;
+
+    // Mostrar/ocultar campos de caja
+    camposCaja.classList.toggle("hidden", !vendePorCaja);
+
+    // Si vende por caja, ocultar y desactivar bulto
+    if (seccionBulto && checkBulto) {
+      seccionBulto.classList.toggle("hidden", vendePorCaja);
+      seccionPrecios?.classList.toggle("hidden", vendePorCaja);
+      seccionVencimiento?.classList.toggle("hidden", vendePorCaja);
+      seccionDescuento?.classList.toggle("hidden", vendePorCaja);
+      if (vendePorCaja) {
+        checkBulto.checked = false;
+
+        if (camposBulto) {
+          camposBulto.classList.add("hidden");
+        }
+      }
+    }
+  }
+
+  checkCaja.addEventListener("change", toggleCaja);
+
+  toggleCaja();
+});
+</script>
+{% endif %}
 
 <!-- Alerta stock bajo - mostrar/ocultar campo -->
 <script>

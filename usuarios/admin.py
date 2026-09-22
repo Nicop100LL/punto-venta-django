@@ -15,16 +15,49 @@ class ReglaArcaPagoInline(admin.TabularInline):
 
 @admin.register(Empresa)
 class EmpresaAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "cuit", "usa_arca", "arca_modo", "arca_punto_venta", "mostrar_aviso", "tipo_aviso")
-    list_editable = ("usa_arca", "mostrar_aviso", "tipo_aviso")
+
+    list_display = (
+        "nombre",
+        "cuit",
+        "usa_venta_por_caja",
+        "usa_arca",
+        "arca_modo",
+        "arca_punto_venta",
+        "mostrar_aviso",
+        "tipo_aviso",
+    )
+
+    list_editable = (
+        "usa_venta_por_caja",
+        "usa_arca",
+        "mostrar_aviso",
+        "tipo_aviso",
+    )
+
     fieldsets = (
+
         ("Datos generales", {
-            "fields": ("nombre", "cuit", "direccion", "condicion_iva", "logo", "formato_ticket", "activo")
+            "fields": (
+                "nombre",
+                "cuit",
+                "direccion",
+                "condicion_iva",
+                "logo",
+                "formato_ticket",
+                "activo",
+                "usa_venta_por_caja",
+            )
         }),
+
         ("Aviso para usuarios", {
-            "fields": ("mostrar_aviso", "tipo_aviso", "mensaje_aviso"),
+            "fields": (
+                "mostrar_aviso",
+                "tipo_aviso",
+                "mensaje_aviso"
+            ),
             "description": "Mensaje que se muestra arriba de todo el sistema a todos los usuarios (ej: recordatorio de pago)."
         }),
+
         ("Configuración ARCA", {
             "fields": (
                 "usa_arca",
@@ -32,15 +65,15 @@ class EmpresaAdmin(admin.ModelAdmin):
                 "arca_punto_venta",
                 "arca_certificado",
                 "arca_clave_privada",
-                "arca_alicuota_iva_default", 
+                "arca_alicuota_iva_default",
             ),
             "classes": ("collapse",),
             "description": "Completar solo si la empresa factura con ARCA."
         }),
+
     )
+
     inlines = [ReglaArcaPagoInline]
-
-
 @admin.action(description="Reintentar comprobantes en error")
 def reintentar_comprobantes(modeladmin, request, queryset):
     actualizados = 0
