@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+{% block title %}Nuevo Presupuesto{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+  <h1 class="text-2xl font-bold mb-4">📝 Nuevo presupuesto</h1>
+
+  {# Borrá este bloque si base.html ya muestra los messages #}
+  {% if messages %}
+    {% for m in messages %}
+      <div class="mb-3 px-4 py-2 rounded bg-red-100 text-red-700 text-sm">{{ m }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" id="form-presupuesto">
+    {% csrf_token %}
+
+    <!-- Cabecera -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-bold text-gray-700 mb-1">Cliente registrado</label>
+        <select name="cliente" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+          <option value="">---------</option>
+          {% for c in clientes %}
+            <option value="{{ c.id }}" {% if c.id|stringformat:"s" == cliente_id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm font-bold text-gray-700 mb-1">o nombre (cliente no registrado)</label>
+        <input type="text" name="cliente_nombre" value="{{ cliente_nombre }}"
+               class="w-full border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Ej: Juan Pérez">
+      </div>
+      <div>
+        <label class="block text-sm font-bold text-gray-700 mb-1">Validez (días)</label>
+        <input type="number" min="1" name="validez_dias" value="{{ validez_dias }}"
+               class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-bold text-gray-700 mb-1">Nota (opcional)</label>
+      <textarea name="nota" rows="2" class="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                placeholder="Condiciones, plazo de entrega, etc.">{{ nota }}</textarea>
+    </div>
+
+    <!-- Agregar producto: principal = buscar por nombre -->
+<div class="bg-gray-50 border rounded-lg p-3 mb-4">
+
+  <button type="button" id="btn-buscar-nombre"
+          class="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 text-lg font-semibold"
+          title="Buscar por nombre (F3)">
+    🔍 Buscar producto por nombre (F3)
+  </button>
+
+  <!-- Producto elegido -->
+    <div id="producto-elegido"
+        class="hidden mt-3 flex items-center justify-between gap-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+        <div class="min-w-0">
+        <div class="text-xs text-gray-500 uppercase font-semibold">Producto seleccionado</div>
+        <div id="producto-elegido-nombre" class="font-bold text-blue-800 truncate"></div>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+        <span id="producto-elegido-precio" class="font-bold text-green-700"></span>
+        <button type="button" id="btn-quitar-producto"
+                class="text-gray-400 hover:text-red-600 text-xl leading-none" title="Quitar">✕</button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end mt-3">
+        <div class="md:col-span-2">
+        <label class="block text-xs font-medium text-gray-500">Código (opcional / lector)</label>
+        <input type="text" name="codigo" id="codigo" autocomplete="off"
+                class="mt-1 w-full border border-gray-300 rounded-lg px-2 py-2 text-sm bg-white">
+        </div>
+        <div>
+        <label class="block text-sm font-medium text-gray-700">Cant. (cajas / unid.)</label>
+        <input type="number" name="cantidad" id="cantidad" value="1" min="0.001" step="0.001"
+                class="mt-1 w-full border border-gray-300 rounded-lg px-2 py-2 text-sm">
+        </div>
+        <div>
+        <label class="block text-sm font-medium text-gray-700">o m² necesarios</label>
+        <input type="number" name="m2_necesarios" id="m2_necesarios" min="0.001" step="0.001" placeholder="Ej: 25"
+                class="mt-1 w-full border border-gray-300 rounded-lg px-2 py-2 text-sm">
+        </div>
+        <div class="md:col-span-2">
+        <button type="submit" name="agregar" id="btn-agregar" formnovalidate
+                class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            Agregar al presupuesto
+        </button>
+        </div>
+    </div>
+
+    <p class="text-xs text-gray-500 mt-2">
+        Buscá el producto, indicá cantidad de cajas o m² necesarios y presioná Enter.
+        Con m² se calculan las cajas (redondeando hacia arriba) y se ignora la cantidad.
+    </p>
+    </div>
+    <p class="text-xs text-gray-500 -mt-2 mb-4">
+      Si completás "m² necesarios", se calculan las cajas (redondeando hacia arriba) y se ignora la cantidad.
+    </p>
+
+    <!-- Items -->
+    {% if carrito %}
+    <div class="overflow-x-auto">
+    <table class="w-full border border-gray-300 text-sm mb-3">
+      <thead class="bg-gray-200 text-left">
+        <tr>
+          <th class="p-2">Producto</th>
+          <th class="p-2">Cantidad</th>
+          <th class="p-2 text-right">Precio</th>
+          <th class="p-2 text-right">Subtotal</th>
+          <th class="p-2"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in carrito %}
+        <tr class="border-t">
+          <td class="p-2">{{ item.nombre }}</td>
+          <td class="p-2">
+            {% if item.venta_por_caja %}
+              <strong>{{ item.cantidad|floatformat:"-3" }} caja{{ item.cantidad|pluralize }}</strong><br>
+              <small class="text-blue-600 font-semibold">{{ item.metros_totales|floatformat:3 }} m²</small>
+            {% else %}
+              {{ item.cantidad|floatformat:"-3" }}
+            {% endif %}
+          </td>
+          <td class="p-2 text-right">
+            ${{ item.precio_unitario|floatformat:2|formato_precio }}
+            {% if item.venta_por_caja %}
+              <br><small class="text-gray-500">${{ item.precio_m2|floatformat:2|formato_precio }} / m²</small>
+            {% endif %}
+          </td>
+          <td class="p-2 text-right font-semibold">${{ item.subtotal|floatformat:2|formato_precio }}</td>
+          <td class="p-2 text-right">
+            <button type="submit" name="eliminar" value="{{ forloop.counter0 }}" formnovalidate
+                    class="text-red-600 hover:underline">Quitar</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+
+    <div class="text-right text-lg font-bold mb-4">Total: ${{ total|floatformat:2|formato_precio }}</div>
+
+    <div class="flex flex-col sm:flex-row gap-2 justify-end">
+      <button type="submit" formaction="{% url 'cancelar_presupuesto' %}" formnovalidate
+              class="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400">Descartar</button>
+      <button type="submit" name="guardar" formnovalidate
+              class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+        Guardar presupuesto
+      </button>
+    </div>
+    {% else %}
+      <p class="text-gray-500 text-sm">Todavía no agregaste productos.</p>
+    {% endif %}
+  </form>
+  <!-- Modal buscar producto por nombre -->
+<div id="modal-buscar-nombre"
+     class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 px-2">
+  <div class="bg-white rounded-lg shadow-xl p-4 w-full max-w-md">
+    <h2 class="text-lg font-semibold mb-3">Buscar producto</h2>
+
+    <input type="text" id="input-buscar-nombre" autocomplete="off"
+           class="w-full border border-gray-300 rounded px-3 py-2 mb-3"
+           placeholder="Escriba el nombre del producto...">
+
+    <ul id="lista-resultados-nombre" class="max-h-60 overflow-y-auto text-sm"></ul>
+
+    <div class="flex justify-end mt-3">
+      <button type="button" id="btn-cancelar-buscar-nombre"
+              class="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400">
+        Cancelar (Esc)
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const modal      = document.getElementById('modal-buscar-nombre');
+  const input      = document.getElementById('input-buscar-nombre');
+  const lista      = document.getElementById('lista-resultados-nombre');
+  const btnAbrir   = document.getElementById('btn-buscar-nombre');
+  const btnCancel  = document.getElementById('btn-cancelar-buscar-nombre');
+  const inputCodigo   = document.getElementById('codigo');
+  const inputCantidad = document.getElementById('cantidad');
+  const inputM2       = document.getElementById('m2_necesarios');
+  const btnAgregar    = document.getElementById('btn-agregar');
+
+  const boxElegido    = document.getElementById('producto-elegido');
+  const elegidoNombre = document.getElementById('producto-elegido-nombre');
+  const elegidoPrecio = document.getElementById('producto-elegido-precio');
+  const btnQuitar     = document.getElementById('btn-quitar-producto');
+
+  let productos = [];
+  let indexActivo = -1;
+  let debounce = null;
+
+  const abierto = () => !modal.classList.contains('hidden');
+
+  function abrir() {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    input.value = '';
+    lista.innerHTML = '';
+    productos = [];
+    indexActivo = -1;
+    setTimeout(() => input.focus(), 50);
+  }
+
+  function cerrar(devolverFoco = true) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    lista.innerHTML = '';
+    productos = [];
+    indexActivo = -1;
+    if (devolverFoco) setTimeout(() => btnAbrir.focus(), 50);
+  }
+
+  function seleccionar(p) {
+    inputCodigo.value = p.codigo;
+    elegidoNombre.textContent = p.nombre;
+    elegidoPrecio.textContent = '$' + Math.round(p.precio).toLocaleString('es-AR');
+    boxElegido.classList.remove('hidden');
+    cerrar(false);
+    setTimeout(() => { inputCantidad.focus(); inputCantidad.select(); }, 60);
+  }
+
+  function limpiarElegido() {
+    inputCodigo.value = '';
+    boxElegido.classList.add('hidden');
+    elegidoNombre.textContent = '';
+    elegidoPrecio.textContent = '';
+  }
+
+  function render() {
+    lista.innerHTML = '';
+    if (!productos.length) {
+      lista.innerHTML = '<li class="px-2 py-2 text-gray-500">Sin resultados</li>';
+      return;
+    }
+    productos.forEach((p, i) => {
+      const li = document.createElement('li');
+      li.className = 'px-3 py-2 cursor-pointer border-b flex justify-between gap-2 ' +
+                     (i === indexActivo ? 'bg-blue-200' : 'hover:bg-blue-100');
+      const n = document.createElement('span');
+      n.textContent = p.nombre;
+      const pr = document.createElement('span');
+      pr.className = 'font-semibold shrink-0';
+      pr.textContent = '$' + Math.round(p.precio).toLocaleString('es-AR');
+      li.append(n, pr);
+      li.addEventListener('click', () => seleccionar(p));
+      lista.appendChild(li);
+      if (i === indexActivo) li.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  // Buscar en tiempo real (mismo endpoint que Nueva Venta)
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearTimeout(debounce);
+    if (q.length < 2) {
+      lista.innerHTML = '';
+      productos = [];
+      indexActivo = -1;
+      return;
+    }
+    debounce = setTimeout(() => {
+      fetch(`/ventas/productos/buscar-por-nombre/?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => { productos = data; indexActivo = 0; render(); })
+        .catch(() => {
+          lista.innerHTML = '<li class="px-2 py-2 text-red-500">Error al buscar</li>';
+        });
+    }, 250);
+  });
+
+  // Teclado dentro del buscador
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); cerrar(); return; }
+    if (!productos.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      indexActivo = (indexActivo + 1) % productos.length;
+      render();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      indexActivo = (indexActivo - 1 + productos.length) % productos.length;
+      render();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      seleccionar(productos[indexActivo]);
+    }
+  });
+
+  btnAbrir.addEventListener('click', abrir);
+  btnCancel.addEventListener('click', () => cerrar());
+  btnQuitar.addEventListener('click', () => { limpiarElegido(); abrir(); });
+  modal.addEventListener('click', (e) => { if (e.target === modal) cerrar(); });
+
+  // Atajo F3
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F3') { e.preventDefault(); abrir(); }
+    if (e.key === 'Escape' && abierto()) { e.preventDefault(); cerrar(); }
+  });
+
+  // Si intenta agregar sin producto, abrir el buscador en vez de enviar
+  btnAgregar.addEventListener('click', (e) => {
+    if (!inputCodigo.value.trim()) {
+      e.preventDefault();
+      abrir();
+    }
+  });
+
+  // Si escribe a mano un código y cambia, ocultar el "seleccionado" para no confundir
+  inputCodigo.addEventListener('input', () => boxElegido.classList.add('hidden'));
+
+  // Foco inicial: abrir buscador si no hay producto elegido
+  btnAbrir.focus();
+});
+</script>
+</div>
+
+
+{% endblock %}

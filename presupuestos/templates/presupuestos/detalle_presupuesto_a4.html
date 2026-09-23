@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+{% block title %}Presupuesto #{{ presupuesto.numero_empresa }}{% endblock %}
+
+{% block content %}
+<style>@page { size: A4; margin: 15mm 15mm 20mm 15mm; }</style>
+
+<div class="w-full max-w-[740px] mx-auto bg-white shadow-sm p-8 text-[13px] text-neutral-900 font-sans
+            print:shadow-none print:p-0 print:max-w-full">
+
+  <!-- ENCABEZADO -->
+  <div class="flex justify-between items-start pb-4 mb-4 border-b-2 border-neutral-900">
+    <div class="flex items-start gap-3.5">
+      {% if empresa.logo %}
+        <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}"
+             class="w-16 h-16 object-contain border border-neutral-200 rounded-md p-1">
+      {% endif %}
+      <div class="flex flex-col gap-px">
+        <h1 class="text-lg font-bold mb-1">{{ empresa.nombre }}</h1>
+        <p class="text-[11px] text-neutral-500">Av. Monteverde 4440</p>
+        <p class="text-[11px] text-neutral-500">Burzaco - Buenos Aires</p>
+        {% if empresa.cuit %}<p class="text-[11px] text-neutral-500">CUIT: {{ empresa.cuit }}</p>{% endif %}
+        {% if empresa.condicion_iva %}<p class="text-[11px] text-neutral-500">{{ empresa.condicion_iva }}</p>{% endif %}
+        <p class="text-[11px] text-neutral-500">WhatsApp: +54 011 6108-4142</p>
+        <p class="text-[11px] text-neutral-500">Instagram: ceramicasburzaco</p>
+        <p class="text-[11px] text-neutral-500">ceramicasburzaco@gmail.com</p>
+      </div>
+    </div>
+
+    <!-- Caja del comprobante: claramente distinta -->
+    <div class="text-right border-2 border-amber-500 bg-amber-50 rounded-md px-4 py-2.5 min-w-[160px]">
+      <p class="text-sm font-extrabold tracking-widest text-amber-700 uppercase">Presupuesto</p>
+      <p class="text-xl font-bold my-0.5">#{{ presupuesto.numero_empresa|stringformat:"06d" }}</p>
+      <p class="text-[11px] text-neutral-600">{{ presupuesto.fecha|date:"d/m/Y H:i" }}</p>
+      <p class="text-[10px] font-semibold text-amber-700 mt-1">
+        Válido hasta {{ presupuesto.fecha_vencimiento|date:"d/m/Y" }}
+      </p>
+    </div>
+  </div>
+
+  {% if presupuesto.estado == 'anulado' %}
+    <div class="print:hidden mb-3 px-3 py-2 rounded bg-red-100 text-red-700 font-bold text-center">PRESUPUESTO ANULADO</div>
+  {% elif presupuesto.vencido %}
+    <div class="print:hidden mb-3 px-3 py-2 rounded bg-orange-100 text-orange-700 font-bold text-center">PRESUPUESTO VENCIDO</div>
+  {% endif %}
+
+  <!-- CLIENTE / DETALLES -->
+  <div class="grid grid-cols-2 gap-6 pb-4 mb-5 border-b border-neutral-200">
+    <div>
+      <p class="text-[10px] text-neutral-400 uppercase tracking-wider mb-1.5">Cliente</p>
+      <p class="text-sm font-bold mb-1">{{ presupuesto.nombre_cliente }}</p>
+      {% if presupuesto.cliente.cuit %}
+        <p class="text-xs text-neutral-600">CUIT / DNI: {{ presupuesto.cliente.cuit }}</p>
+      {% endif %}
+      {% if presupuesto.cliente.direccion %}
+        <p class="text-xs text-neutral-600">{{ presupuesto.cliente.direccion }}</p>
+      {% endif %}
+    </div>
+    <div>
+      <p class="text-[10px] text-neutral-400 uppercase tracking-wider mb-1.5">Detalles</p>
+      <p class="text-xs text-neutral-600"><span class="text-neutral-400">Vendedor:</span> {{ presupuesto.usuario.get_full_name|default:presupuesto.usuario.username }}</p>
+      <p class="text-xs text-neutral-600"><span class="text-neutral-400">Validez:</span> {{ presupuesto.validez_dias }} día{{ presupuesto.validez_dias|pluralize }}</p>
+    </div>
+  </div>
+
+  <!-- TABLA -->
+  <table class="w-full table-fixed border-collapse mb-5 text-xs">
+    <thead>
+      <tr class="border-b border-neutral-900 text-[10px] uppercase tracking-wide text-neutral-400">
+        <th class="w-[38%] text-left pt-1.5 px-2 pb-2">Descripción</th>
+        <th class="w-[18%] text-center pt-1.5 px-2 pb-2">Cantidad</th>
+        <th class="w-[14%] text-right pt-1.5 px-2 pb-2">Metros</th>
+        <th class="w-[15%] text-right pt-1.5 px-2 pb-2">Precio</th>
+        <th class="w-[15%] text-right pt-1.5 px-2 pb-2">Importe</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in presupuesto.detalles.all %}
+      <tr class="border-b border-neutral-100 align-top">
+        <td class="py-1.5 px-2 text-left">{{ item.descripcion }}</td>
+        <td class="py-1.5 px-2 text-center">
+          {% if item.metros_por_caja %}
+            {{ item.cantidad|floatformat:"-3" }} caja{{ item.cantidad|pluralize }}
+            <br><small class="text-[11px] italic text-neutral-500">{{ item.metros_por_caja|floatformat:3 }} m²/caja</small>
+          {% else %}
+            {{ item.cantidad|floatformat:"-3" }}
+          {% endif %}
+        </td>
+        <td class="py-1.5 px-2 text-right">
+          {% if item.metros_totales %}{{ item.metros_totales|floatformat:3 }} m²{% else %}<span class="text-neutral-300">—</span>{% endif %}
+        </td>
+        <td class="py-1.5 px-2 text-right">
+          ${{ item.precio_unitario|floatformat:2|formato_precio }}
+          {% if item.precio_m2 %}
+            <br><small class="text-[11px] italic text-neutral-500">${{ item.precio_m2|floatformat:2|formato_precio }} / m²</small>
+          {% endif %}
+        </td>
+        <td class="py-1.5 px-2 text-right">${{ item.subtotal|floatformat:2|formato_precio }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- TOTALES -->
+  <div class="flex justify-end mb-5">
+    <div class="w-64">
+      {% if total_cajas %}
+      <div class="flex justify-between py-1.5 text-xs text-neutral-600 border-b border-neutral-100">
+        <span>Cajas</span><span>{{ total_cajas|floatformat:"-3" }}</span>
+      </div>
+      {% endif %}
+      {% if total_metros %}
+      <div class="flex justify-between py-1.5 text-xs text-neutral-600 border-b border-neutral-100">
+        <span>Metros totales</span><span>{{ total_metros|floatformat:3 }} m²</span>
+      </div>
+      {% endif %}
+      <div class="border-t border-neutral-900 my-1"></div>
+      <div class="flex justify-between py-2 text-base font-bold">
+        <span>Total presupuestado</span><span>${{ presupuesto.total|floatformat:2|formato_precio }}</span>
+      </div>
+    </div>
+  </div>
+
+  {% if presupuesto.nota %}
+  <div class="bg-neutral-50 border-l-4 border-neutral-300 rounded-r px-3 py-2 text-xs text-neutral-600 mb-5">
+    <strong>Nota:</strong> {{ presupuesto.nota }}
+  </div>
+  {% endif %}
+
+  <!-- LEYENDA LEGAL -->
+  <div class="border-t border-dashed border-amber-500 pt-3 text-center text-[11px] text-neutral-500">
+    <p class="font-bold text-amber-700 uppercase">Documento no válido como factura</p>
+    <p>Presupuesto válido hasta el {{ presupuesto.fecha_vencimiento|date:"d/m/Y" }}. Precios y stock sujetos a modificación sin previo aviso.</p>
+  </div>
+
+  <!-- BOTONES -->
+  <div class="print:hidden mt-6 flex flex-wrap gap-2.5">
+    <button onclick="window.print()" class="bg-green-600 hover:bg-green-700 text-white text-xs px-4 py-2 rounded-md">Imprimir</button>
+    <a href="{% url 'nuevo_presupuesto' %}" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-md">Nuevo presupuesto</a>
+    <a href="{% url 'lista_presupuestos' %}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-4 py-2 rounded-md">Ver listado</a>
+    {% if presupuesto.estado == 'vigente' %}
+    <form method="post" action="{% url 'anular_presupuesto' presupuesto.id %}"
+          onsubmit="return confirm('¿Anular este presupuesto?')">
+      {% csrf_token %}
+      <button class="bg-red-600 hover:bg-red-700 text-white text-xs px-4 py-2 rounded-md">Anular</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -19,6 +19,7 @@ urlpatterns = [
     path('ventas/editar_cliente/', views.editar_cliente, name='editar_cliente'),
     path('', views.nueva_venta, name='nueva_venta'),
     path('ventas/', include('ventas.urls')),
+    path('presupuestos/', include('presupuestos.urls')),
     path('reportes/', include('reportes.urls')),
     path('dashboard/', dashboard, name='dashboard'),
     path('impresion/', include('impresion.urls')),

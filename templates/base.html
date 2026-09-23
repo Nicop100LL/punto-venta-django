@@ -89,6 +89,9 @@
                   class="block px-4 py-2 rounded hover:bg-blue-100">
                    💼 Cajas
                 </a>
+                {% if request.user.empresa.usa_venta_por_caja %}
+                <a href="{% url 'lista_presupuestos' %}" class="block px-4 py-2 rounded hover:bg-blue-100">📋 Presupuestos</a>
+                {% endif %}
 
 
             </nav>

@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+{% block title %}Presupuestos{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold">📝 Presupuestos</h1>
+    <a href="{% url 'nuevo_presupuesto' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+      + Nuevo presupuesto
+    </a>
+  </div>
+
+  <div class="overflow-x-auto">
+  <table class="w-full border border-gray-300 text-sm">
+    <thead class="bg-gray-200 text-left">
+      <tr>
+        <th class="p-2">N°</th>
+        <th class="p-2">Fecha</th>
+        <th class="p-2">Cliente</th>
+        <th class="p-2">Vendedor</th>
+        <th class="p-2 text-right">Total</th>
+        <th class="p-2">Estado</th>
+        <th class="p-2"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in presupuestos %}
+      <tr class="border-t hover:bg-gray-50">
+        <td class="p-2 font-semibold">#{{ p.numero_empresa|stringformat:"06d" }}</td>
+        <td class="p-2">{{ p.fecha|date:"d/m/Y H:i" }}</td>
+        <td class="p-2">{{ p.nombre_cliente }}</td>
+        <td class="p-2">{{ p.usuario.get_full_name|default:p.usuario.username }}</td>
+        <td class="p-2 text-right">${{ p.total|floatformat:2|formato_precio }}</td>
+        <td class="p-2">
+          {% if p.estado == 'anulado' %}
+            <span class="px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs">Anulado</span>
+          {% elif p.vencido %}
+            <span class="px-2 py-0.5 rounded bg-orange-100 text-orange-700 text-xs">Vencido</span>
+          {% else %}
+            <span class="px-2 py-0.5 rounded bg-green-100 text-green-700 text-xs">Vigente</span>
+          {% endif %}
+        </td>
+        <td class="p-2 text-right">
+          <a href="{% url 'detalle_presupuesto' p.id %}" class="text-blue-600 underline">Ver</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="p-4 text-center text-gray-500">Todavía no hay presupuestos.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}

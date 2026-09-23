@@ -496,13 +496,27 @@ def seleccionar_categorias_pdf(request):
 # -------------------------------------------------------------------
 # PASO 2 — Generar el PDF con el orden y selección recibidos
 # -------------------------------------------------------------------
-
 @login_required
 def exportar_productos_pdf(request):
     from .models import Producto
 
     def formatear_precio(valor):
         return "${:,}".format(int(valor)).replace(",", ".")
+
+    def formatear_decimal(valor, decimales=2):
+        """
+        Formatea valores decimales con coma decimal.
+        Ejemplo:
+        2.50 -> 2,50
+        3.25 -> 3,25
+        """
+        if valor is None:
+            return "-"
+
+        valor = Decimal(str(valor))
+        texto = f"{valor:.{decimales}f}"
+
+        return texto.replace(".", ",")
 
     # ------------------------------------------------------------------
     # Dividir texto en varias líneas sin cortar palabras
@@ -614,30 +628,27 @@ def exportar_productos_pdf(request):
     # COLUMNAS
     # ==================================================================
 
-    # Código
     X_CODIGO = 35
+    X_NOMBRE = 125
 
-    # Nombre
-    # Lo alejamos del código para evitar superposición.
-    X_NOMBRE = 155
+    # --------------------------------------------------------------
+    # PRODUCTOS NORMALES
+    # --------------------------------------------------------------
+    X_PRECIO_NORMAL = 390
+    X_DESCUENTO_NORMAL = 475
+    X_BULTO_NORMAL = 545
 
-    # Precio
-    X_PRECIO = 390
-
-    # Descuento
-    X_DESCUENTO = 475
-
-    # Bulto
-    X_BULTO = 545
+    # --------------------------------------------------------------
+    # PRODUCTOS POR CAJA
+    # --------------------------------------------------------------
+    X_M2_CAJA = 350
+    X_PRECIO_M2 = 425
+    X_PRECIO_CAJA = 485
+    X_DESCUENTO_CAJA = 535
 
     # ------------------------------------------------------------------
-    # Ancho máximo REAL para el nombre
-    # ------------------------------------------------------------------
-    ANCHO_NOMBRE = X_PRECIO - X_NOMBRE - 12
-
-    # ==================================================================
     # TÍTULO
-    # ==================================================================
+    # ------------------------------------------------------------------
     def imprimir_titulo():
 
         nonlocal y
@@ -655,16 +666,16 @@ def exportar_productos_pdf(request):
 
         y -= 40
 
-    # ==================================================================
-    # ENCABEZADOS
-    # ==================================================================
-    def imprimir_encabezados_columnas():
+    # ------------------------------------------------------------------
+    # ENCABEZADOS PARA PRODUCTOS NORMALES
+    # ------------------------------------------------------------------
+    def imprimir_encabezados_normales():
 
         nonlocal y
 
         p.setFont(
             "Helvetica-Bold",
-            12
+            10
         )
 
         p.drawString(
@@ -680,21 +691,71 @@ def exportar_productos_pdf(request):
         )
 
         p.drawRightString(
-            X_PRECIO,
+            X_PRECIO_NORMAL,
             y,
             "Precio"
         )
 
         p.drawRightString(
-            X_DESCUENTO,
+            X_DESCUENTO_NORMAL,
             y,
             "P. Desc."
         )
 
         p.drawRightString(
-            X_BULTO,
+            X_BULTO_NORMAL,
             y,
             "P. Bulto"
+        )
+
+        y -= 20
+
+    # ------------------------------------------------------------------
+    # ENCABEZADOS PARA PRODUCTOS POR CAJA
+    # ------------------------------------------------------------------
+    def imprimir_encabezados_caja():
+
+        nonlocal y
+
+        p.setFont(
+            "Helvetica-Bold",
+            9
+        )
+
+        p.drawString(
+            X_CODIGO,
+            y,
+            "Código"
+        )
+
+        p.drawString(
+            X_NOMBRE,
+            y,
+            "Nombre"
+        )
+
+        p.drawRightString(
+            X_M2_CAJA,
+            y,
+            "m²/Caja"
+        )
+
+        p.drawRightString(
+            X_PRECIO_M2,
+            y,
+            "$/m²"
+        )
+
+        p.drawRightString(
+            X_PRECIO_CAJA,
+            y,
+            "Precio Caja"
+        )
+
+        p.drawRightString(
+            X_DESCUENTO_CAJA,
+            y,
+            "P. Desc."
         )
 
         y -= 20
@@ -740,75 +801,66 @@ def exportar_productos_pdf(request):
 
         y -= 25
 
-        imprimir_encabezados_columnas()
-
-        p.setFont(
-            "Helvetica",
-            10
-        )
-
         # ==============================================================
         # PRODUCTOS
         # ==============================================================
         for prod in productos_categoria:
 
-            # ----------------------------------------------------------
-            # Dividir nombre
-            # ----------------------------------------------------------
-            lineas_nombre = dividir_texto(
-                prod.nombre,
-                "Helvetica",
-                10,
-                ANCHO_NOMBRE
+            # ==========================================================
+            # DETERMINAR SI ES PRODUCTO POR CAJA
+            # ==========================================================
+            es_venta_por_caja = (
+                request.user.empresa.usa_venta_por_caja
+                and prod.venta_por_caja
             )
 
-            alto_linea = 14
-
-            alto_producto = max(
-                18,
-                len(lineas_nombre) * alto_linea
-            )
-
-            # ----------------------------------------------------------
-            # Verificar espacio disponible
-            # ----------------------------------------------------------
-            if y - alto_producto < 60:
-
-                p.showPage()
-
-                y = height - 50
-
-                p.setFont(
-                    "Helvetica-Bold",
-                    14
-                )
-
-                p.drawString(
-                    50,
-                    y,
-                    f"  {categoria} (continuación)"
-                )
-
-                y -= 25
-
-                imprimir_encabezados_columnas()
-
-                p.setFont(
-                    "Helvetica",
-                    10
-                )
-
             # ==========================================================
-            # PREPARAR DATOS
+            # ENCABEZADO SEGÚN TIPO
             # ==========================================================
 
-            # ----------------------------------------------------------
-            # Código
-            # ----------------------------------------------------------
+            if 'ultimo_tipo_caja' not in locals():
+                ultimo_tipo_caja = None
+
+            tipo_actual = es_venta_por_caja
+
+            if ultimo_tipo_caja != tipo_actual:
+
+                if y < 100:
+
+                    p.showPage()
+
+                    y = height - 50
+
+                    imprimir_titulo()
+
+                    p.setFont(
+                        "Helvetica-Bold",
+                        14
+                    )
+
+                    p.drawString(
+                        50,
+                        y,
+                        f"  {categoria} (continuación)"
+                    )
+
+                    y -= 25
+
+                if es_venta_por_caja:
+                    imprimir_encabezados_caja()
+                else:
+                    imprimir_encabezados_normales()
+
+                ultimo_tipo_caja = tipo_actual
+
+            # ==========================================================
+            # DATOS COMUNES
+            # ==========================================================
+
             texto_codigo = str(prod.codigo)
 
             # ----------------------------------------------------------
-            # Precio normal
+            # Precio normal / precio caja
             # ----------------------------------------------------------
             texto_precio = formatear_precio(
                 prod.precio_venta
@@ -836,9 +888,11 @@ def exportar_productos_pdf(request):
 
             # ----------------------------------------------------------
             # Precio por bulto
+            # Solo corresponde a productos normales
             # ----------------------------------------------------------
             if (
-                prod.vende_por_bulto
+                not es_venta_por_caja
+                and prod.vende_por_bulto
                 and prod.precio_por_bulto
             ):
 
@@ -854,48 +908,130 @@ def exportar_productos_pdf(request):
             else:
                 texto_bulto = "-"
 
+            # ==========================================================
+            # PRODUCTO POR CAJA
+            # ==========================================================
+            if es_venta_por_caja:
+
+                texto_m2_caja = formatear_decimal(
+                    prod.metros_cuadrados_por_caja
+                )
+
+                texto_precio_m2 = (
+                    formatear_precio(
+                        prod.precio_por_m2
+                    )
+                    if prod.precio_por_m2
+                    else "-"
+                )
+
+                texto_precio_caja = formatear_precio(
+                    prod.precio_venta
+                )
+
+                # ------------------------------------------------------
+                # Calcular ancho disponible para nombre
+                # ------------------------------------------------------
+
+                ancho_precio_caja = p.stringWidth(
+                    texto_precio_caja,
+                    "Helvetica",
+                    9
+                )
+
+                ancho_m2 = p.stringWidth(
+                    texto_m2_caja,
+                    "Helvetica",
+                    9
+                )
+
+                ancho_precio_m2 = p.stringWidth(
+                    texto_precio_m2,
+                    "Helvetica",
+                    9
+                )
+
+                ancho_desc = p.stringWidth(
+                    texto_desc,
+                    "Helvetica",
+                    9
+                )
+
+                inicio_m2 = (
+                    X_M2_CAJA - ancho_m2
+                )
+
+                inicio_precio_m2 = (
+                    X_PRECIO_M2 - ancho_precio_m2
+                )
+
+                inicio_precio_caja = (
+                    X_PRECIO_CAJA - ancho_precio_caja
+                )
+
+                inicio_desc = (
+                    X_DESCUENTO_CAJA - ancho_desc
+                )
+
+                # ------------------------------------------------------
+                # IMPORTANTE:
+                # Venta por caja NO utiliza P. Bulto
+                # ------------------------------------------------------
+                limite_nombre = min(
+                    inicio_m2,
+                    inicio_precio_m2,
+                    inicio_precio_caja,
+                    inicio_desc
+                ) - 8
+
+                ancho_nombre = (
+                    limite_nombre - X_NOMBRE
+                )
 
             # ==========================================================
-            # CALCULAR EL ESPACIO REAL DEL NOMBRE
+            # PRODUCTO NORMAL
             # ==========================================================
+            else:
 
-            fuente_nombre = "Helvetica"
-            tamaño_nombre = 10
+                ancho_precio = p.stringWidth(
+                    texto_precio,
+                    "Helvetica",
+                    10
+                )
 
-            # Ancho que ocupa realmente cada texto
-            ancho_precio = p.stringWidth(
-                texto_precio,
-                "Helvetica",
-                10
-            )
+                ancho_desc = p.stringWidth(
+                    texto_desc,
+                    "Helvetica",
+                    10
+                )
 
-            ancho_desc = p.stringWidth(
-                texto_desc,
-                "Helvetica",
-                10
-            )
+                ancho_bulto = p.stringWidth(
+                    texto_bulto,
+                    "Helvetica",
+                    10
+                )
 
-            ancho_bulto = p.stringWidth(
-                texto_bulto,
-                "Helvetica",
-                10
-            )
+                inicio_precio = (
+                    X_PRECIO_NORMAL - ancho_precio
+                )
 
-            # Posición donde empieza realmente cada texto
-            inicio_precio = X_PRECIO - ancho_precio
-            inicio_desc = X_DESCUENTO - ancho_desc
-            inicio_bulto = X_BULTO - ancho_bulto
+                inicio_desc = (
+                    X_DESCUENTO_NORMAL - ancho_desc
+                )
 
-            # El nombre NO puede llegar hasta ninguno de ellos.
-            limite_nombre = min(
-                inicio_precio,
-                inicio_desc,
-                inicio_bulto
-            ) - 10
+                inicio_bulto = (
+                    X_BULTO_NORMAL - ancho_bulto
+                )
 
-            # Ancho disponible para el nombre
-            ancho_nombre = limite_nombre - X_NOMBRE
+                limite_nombre = min(
+                    inicio_precio,
+                    inicio_desc,
+                    inicio_bulto
+                ) - 10
 
+                ancho_nombre = (
+                    limite_nombre - X_NOMBRE
+                )
 
             # ==========================================================
             # DIVIDIR NOMBRE
@@ -903,21 +1039,22 @@ def exportar_productos_pdf(request):
 
             lineas_nombre = dividir_texto(
                 prod.nombre,
-                fuente_nombre,
-                tamaño_nombre,
+                "Helvetica",
+                9 if es_venta_por_caja else 10,
                 ancho_nombre
             )
 
-            alto_linea = 14
+            alto_linea = (
+                13 if es_venta_por_caja else 14
+            )
 
             alto_producto = max(
                 18,
                 len(lineas_nombre) * alto_linea
             )
 
-
             # ==========================================================
-            # VERIFICAR ESPACIO EN LA PÁGINA
+            # VERIFICAR ESPACIO
             # ==========================================================
 
             if y - alto_producto < 60:
@@ -939,53 +1076,100 @@ def exportar_productos_pdf(request):
 
                 y -= 25
 
-                imprimir_encabezados_columnas()
-
-                p.setFont(
-                    "Helvetica",
-                    10
-                )
-
+                if es_venta_por_caja:
+                    imprimir_encabezados_caja()
+                else:
+                    imprimir_encabezados_normales()
 
             # ==========================================================
-            # PRIMERA LÍNEA
+            # DIBUJAR PRODUCTO
             # ==========================================================
 
+            tamaño_fuente = (
+                9 if es_venta_por_caja else 10
+            )
+
+            p.setFont(
+                "Helvetica",
+                tamaño_fuente
+            )
+
+            # ----------------------------------------------------------
             # Código
+            # ----------------------------------------------------------
             p.drawString(
                 X_CODIGO,
                 y,
                 texto_codigo
             )
 
+            # ----------------------------------------------------------
             # Nombre
+            # ----------------------------------------------------------
             p.drawString(
                 X_NOMBRE,
                 y,
                 lineas_nombre[0]
             )
 
-            # Precio
-            p.drawRightString(
-                X_PRECIO,
-                y,
-                texto_precio
-            )
+            # ==========================================================
+            # PRODUCTO POR CAJA
+            # ==========================================================
+            if es_venta_por_caja:
 
-            # Descuento
-            p.drawRightString(
-                X_DESCUENTO,
-                y,
-                texto_desc
-            )
+                # m² por caja
+                p.drawRightString(
+                    X_M2_CAJA,
+                    y,
+                    texto_m2_caja
+                )
 
-            # Bulto
-            p.drawRightString(
-                X_BULTO,
-                y,
-                texto_bulto
-            )
+                # Precio por m²
+                p.drawRightString(
+                    X_PRECIO_M2,
+                    y,
+                    texto_precio_m2
+                )
 
+                # Precio de la caja
+                p.drawRightString(
+                    X_PRECIO_CAJA,
+                    y,
+                    texto_precio_caja
+                )
+
+                # Descuento
+                p.drawRightString(
+                    X_DESCUENTO_CAJA,
+                    y,
+                    texto_desc
+                )
+
+            # ==========================================================
+            # PRODUCTO NORMAL
+            # ==========================================================
+            else:
+
+                # Precio
+                p.drawRightString(
+                    X_PRECIO_NORMAL,
+                    y,
+                    texto_precio
+                )
+
+                # Descuento
+                p.drawRightString(
+                    X_DESCUENTO_NORMAL,
+                    y,
+                    texto_desc
+                )
+
+                # Bulto
+                p.drawRightString(
+                    X_BULTO_NORMAL,
+                    y,
+                    texto_bulto
+                )
 
             # ==========================================================
             # LÍNEAS ADICIONALES DEL NOMBRE
@@ -1000,7 +1184,6 @@ def exportar_productos_pdf(request):
                     y,
                     linea
                 )
-
 
             # ==========================================================
             # LÍNEA SEPARADORA
@@ -1017,8 +1200,11 @@ def exportar_productos_pdf(request):
             y -= 18
 
         # --------------------------------------------------------------
-        # Espacio entre categorías
+        # Resetear tipo para la siguiente categoría
         # --------------------------------------------------------------
+        ultimo_tipo_caja = None
+
+        # Espacio entre categorías
         y -= 15
 
     # ==================================================================
