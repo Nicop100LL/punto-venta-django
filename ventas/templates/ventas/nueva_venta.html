@@ -99,17 +99,35 @@
 
     <!-- Tipo de comprobante -->
     <div>
-        <label for="tipo_comprobante" class="block text-gray-700 font-bold mb-1 text-sm">Comprobante</label>
-        <select name="tipo_comprobante" id="tipo_comprobante" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
-            <option value="58mm" {% if tipo_comprobante == "58mm" %}selected{% endif %}>
-                Ticket 58mm (térmica)
-            </option>
-            <option value="80mm" {% if tipo_comprobante == "80mm" %}selected{% endif %}>
-                Ticket 80mm (térmica)
-            </option>
-            <option value="a4" {% if tipo_comprobante == "a4" %}selected{% endif %}>
-                Boleta A4
-            </option>
+        <label for="tipo_comprobante" class="block text-gray-700 font-bold mb-1 text-sm">
+            Comprobante
+        </label>
+
+        <select name="tipo_comprobante" id="tipo_comprobante"
+                class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+
+            {% if request.user.empresa.usa_venta_por_caja %}
+
+                <option value="a4" selected>
+                    Boleta A4
+                </option>
+
+            {% else %}
+
+                <option value="58mm" {% if tipo_comprobante == "58mm" %}selected{% endif %}>
+                    Ticket 58mm (térmica)
+                </option>
+
+                <option value="80mm" {% if tipo_comprobante == "80mm" %}selected{% endif %}>
+                    Ticket 80mm (térmica)
+                </option>
+
+                <option value="a4" {% if tipo_comprobante == "a4" %}selected{% endif %}>
+                    Boleta A4
+                </option>
+
+            {% endif %}
+
         </select>
     </div>
 
