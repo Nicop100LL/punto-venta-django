@@ -102,7 +102,9 @@ class CierreCaja(models.Model):
         )['total'] or 0
 
     def total_tarjeta(self):
-        return self.total_por_tipo_pago('TJ')
+        return self.ventas.filter(
+            tipo_pago__in=['TJ', 'TJ1', 'TJ3', 'TJ6']
+        ).aggregate(total=Sum('total'))['total'] or 0
 
     def total_transferencia(self):
         return self.total_por_tipo_pago('TR')

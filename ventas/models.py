@@ -37,6 +37,9 @@ class Venta(models.Model):
     fecha = models.DateTimeField(default=timezone.now)
     cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True)
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    recargo_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    recargo_monto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True)
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
     cuenta_corriente = models.BooleanField(default=False)
@@ -63,10 +66,13 @@ class Venta(models.Model):
         ('DN', 'QR (Cuenta DNI)'),
         ('TJ', 'Tarjeta'),
         ('TR', 'Transferencia'),
+        ('TJ1', 'Tarjeta 1 pago'),   
+        ('TJ3', 'Tarjeta 3 pagos'),  
+        ('TJ6', 'Tarjeta 6 pagos'),
     ]
 
     tipo_pago = models.CharField(
-        max_length=2,
+        max_length=3,
         choices=TIPO_PAGO_CHOICES,
         default='EF'
     )
@@ -294,7 +300,7 @@ class ReglaArcaPago(models.Model):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
 
     tipo_pago = models.CharField(
-        max_length=2,
+        max_length=3,
         choices=Venta.TIPO_PAGO_CHOICES
     )
 

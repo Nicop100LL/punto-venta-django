@@ -102,10 +102,33 @@ def cerrar_caja(request):
 
     # Totales informativos para mostrar en el formulario
     totales_digitales = {
-        'MP': ventas.filter(tipo_pago='MP').aggregate(t=Sum('total'))['t'] or Decimal('0'),
-        'DN': ventas.filter(tipo_pago='DN').aggregate(t=Sum('total'))['t'] or Decimal('0'),
-        'TJ': ventas.filter(tipo_pago='TJ').aggregate(t=Sum('total'))['t'] or Decimal('0'),
-        'TR': ventas.filter(tipo_pago='TR').aggregate(t=Sum('total'))['t'] or Decimal('0'),
+        'MP': ventas.filter(
+            tipo_pago='MP'
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0'),
+
+        'DN': ventas.filter(
+            tipo_pago='DN'
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0'),
+
+        'TJ': ventas.filter(
+            tipo_pago='TJ'
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0'),
+
+        'TJ1': ventas.filter(
+            tipo_pago='TJ1'
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0'),
+
+        'TJ3': ventas.filter(
+            tipo_pago='TJ3'
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0'),
+
+        'TJ6': ventas.filter(
+            tipo_pago='TJ6'
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0'),
+
+        'TR': ventas.filter(
+            tipo_pago='TR'
+        ).aggregate(t=Sum('total'))['t'] or Decimal('0'),
     }
 
     context = {
@@ -234,8 +257,17 @@ def detalle_caja_historica(request, caja_id):
     total_ventas = ventas.aggregate(total=Sum('total'))['total'] or Decimal('0')
 
     # Totales por método (informativos, sin CC duplicado)
-    totales = {'EF': Decimal('0'), 'MP': Decimal('0'), 'DN': Decimal('0'),
-               'TJ': Decimal('0'), 'TR': Decimal('0'), 'CC': Decimal('0')}
+    totales = {
+        'EF': Decimal('0'),
+        'MP': Decimal('0'),
+        'DN': Decimal('0'),
+        'TJ': Decimal('0'),
+        'TJ1': Decimal('0'),
+        'TJ3': Decimal('0'),
+        'TJ6': Decimal('0'),
+        'TR': Decimal('0'),
+        'CC': Decimal('0'),
+    }
 
     for v in ventas:
         if v.cuenta_corriente:

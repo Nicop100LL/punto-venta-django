@@ -149,22 +149,44 @@
     <!-- ===== TOTALES ===== -->
     <div class="totales-wrap">
         <div class="totales-box">
-            {% if total_bultos %}
-            <p class="text-[8px]"><strong>Bultos:</strong> {{ total_bultos|floatformat:0 }} bulto{{ total_bultos|pluralize }}</p>
+            {% if total_cajas %}
+            <p class="text-[8px]">
+                <strong>Cajas:</strong>
+                {{ total_cajas|floatformat:0 }}
+                caja{{ total_cajas|pluralize }}
+            </p>
             {% endif %}
+
+            {% if total_bultos %}
+            <p class="text-[8px]">
+                <strong>Bultos:</strong>
+                {{ total_bultos|floatformat:0 }}
+                bulto{{ total_bultos|pluralize }}
+            </p>
+            {% endif %}
+
             {% if total_unidades %}
-            <p class="text-[8px]"><strong>Unidades:</strong> {{ total_unidades|floatformat:0 }} unidad{{ total_unidades|pluralize:"es" }}</p>
+            <p class="text-[8px]">
+                <strong>Unidades:</strong>
+                {{ total_unidades|floatformat:0 }}
+                unidad{{ total_unidades|pluralize:"es" }}
+            </p>
             {% endif %}
             {% if total_metros %}
-            <div class="totales-row totales-row-sub">
-                <span>Metros totales</span>
-                <span>{{ total_metros|floatformat:3 }} m²</span>
-            </div>
-            {% endif %}
             <div class="totales-row totales-row-sub">
                 <span>Subtotal</span>
                 <span>${{ venta.subtotal|default:venta.total|floatformat:2|formato_precio }}</span>
             </div>
+            {% if venta.recargo_monto %}
+            <div class="totales-row totales-row-recargo">
+                <span>Recargo (+{{ venta.recargo_porcentaje|floatformat:0 }}%)</span>
+                <span>${{ venta.recargo_monto|floatformat:2|formato_precio }}</span>
+            </div>
+            {% endif %}
+
+            <div class="totales-divider"></div>
+            {% endif %}
+            
             {% if venta.descuento %}
             <div class="totales-row totales-row-sub">
                 <span>Descuento</span>

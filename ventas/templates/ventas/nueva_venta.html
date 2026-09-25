@@ -88,12 +88,23 @@
     <!-- Tipo de pago -->
     <div>
         <label for="tipo_pago" class="block text-gray-700 font-bold mb-1 text-sm">Tipo de pago</label>
-        <select name="tipo_pago" id="tipo_pago" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
-        <option value="EF" {% if tipo_pago == 'EF' %}selected{% endif %}>Efectivo</option>
-        <option value="MP" {% if tipo_pago == 'MP' %}selected{% endif %}>QR (Mercado Pago)</option>
-        <option value="DN" {% if tipo_pago == 'DN' %}selected{% endif %}>QR (Cuenta DNI)</option>
-        <option value="TJ" {% if tipo_pago == 'TJ' %}selected{% endif %}>Tarjeta</option>
-        <option value="TR" {% if tipo_pago == 'TR' %}selected{% endif %}>Transferencia</option>
+        <select name="tipo_pago" id="tipo_pago"
+                class="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                data-recargos='{{ recargos_json }}'>
+
+            {% if request.user.empresa.usa_venta_por_caja %}
+                <option value="EF"  {% if tipo_pago == 'EF' %}selected{% endif %}>Efectivo</option>
+                <option value="TR"  {% if tipo_pago == 'TR' %}selected{% endif %}>Transferencia (+5%)</option>
+                <option value="TJ1" {% if tipo_pago == 'TJ1' %}selected{% endif %}>Tarjeta 1 pago (+5%)</option>
+                <option value="TJ3" {% if tipo_pago == 'TJ3' %}selected{% endif %}>Tarjeta 3 pagos (+15%)</option>
+                <option value="TJ6" {% if tipo_pago == 'TJ6' %}selected{% endif %}>Tarjeta 6 pagos (+25%)</option>
+            {% else %}
+                <option value="EF" {% if tipo_pago == 'EF' %}selected{% endif %}>Efectivo</option>
+                <option value="MP" {% if tipo_pago == 'MP' %}selected{% endif %}>QR (Mercado Pago)</option>
+                <option value="DN" {% if tipo_pago == 'DN' %}selected{% endif %}>QR (Cuenta DNI)</option>
+                <option value="TJ" {% if tipo_pago == 'TJ' %}selected{% endif %}>Tarjeta</option>
+                <option value="TR" {% if tipo_pago == 'TR' %}selected{% endif %}>Transferencia</option>
+            {% endif %}
         </select>
     </div>
 
@@ -388,8 +399,17 @@ document.addEventListener('submit', () => {
 
 </table>
 
-<div class="text-right text-lg font-bold mt-2">
-    <p>Total: ${{ total|floatformat:2|formato_precio }}</p>
+<div class="text-right mt-2">
+    <p class="text-sm text-gray-600">
+        Subtotal: $<span id="subtotal-carrito-mostrado">{{ subtotal_carrito|floatformat:2|formato_precio }}</span>
+    </p>
+    <p id="linea-recargo-carrito"
+    class="text-sm text-orange-600 font-semibold {% if not recargo_monto %}hidden{% endif %}">
+        Recargo (+<span id="recargo-porcentaje-mostrado">{{ recargo_porcentaje|floatformat:0 }}</span>%): $<span id="recargo-monto-mostrado">{{ recargo_monto|floatformat:2|formato_precio }}</span>
+    </p>
+    <p class="text-lg font-bold mt-1">
+        Total: $<span id="total-mostrado">{{ total|floatformat:2|formato_precio }}</span>
+    </p>
 </div>
 
 <form method="post" id="form-finalizar">
@@ -413,29 +433,31 @@ document.addEventListener('submit', () => {
             </span>
         </label>
     </div>
-    <div class="mb-2" x-data="{
-        open: false,
-        entregado: '',
-        vuelto: 0,
-        total: {{ total|floatformat:2 }},
-        mostrarInfo: false,
-        aceptar() {
-            const monto = parseFloat(this.entregado);
-            if (isNaN(monto) || monto < this.total) {
-                alert('Ingrese un monto válido que sea mayor o igual al total.');
-                return;
-            }
-            this.vuelto = monto - this.total;
+    <div class="mb-2"
+        @total-actualizado.window="total = $event.detail" 
+        x-data="{
+            open: false,
+            entregado: '',
+            vuelto: 0,
+            total: {{ total|floatformat:2 }},
+            mostrarInfo: false,
+            aceptar() {
+                const monto = parseFloat(this.entregado);
+                if (isNaN(monto) || monto < this.total) {
+                    alert('Ingrese un monto válido que sea mayor o igual al total.');
+                    return;
+                }
+                this.vuelto = monto - this.total;
+                this.open = false;
+                this.mostrarInfo = true;
+                // ✅ enviar al backend
+                document.getElementById('importe-entregado-hidden').value = monto.toFixed(2);
+                document.getElementById('vuelto-hidden').value = this.vuelto.toFixed(2);
+            },
+            cerrarModal() {
             this.open = false;
-            this.mostrarInfo = true;
-            // ✅ enviar al backend
-            document.getElementById('importe-entregado-hidden').value = monto.toFixed(2);
-            document.getElementById('vuelto-hidden').value = this.vuelto.toFixed(2);
-        },
-        cerrarModal() {
-        this.open = false;
-     }
-    }"
+        }
+        }"
     @keydown.window.escape="cerrarModal()" 
     @keydown.window.prevent.f2=
     "open = true;
@@ -1087,6 +1109,65 @@ document.addEventListener('DOMContentLoaded', function () {
     selectTipoPago.addEventListener('change', () => {
         tipoPagoHiddenFinalizar.value = selectTipoPago.value;
     });
+
+    // ===== PREVIEW DE RECARGO EN VIVO (antes de recargar la página) =====
+    const SUBTOTAL_CARRITO = {{ subtotal_carrito|default:0|floatformat:2 }};
+    const subtotalSpan     = document.getElementById('subtotal-carrito-mostrado');
+    const totalSpan        = document.getElementById('total-mostrado');
+    const lineaRecargoP    = document.getElementById('linea-recargo-carrito');
+    const recargoMontoSpan = document.getElementById('recargo-monto-mostrado');
+    const recargoPorcentajeSpan = document.getElementById('recargo-porcentaje-mostrado');
+
+    function formatoNumeroAR(valor) {
+        return Number(valor).toLocaleString('es-AR', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function actualizarPreviewRecargo() {
+        let recargos = {};
+        try {
+            recargos = JSON.parse(selectTipoPago.dataset.recargos || '{}');
+        } catch (e) {}
+
+        const pct = recargos[selectTipoPago.value] || 0;
+        const recargoMonto = SUBTOTAL_CARRITO * (pct / 100);
+        const totalFinal = SUBTOTAL_CARRITO + recargoMonto;
+
+        if (totalSpan) totalSpan.textContent = formatoNumeroAR(totalFinal);
+
+        if (pct > 0) {
+            if (recargoPorcentajeSpan) recargoPorcentajeSpan.textContent = pct;
+            if (recargoMontoSpan) recargoMontoSpan.textContent = formatoNumeroAR(recargoMonto);
+            if (lineaRecargoP) lineaRecargoP.classList.remove('hidden');
+        } else if (lineaRecargoP) {
+            lineaRecargoP.classList.add('hidden');
+        }
+
+        window.dispatchEvent(new CustomEvent('total-actualizado', { detail: totalFinal }));
+    }
+
+    selectTipoPago.addEventListener('change', () => {
+        actualizarPreviewRecargo();
+        persistirTipoPago();
+    });
+
+    function persistirTipoPago() {
+        const csrftoken = document.querySelector('#form-agregar [name=csrfmiddlewaretoken]').value;
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', csrftoken);
+        formData.append('tipo_pago', selectTipoPago.value);
+
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).catch(() => {
+            // Si falla el guardado silencioso, no rompemos la UI;
+            // el valor se va a persistir igual al agregar un producto o finalizar.
+        });
+    }
 
     // Sincronizar cada vez que cambia
     selectTipoComprobante.addEventListener('change', () => {

@@ -56,7 +56,7 @@ from django.contrib import messages
 from .models import Venta, DetalleVenta, Cliente, NotaCredito, DetalleNotaCredito
 from ventas.services.arca import decidir_arca
 from ventas.models import ComprobanteArca
-
+import json
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
@@ -66,7 +66,28 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .models import EgresoCaja
 
+RECARGOS_PAGO_CAJA = {
+    'EF':  Decimal('0.00'),
+    'TR':  Decimal('0.05'),
+    'TJ1': Decimal('0.05'),
+    'TJ3': Decimal('0.15'),
+    'TJ6': Decimal('0.25'),
+}
 
+def calcular_total_con_recargo(subtotal: Decimal, tipo_pago: str, usa_venta_por_caja: bool):
+    if not usa_venta_por_caja:
+        return subtotal, Decimal('0.00'), Decimal('0.00'), subtotal
+    pct = RECARGOS_PAGO_CAJA.get(tipo_pago, Decimal('0.00'))
+    recargo_monto = (subtotal * pct).quantize(Decimal('0.01'))
+    return subtotal, pct * 100, recargo_monto, subtotal + recargo_monto
+
+def recargos_para_template(usa_venta_por_caja: bool) -> str:
+    """Un solo lugar que alimenta tanto el <select> como el preview JS."""
+    if usa_venta_por_caja:
+        data = {k: float(v * 100) for k, v in RECARGOS_PAGO_CAJA.items()}
+    else:
+        data = {'EF': 0, 'MP': 0, 'DN': 0, 'TJ': 0, 'TR': 0}
+    return json.dumps(data)
 
 @login_required
 def nueva_venta(request):
@@ -327,19 +348,28 @@ def nueva_venta(request):
         # =========================
         elif 'finalizar' in request.POST:
             print("POST FINALIZAR:", request.POST)
-             # 🔒 BLOQUEAR VENTA SIN CAJA solo para empleados
+            # 🔒 BLOQUEAR VENTA SIN CAJA solo para empleados
             if request.user.es_empleado and not caja_abierta:
-                abrir_modal_caja = True  # activamos modal
+                abrir_modal_caja = True
                 venta_form = VentaForm(initial={'cliente': cliente_id_int})
                 venta_form.fields['cliente'].queryset = Cliente.objects.filter(
                     empresa=request.user.empresa
                 )
-                # PASAMOS TODAS LAS VARIABLES EXISTENTES
+
+                subtotal_carrito = sum(Decimal(str(i['subtotal'])) for i in carrito)
+                _, recargo_pct, recargo_monto, total_con_recargo = calcular_total_con_recargo(
+                    subtotal_carrito, tipo_pago, request.user.empresa.usa_venta_por_caja
+                )
+
                 return render(request, 'ventas/nueva_venta.html', {
                     'venta_form': venta_form,
                     'detalle_form': DetalleVentaForm(),
                     'carrito': carrito,
-                    'total': sum(float(i['subtotal']) for i in carrito),
+                    'subtotal_carrito': subtotal_carrito,
+                    'recargo_porcentaje': recargo_pct,
+                    'recargo_monto': recargo_monto,
+                    'total': total_con_recargo,
+                    'recargos_json': recargos_para_template(request.user.empresa.usa_venta_por_caja),
                     'tipo_comprobante': tipo_comprobante,
                     'cliente_id': cliente_id_int,
                     'cuenta_corriente': cuenta_corriente,
@@ -374,7 +404,16 @@ def nueva_venta(request):
                 )
                 
                 venta.caja = caja_abierta
-                venta.total = sum(Decimal(str(i['subtotal'])) for i in carrito)
+                subtotal_carrito = sum(Decimal(str(i['subtotal'])) for i in carrito)
+
+                subtotal, recargo_pct, recargo_monto, total_final = calcular_total_con_recargo(
+                    subtotal_carrito, tipo_pago, request.user.empresa.usa_venta_por_caja
+                )
+
+                venta.subtotal = subtotal
+                venta.recargo_porcentaje = recargo_pct
+                venta.recargo_monto = recargo_monto
+                venta.total = total_final
                 venta.tipo_comprobante = tipo_comprobante
                 venta.tipo_pago = tipo_pago
                 venta.cuenta_corriente = cuenta_corriente
@@ -501,7 +540,11 @@ def nueva_venta(request):
         total_ventas_caja  = _ventas_caja.aggregate(t=Sum('total'))['t'] or Decimal('0')
         total_mp = _ventas_caja.filter(tipo_pago='MP').aggregate(t=Sum('total'))['t'] or Decimal('0')
         total_dn = _ventas_caja.filter(tipo_pago='DN').aggregate(t=Sum('total'))['t'] or Decimal('0')
-        total_tj = _ventas_caja.filter(tipo_pago='TJ').aggregate(t=Sum('total'))['t'] or Decimal('0')
+        total_tj = _ventas_caja.filter(
+            tipo_pago__in=['TJ', 'TJ1', 'TJ3', 'TJ6']
+        ).aggregate(
+            t=Sum('total')
+        )['t'] or Decimal('0')
         total_tr = _ventas_caja.filter(tipo_pago='TR').aggregate(t=Sum('total'))['t'] or Decimal('0')
         total_cc = _ventas_caja.filter(cuenta_corriente=True).aggregate(t=Sum('total'))['t'] or Decimal('0')
         total_ef_modal = _total_ef
@@ -509,13 +552,21 @@ def nueva_venta(request):
         efectivo_esperado = total_ventas_caja = Decimal('0')
         total_mp = total_dn = total_tj = total_tr = total_cc = total_ef_modal = Decimal('0')
 
-    
+    # 👇 SACADO del if/else — esto se calcula SIEMPRE, haya o no caja abierta
+    subtotal_carrito = sum(Decimal(str(i['subtotal'])) for i in carrito)
+    _, recargo_pct, recargo_monto, total_con_recargo = calcular_total_con_recargo(
+        subtotal_carrito, tipo_pago, request.user.empresa.usa_venta_por_caja
+    )
 
     return render(request, 'ventas/nueva_venta.html', {
         'venta_form': venta_form,
         'detalle_form': DetalleVentaForm(),
         'carrito': carrito,
-        'total': sum(float(i['subtotal']) for i in carrito),
+        'subtotal_carrito': subtotal_carrito,      # 👈 lo vas a necesitar en el template (te lo pedí en la respuesta anterior para el bloque de Subtotal/Recargo)
+        'recargo_porcentaje': recargo_pct,          # 👈 idem
+        'recargo_monto': recargo_monto,             # 👈 idem
+        'total': total_con_recargo,
+        'recargos_json': recargos_para_template(request.user.empresa.usa_venta_por_caja),
         'tipo_comprobante': tipo_comprobante,
         'cliente_id': cliente_id_int,
         'cuenta_corriente': cuenta_corriente,
@@ -523,7 +574,6 @@ def nueva_venta(request):
         'tipo_pago': tipo_pago,
         'abrir_modal_caja': abrir_modal_caja,
         'caja_abierta': caja_abierta,
-        # ✅ Variables para el modal de cierre
         'efectivo_esperado': efectivo_esperado,
         'total_ventas_caja': total_ventas_caja,
         'total_ef_modal': total_ef_modal,
@@ -534,7 +584,6 @@ def nueva_venta(request):
         'total_cc': total_cc,
         'formato_ticket': request.user.empresa.formato_ticket, 
     })
-
 
 
 from django.contrib.auth import get_user_model
@@ -626,6 +675,12 @@ def detalle_venta(request, venta_id):
         for item in detalles
         if not item.es_bulto and not item.metros_por_caja
     )
+    
+    total_cajas = sum(
+        int(item.cantidad)
+        for item in detalles
+        if item.metros_por_caja
+    )
 
     total_bultos = sum(
         (item.cantidad_bultos() or 0)
@@ -648,6 +703,7 @@ def detalle_venta(request, venta_id):
         'empresa': request.user.empresa,
         'alertas_stock': alertas_stock,
         'total_metros': total_metros, 
+        'total_cajas': total_cajas,
     })
 
 @login_required
