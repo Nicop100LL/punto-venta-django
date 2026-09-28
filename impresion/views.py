@@ -31,8 +31,8 @@ def configurar_impresion(request):
         "modelos_hoja": modelos_hoja,
         "modelos_etiqueta": modelos_etiqueta,
         "productos": productos,
+        "usa_venta_por_caja": bool(empresa and empresa.usa_venta_por_caja),
     })
-
 @login_required
 def imprimir_etiquetas(request):
     modelo_id = request.GET.get("modelo")
@@ -72,6 +72,7 @@ def imprimir_etiquetas(request):
     return render(request, "impresion/imprimir_etiquetas.html", {
         "modelo": modelo,
         "hojas": hojas,
+        "usa_venta_por_caja": bool(request.user.empresa and request.user.empresa.usa_venta_por_caja),
     })
 
 from django.shortcuts import render, get_object_or_404
@@ -117,7 +118,8 @@ def imprimir_etiquetas_prueba(request):
     # Renderizamos HTML de prueba para cada producto como etiqueta
     return render(request, "impresion/prueba_etiquetas.html", {
         "modelo": modelo,
-        "productos": productos,
+        "hojas": hojas,
+        "usa_venta_por_caja": bool(request.user.empresa and request.user.empresa.usa_venta_por_caja),
     })
 
 
@@ -217,6 +219,23 @@ def medir_paragraph(text, width, font_size, bold=False):
     p = Paragraph(text, style)
     _, h = p.wrap(width, 10_000)
     return h  # POINTS
+
+def fmt_num(valor, decimales=0):
+    """1234.5 -> '1.234' (o '1.234,50' con decimales=2)"""
+    s = f"{valor:,.{decimales}f}"
+    return s.replace(",", "@").replace(".", ",").replace("@", ".")
+
+
+def draw_linea_ajustada(c, texto, y, ancho_pagina, ancho_util,
+                        font_name, font_size, gap=1.5 * mm):
+    """Dibuja una línea centrada, achicando la fuente si no entra. Devuelve el nuevo y."""
+    while c.stringWidth(texto, font_name, font_size) > ancho_util and font_size > 5:
+        font_size -= 0.5
+    c.setFont(font_name, font_size)
+    y -= font_size
+    c.drawCentredString(ancho_pagina / 2, y, texto)
+    return y - gap
+
 @login_required
 def imprimir_etiquetas_pdf(request):
     modelo_id = request.GET.get("modelo")
@@ -265,6 +284,7 @@ def imprimir_etiquetas_pdf(request):
     PT_PER_MM = 2.83464567  # Puntos por mm
 
     c = canvas.Canvas(response)
+    usa_caja = bool(request.user.empresa and request.user.empresa.usa_venta_por_caja)
 
     for producto in productos:
         if modelo.alto_mm > 0:
@@ -302,32 +322,52 @@ def imprimir_etiquetas_pdf(request):
         # ===== PRECIO =====
         if modelo.mostrar_precio:
             font_name = "Helvetica-Bold" if modelo.precio_negrita else "Helvetica"
-            precio_texto = f"${producto.precio_venta:,.0f}".replace(",", ".")
 
-            font_size = modelo.precio_tamano
-            c.setFont(font_name, font_size)
-            while c.stringWidth(precio_texto, font_name, font_size) > ancho_util and font_size > 6:
-                font_size -= 1
+            if usa_caja and producto.venta_por_caja and producto.precio_por_m2:
+                # --- FORMATO VENTA POR CAJA ---
+                # 1) Precio por m² (grande)
+                y = draw_linea_ajustada(
+                    c, f"${fmt_num(producto.precio_por_m2)} x m²", y,
+                    ancho, ancho_util, font_name, modelo.precio_tamano
+                )
+                # 2) Precio por caja (mediano)
+                y = draw_linea_ajustada(
+                    c, f"Caja: ${fmt_num(producto.precio_venta)}", y,
+                    ancho, ancho_util, "Helvetica",
+                    max(6, int(modelo.precio_tamano * 0.55))
+                )
+                # 3) Metros por caja (chico)
+                if producto.metros_cuadrados_por_caja:
+                    y = draw_linea_ajustada(
+                        c, f"{fmt_num(producto.metros_cuadrados_por_caja, 2)} m² por caja", y,
+                        ancho, ancho_util, "Helvetica",
+                        max(6, int(modelo.precio_tamano * 0.4))
+                    )
+            else:
+                # --- FORMATO NORMAL (tu código actual, sin cambios) ---
+                precio_texto = f"${producto.precio_venta:,.0f}".replace(",", ".")
+                font_size = modelo.precio_tamano
                 c.setFont(font_name, font_size)
+                while c.stringWidth(precio_texto, font_name, font_size) > ancho_util and font_size > 6:
+                    font_size -= 1
+                    c.setFont(font_name, font_size)
 
-            y -= font_size
-            c.drawCentredString(ancho / 2, y, precio_texto)
-            y -= 2 * mm
-
-            # ---- NUEVO: precio con descuento ----
-            precio_desc = producto.precio_con_descuento()
-            if precio_desc:
-                texto_desc = f"{producto.cantidad_minima_descuento} o más: ${precio_desc:,.0f}".replace(",", ".")
-                fs = int(modelo.precio_tamano * 0.6)
-                c.setFont(font_name, fs)
-                while c.stringWidth(texto_desc, font_name, fs) > ancho_util and fs > 6:
-                    fs -= 1
-                    c.setFont(font_name, fs)
-                y -= fs
-                c.drawCentredString(ancho / 2, y, texto_desc)
+                y -= font_size
+                c.drawCentredString(ancho / 2, y, precio_texto)
                 y -= 2 * mm
 
-       
+                precio_desc = producto.precio_con_descuento()
+                if precio_desc:
+                    texto_desc = f"{producto.cantidad_minima_descuento} o más: ${precio_desc:,.0f}".replace(",", ".")
+                    fs = int(modelo.precio_tamano * 0.6)
+                    c.setFont(font_name, fs)
+                    while c.stringWidth(texto_desc, font_name, fs) > ancho_util and fs > 6:
+                        fs -= 1
+                        c.setFont(font_name, fs)
+                    y -= fs
+                    c.drawCentredString(ancho / 2, y, texto_desc)
+                    y -= 2 * mm
+                    
         # ===== BARCODE =====
         if modelo.mostrar_barcode:
             barcode_height_pt = modelo.barcode_alto * mm / 25.4 * 72

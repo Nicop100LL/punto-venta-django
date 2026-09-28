@@ -26,12 +26,16 @@
                 vendePorBulto: {{ producto.vende_por_bulto|yesno:'true,false' }},
                 unidadesPorBulto: {{ producto.unidades_por_bulto|default_if_none:'null' }},
                 precioPorBulto: {{ producto.precio_por_bulto|default_if_none:'null' }},
-                tipo: '{{ producto.get_tipo_venta_display }}'
+                tipo: '{{ producto.get_tipo_venta_display }}',
+                ventaPorCaja: {{ producto.venta_por_caja|yesno:'true,false' }},
+                metrosPorCaja: {{ producto.metros_cuadrados_por_caja|default_if_none:'null' }},
+                precioM2: {{ producto.precio_por_m2|default_if_none:'null' }}
             },
             {% endfor %}
         ],
     {% endlocalize %}
 
+    usaCaja: {{ usa_venta_por_caja|yesno:'true,false' }},
     /* ================= MODELOS ================= */
     modelos: {
         /* ---- HOJA (A4 / A5) ---- */
@@ -62,6 +66,15 @@
     /* ================= HELPERS ================= */
     getProducto(id) {
         return this.productos.find(p => p.id === Number(id)) || null
+    },
+
+    esCaja(id) {
+        const p = this.getProducto(id)
+        return !!(this.usaCaja && p && p.ventaPorCaja && p.precioM2)
+    },
+
+    escalaEtiqueta() {
+        return 1
     },
 
     esHoja() {
@@ -262,19 +275,36 @@ class="max-w-7xl mx-auto"
                                                             x-text="getProducto(id).codigo"></div>
                                                     </template>
 
-                                                    <template x-if="modelos[modeloSeleccionado].mostrar_precio">
-                                                        <div class="font-extrabold" :class="clasesEtiqueta().precio">
+                                                    <template x-if="modelos[modeloSeleccionado].mostrar_precio && esCaja(id)">
+                                                        <div class="flex flex-col items-center">
+                                                            <div class="font-extrabold leading-tight" :class="clasesEtiqueta().precio">
+                                                                $ <span x-text="getProducto(id).precioM2.toLocaleString('es-AR',{maximumFractionDigits:0})"></span>
+                                                                <span class="text-xs font-normal">x m²</span>
+                                                            </div>
+                                                            <div class="text-sm">
+                                                                Caja: $ <span x-text="getProducto(id).precio.toLocaleString('es-AR',{maximumFractionDigits:0})"></span>
+                                                            </div>
+                                                            <template x-if="getProducto(id).metrosPorCaja">
+                                                                <div class="text-xs text-gray-600">
+                                                                    <span x-text="getProducto(id).metrosPorCaja.toLocaleString('es-AR',{maximumFractionDigits:2})"></span> m² por caja
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+
+                                                    <template x-if="modelos[modeloSeleccionado].mostrar_precio && !esCaja(id)">
+                                                         <div class="font-extrabold" :class="clasesEtiqueta().precio">
                                                             $ <span x-text="getProducto(id).precio.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })"></span>
                                                         </div>
                                                     </template>
 
-                                                    <template x-if="getProducto(id).precioDescuento">
+                                                    <template x-if="getProducto(id).precioDescuento && !esCaja(id)">
                                                         <div class="text-xs text-gray-700">
                                                             <span x-text="getProducto(id).cantidadMinima"></span> o más: $<span x-text="getProducto(id).precioDescuento.toLocaleString('es-AR',{maximumFractionDigits:0})"></span>
                                                         </div>
                                                     </template>
 
-                                                    <template x-if="getProducto(id).vendePorBulto && getProducto(id).unidadesPorBulto && getProducto(id).precioPorBulto">
+                                                    <template x-if="getProducto(id).vendePorBulto && getProducto(id).unidadesPorBulto && getProducto(id).precioPorBulto && !esCaja(id)">
                                                         <div class="text-xs text-gray-700">
                                                             Bulto x<span x-text="getProducto(id).unidadesPorBulto"></span>:
                                                             $<span x-text="getProducto(id).precioPorBulto.toLocaleString('es-AR',{maximumFractionDigits:0})"></span>
@@ -321,13 +351,30 @@ class="max-w-7xl mx-auto"
                                                     x-text="getProducto(id).codigo"></div>
                                             </template>
 
-                                            <template x-if="modelos[modeloSeleccionado].mostrar_precio">
+                                            <template x-if="modelos[modeloSeleccionado].mostrar_precio && esCaja(id)">
+                                                <div class="flex flex-col items-center">
+                                                    <div class="font-extrabold leading-tight" :class="clasesEtiqueta().precio">
+                                                        $ <span x-text="getProducto(id).precioM2.toLocaleString('es-AR',{maximumFractionDigits:0})"></span>
+                                                        <span class="text-xs font-normal">x m²</span>
+                                                    </div>
+                                                    <div class="text-sm">
+                                                        Caja: $ <span x-text="getProducto(id).precio.toLocaleString('es-AR',{maximumFractionDigits:0})"></span>
+                                                    </div>
+                                                    <template x-if="getProducto(id).metrosPorCaja">
+                                                        <div class="text-xs text-gray-600">
+                                                            <span x-text="getProducto(id).metrosPorCaja.toLocaleString('es-AR',{maximumFractionDigits:2})"></span> m² por caja
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+
+                                            <template x-if="modelos[modeloSeleccionado].mostrar_precio && !esCaja(id)">
                                                 <div class="font-extrabold" :class="clasesEtiqueta().precio">
                                                     $ <span x-text="getProducto(id).precio.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })"></span>
                                                 </div>
                                             </template>
 
-                                            <template x-if="getProducto(id).precioDescuento">
+                                            <template x-if="getProducto(id).precioDescuento && !esCaja(id)">
                                                 <div class="text-xs text-gray-700">
                                                     <span x-text="getProducto(id).cantidadMinima"></span> o más: $<span x-text="getProducto(id).precioDescuento.toLocaleString('es-AR',{maximumFractionDigits:0})"></span>
                                                 </div>

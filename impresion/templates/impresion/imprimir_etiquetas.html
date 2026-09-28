@@ -70,6 +70,29 @@ body {
     font-weight: normal;
 }
 
+/* ====== FORMATO VENTA POR CAJA ====== */
+.precio-m2 {
+    color: {{ modelo.precio_color }};
+    font-size: {{ modelo.precio_tamano }}px;
+    font-weight: {{ modelo.precio_negrita|yesno:"bold,normal" }};
+    line-height: 1.1;
+}
+.precio-m2 small {
+    font-size: 0.45em;
+    font-weight: normal;
+}
+.precio-caja {
+    color: {{ modelo.precio_color }};
+    font-size: calc({{ modelo.precio_tamano }}px * 0.55);
+    font-weight: normal;
+    margin-top: 2px;
+}
+.metros-caja {
+    color: {{ modelo.precio_secundario_color }};
+    font-size: calc({{ modelo.precio_tamano }}px * 0.4);
+    margin-top: 1px;
+}
+
 /* ====== BARCODE ====== */
 .barcode {
     display: flex;
