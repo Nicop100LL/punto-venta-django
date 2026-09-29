@@ -18,6 +18,85 @@
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{% static 'logoB.png' %}" />
+
+    <style>
+    @keyframes campana-shake {
+    0%, 40%, 100% { transform: rotate(0); }
+    5%  { transform: rotate(16deg); }
+    10% { transform: rotate(-14deg); }
+    15% { transform: rotate(12deg); }
+    20% { transform: rotate(-10deg); }
+    25% { transform: rotate(6deg); }
+    30% { transform: rotate(-4deg); }
+    }
+    .campana-shake { animation: campana-shake 2.5s ease-in-out infinite; transform-origin: 50% 10%; }
+    </style>
+
+    <script>
+    window.Notificaciones = (function () {
+    const KEY = 'notifs_{{ user.id|default:"anon" }}';
+    const MAX = 50;
+    const DIAS_LEIDAS = 7;
+
+    function cargar() {
+        try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
+        catch (e) { return []; }
+    }
+    function guardar(lista) {
+        try { localStorage.setItem(KEY, JSON.stringify(lista)); } catch (e) {}
+        window.dispatchEvent(new CustomEvent('notifs-changed'));
+    }
+    function limpiar(lista) {
+        const limite = Date.now() - DIAS_LEIDAS * 86400000;
+        return lista.filter(n => !n.leida || n.fecha > limite).slice(0, MAX);
+    }
+
+    return {
+        todas: () => cargar(),
+        // devuelve true si era nueva (para decidir si mostrar el toast)
+        agregar(n) {
+        const lista = cargar();
+        if (lista.some(x => x.id === n.id)) return false;
+        lista.unshift({ ...n, fecha: Date.now(), leida: false });
+        guardar(limpiar(lista));
+        return true;
+        },
+        leer(id) {
+        const lista = cargar();
+        lista.forEach(n => { if (n.id === id) n.leida = true; });
+        guardar(lista);
+        },
+        leerTodas() {
+        const lista = cargar();
+        lista.forEach(n => n.leida = true);
+        guardar(lista);
+        },
+        borrar(id) { guardar(cargar().filter(n => n.id !== id)); },
+        borrarLeidas() { guardar(cargar().filter(n => !n.leida)); }
+    };
+    })();
+
+    function campana() {
+    return {
+        abierto: false,
+        lista: [],
+        init() {
+        this.refrescar();
+        window.addEventListener('notifs-changed', () => this.refrescar());
+        window.addEventListener('storage', () => this.refrescar()); // otras pestañas
+        },
+        refrescar() { this.lista = Notificaciones.todas(); },
+        get noLeidas() { return this.lista.filter(n => !n.leida).length; },
+        leer(n) {
+        Notificaciones.leer(n.id);
+        if (n.url) window.location.href = n.url;
+        },
+        fechaCorta(ts) {
+        return new Date(ts).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+    };
+    }
+    </script>
 </head>
 
 <body
@@ -176,26 +255,76 @@
 
                 </div>
 
+           
                 <!-- Lado derecho -->
                 <div class="flex flex-col md:flex-row items-start md:items-center md:space-x-4 space-y-1 md:space-y-0">
-                
-                    <!-- Usuario -->
+
                     {% if user.is_authenticated %}
-                    <div class="text-gray-600 text-sm md:text-base">
-                        Usuario: <strong class="text-blue-600">{{ user.username }}</strong>
+                    <div class="flex items-center gap-3">
+
+                        <!-- 🔔 Campana -->
+                        <div x-data="campana()" x-init="init()" class="relative" @click.outside="abierto = false">
+                            <button type="button" @click="abierto = !abierto"
+                                    class="relative p-2 rounded-full hover:bg-gray-100 text-gray-600"
+                                    title="Notificaciones">
+                                <svg :class="noLeidas > 0 ? 'campana-shake' : ''" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0"/>
+                                </svg>
+                                <span x-show="noLeidas > 0" x-cloak
+                                    x-text="noLeidas > 9 ? '9+' : noLeidas"
+                                    class="absolute -top-0.5 -right-0.5 bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"></span>
+                            </button>
+
+                            <div x-show="abierto" x-cloak x-transition
+                                class="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white border border-gray-200 rounded-xl shadow-2xl z-50">
+
+                                <div class="flex items-center justify-between px-4 py-2 border-b">
+                                    <span class="font-semibold text-sm">Notificaciones</span>
+                                    <div class="flex gap-3 text-xs">
+                                        <button type="button" class="text-blue-600 hover:underline"
+                                                x-show="noLeidas > 0" @click="Notificaciones.leerTodas()">Marcar todas</button>
+                                        <button type="button" class="text-gray-500 hover:underline"
+                                                x-show="lista.some(n => n.leida)" @click="Notificaciones.borrarLeidas()">Borrar leídas</button>
+                                    </div>
+                                </div>
+
+                                <ul class="max-h-80 overflow-y-auto divide-y">
+                                    <template x-for="n in lista" :key="n.id">
+                                        <li class="flex items-start gap-2 px-4 py-2 cursor-pointer hover:bg-gray-50"
+                                            :class="n.leida ? 'opacity-60' : 'bg-orange-50'"
+                                            @click="leer(n)">
+                                            <span class="text-lg leading-none" x-text="n.tipo === 'stock' ? '⚠️' : '⏰'"></span>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="text-sm truncate" :class="n.leida ? 'font-normal' : 'font-bold'" x-text="n.titulo"></p>
+                                                <p class="text-xs text-gray-600" x-text="n.mensaje"></p>
+                                                <p class="text-[10px] text-gray-400 mt-0.5" x-text="fechaCorta(n.fecha)"></p>
+                                            </div>
+                                            <span x-show="!n.leida" class="w-2 h-2 rounded-full bg-red-500 mt-1.5"></span>
+                                            <button type="button" class="text-gray-300 hover:text-red-500 text-sm"
+                                                    @click.stop="Notificaciones.borrar(n.id)" title="Eliminar">✕</button>
+                                        </li>
+                                    </template>
+                                    <li x-show="lista.length === 0" class="px-4 py-6 text-center text-sm text-gray-400">
+                                        No hay notificaciones
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="text-gray-600 text-sm md:text-base">
+                            Usuario: <strong class="text-blue-600">{{ user.username }}</strong>
+                        </div>
                     </div>
 
-                    <!-- Botón Cerrar sesión -->
                     <form method="post" action="{% url 'logout' %}">
                         {% csrf_token %}
-                        <button type="submit"
-                            class="bg-red-500 text-white px-3 py-1 text-sm rounded hover:bg-red-600 transition">
+                        <button type="submit" class="bg-red-500 text-white px-3 py-1 text-sm rounded hover:bg-red-600 transition">
                             Cerrar sesión
                         </button>
                     </form>
                     {% else %}
-                    <a href="{% url 'login' %}"
-                        class="bg-blue-500 text-white px-3 py-1 text-sm rounded hover:bg-blue-600 transition">
+                    <a href="{% url 'login' %}" class="bg-blue-500 text-white px-3 py-1 text-sm rounded hover:bg-blue-600 transition">
                         Iniciar sesión
                     </a>
                     {% endif %}
@@ -264,83 +393,176 @@
                 <div id="toast-stock-container" class="fixed top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none no-print">
                 </div>
                 <script>
-                    const alertasStock = {{ alertas_stock|safe }};
-
-                    function mostrarAlertaStock(nombre, stock) {
+                    (function () {
+                        const alertasStock = {{ alertas_stock|safe }};
                         const container = document.getElementById('toast-stock-container');
-                        const toast = document.createElement('div');
-                        toast.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                        toast.style.opacity = '0';
-                        toast.style.transform = 'translateX(16px)';
-                        toast.className = 'flex items-start gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium bg-orange-500 text-white max-w-xs pointer-events-auto';
-                        toast.innerHTML = `
-                            <span class="text-lg leading-none">⚠️</span>
-                            <div>
-                                <div class="font-bold">${nombre}</div>
-                                <div class="text-orange-100">Stock bajo: quedan <strong>${stock}</strong> unidades</div>
-                            </div>
-                        `;
-                        container.appendChild(toast);
 
-                        requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                toast.style.opacity = '1';
-                                toast.style.transform = 'translateX(0)';
-                            });
-                        });
-
-                        setTimeout(() => {
+                        function toastStock(nombre, stock) {
+                            const toast = document.createElement('div');
+                            toast.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
                             toast.style.opacity = '0';
                             toast.style.transform = 'translateX(16px)';
-                            setTimeout(() => toast.remove(), 500);
-                        }, 5000);
-                    }
+                            toast.className = 'flex items-start gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium bg-orange-500 text-white max-w-xs pointer-events-auto';
 
-                    alertasStock.forEach((alerta, i) => {
-                        setTimeout(() => {
-                            mostrarAlertaStock(alerta.nombre, alerta.stock);
-                        }, i * 400);
-                    });
+                            const icono = document.createElement('span');
+                            icono.className = 'text-lg leading-none';
+                            icono.textContent = '⚠️';
+                            const cont = document.createElement('div');
+                            const t = document.createElement('div');
+                            t.className = 'font-bold'; t.textContent = nombre;
+                            const m = document.createElement('div');
+                            m.className = 'text-orange-100'; m.textContent = `Stock bajo: quedan ${stock} unidades`;
+                            cont.append(t, m);
+                            toast.append(icono, cont);
+                            container.appendChild(toast);
+
+                            requestAnimationFrame(() => requestAnimationFrame(() => {
+                                toast.style.opacity = '1';
+                                toast.style.transform = 'translate(-50%, 0)';
+                            }));
+                            setTimeout(() => {
+                                toast.style.opacity = '0';
+                                toast.style.transform = 'translate(-50%, 16px)';
+                                setTimeout(() => toast.remove(), 500);
+                            }, 5000);
+                        }
+
+                        const nuevas = alertasStock.filter(a =>
+                            Notificaciones.agregar({
+                                id: `stock:${a.nombre}:${a.stock}`,
+                                tipo: 'stock',
+                                titulo: a.nombre,
+                                mensaje: `Stock bajo: quedan ${a.stock} unidades`,
+                                url: '{% url "lista_productos" %}'
+                            })
+                        );
+                        nuevas.forEach((a, i) => setTimeout(() => toastStock(a.nombre, a.stock), i * 400));
+                    })();
                 </script>
                 {% endif %}
             
                 {% block content %}{% endblock %}
             </main>
 
-            <!-- ⏰ Aviso de vencimiento -->
+           <!-- ⏰ Aviso de vencimiento -->
             {% if productos_por_vencer %}
             {{ productos_por_vencer|json_script:"productos-por-vencer-data" }}
+
             <script>
             document.addEventListener('DOMContentLoaded', function () {
-              const data = JSON.parse(document.getElementById('productos-por-vencer-data').textContent);
-              const items = data.map(p => `${p.nombre} (vence ${p.fecha_vencimiento_legible})`).join(', ');
 
-              const toast = document.createElement('div');
-              toast.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-              toast.style.opacity = '0';
-              toast.style.transform = 'translateX(16px)';
-              toast.className = 'fixed top-20 right-4 z-50 flex items-start gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium bg-orange-500 text-white max-w-xs';
-              toast.innerHTML = `
-                <span class="text-lg leading-none">⏰</span>
-                <div>
-                  <div class="font-bold">Productos por vencer</div>
-                  <div class="text-orange-100">${items}</div>
-                </div>
-              `;
-              document.body.appendChild(toast);
+                const elemento = document.getElementById('productos-por-vencer-data');
 
-              requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                  toast.style.opacity = '1';
-                  toast.style.transform = 'translateX(0)';
+                if (!elemento) return;
+
+                const data = JSON.parse(elemento.textContent);
+
+                if (!data.length) return;
+
+
+                // =====================================================
+                // 1. AGREGAR A LA CAMPANITA
+                // =====================================================
+
+                data.forEach(p => {
+
+                    Notificaciones.agregar({
+                        id: `venc:${p.nombre}:${p.fecha_vencimiento_legible}`,
+                        tipo: 'vencimiento',
+                        titulo: 'Producto por vencer',
+                        mensaje: `${p.nombre} (vence ${p.fecha_vencimiento_legible})`,
+                        url: '{% url "lista_productos" %}'
+                    });
+
                 });
-              });
 
-              setTimeout(() => {
+
+                // =====================================================
+                // 2. MOSTRAR TOAST
+                //
+                // Django solamente llega acá cuando corresponde
+                // un nuevo aviso (por ejemplo, después de 8 horas).
+                // =====================================================
+
+                const items = data
+                    .map(p => `${p.nombre} (vence ${p.fecha_vencimiento_legible})`)
+                    .join(', ');
+
+
+                const toast = document.createElement('div');
+
+                toast.style.transition =
+                    'opacity 0.5s ease, transform 0.5s ease';
+
                 toast.style.opacity = '0';
+
                 toast.style.transform = 'translateX(16px)';
-                setTimeout(() => toast.remove(), 500);
-              }, 8000);
+
+                toast.className =
+                    'fixed top-20 left-1/2 -translate-x-1/2 z-50 ' +
+                    'flex items-start gap-2 px-4 py-3 rounded-lg shadow-lg ' +
+                    'text-sm font-medium bg-orange-500 text-white ' +
+                    'w-[calc(100%-2rem)] max-w-md';
+
+
+                const icono = document.createElement('span');
+
+                icono.className = 'text-lg leading-none';
+
+                icono.textContent = '⏰';
+
+
+                const cont = document.createElement('div');
+
+
+                const titulo = document.createElement('div');
+
+                titulo.className = 'font-bold';
+
+                titulo.textContent = 'Productos por vencer';
+
+
+                const detalle = document.createElement('div');
+
+                detalle.className = 'text-orange-100';
+
+                detalle.textContent = items;
+
+
+                cont.append(titulo, detalle);
+
+                toast.append(icono, cont);
+
+                document.body.appendChild(toast);
+
+
+                // Entrada
+
+                requestAnimationFrame(() => {
+
+                    requestAnimationFrame(() => {
+
+                        toast.style.opacity = '1';
+
+                        toast.style.transform = 'translate(-50%, 16px)';
+
+                    });
+
+                });
+
+
+                // Salida
+
+                setTimeout(() => {
+
+                    toast.style.opacity = '0';
+
+                    toast.style.transform = 'translateX(16px)';
+
+                    setTimeout(() => toast.remove(), 500);
+
+                }, 8000);
+
             });
             </script>
             {% endif %}
