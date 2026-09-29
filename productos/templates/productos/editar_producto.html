@@ -411,7 +411,7 @@
                     </div>
 
                     <!-- SECCIÓN 3.5: VENCIMIENTO -->
-                    {% if not producto.venta_por_caja %}
+                    {% if not usa_venta_por_caja %}
                     <div class="border-b border-gray-200 pb-6">
                         <h2 class="text-lg font-semibold text-gray-900 mb-4">Vencimiento</h2>
 
@@ -446,7 +446,7 @@
                     {% endif %}
 
                     <!-- SECCIÓN 4: DESCUENTOS -->
-                    {% if not producto.venta_por_caja %}
+                    {% if not usa_venta_por_caja %}
                     <div class="pb-6">
                         <h2 class="text-lg font-semibold text-gray-900 mb-4">Descuentos</h2>
                         
@@ -498,6 +498,7 @@
                     {% endif %}
 
                     <!-- SECCIÓN 5: BULTO -->
+                    {% if not usa_venta_por_caja %}
                     <div id="seccion-bulto" class="pb-6">
                         <h2 class="text-lg font-semibold text-gray-900 mb-4">Venta por Bulto</h2>
 
@@ -543,6 +544,7 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
 
                 </div>
 
