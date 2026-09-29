@@ -55,11 +55,34 @@
         todas: () => cargar(),
         // devuelve true si era nueva (para decidir si mostrar el toast)
         agregar(n) {
-        const lista = cargar();
-        if (lista.some(x => x.id === n.id)) return false;
-        lista.unshift({ ...n, fecha: Date.now(), leida: false });
-        guardar(limpiar(lista));
-        return true;
+            const lista = cargar();
+
+            const existente = lista.find(x => x.id === n.id);
+
+            // Si ya existe, las alertas de stock se actualizan
+            if (existente) {
+                if (n.tipo === 'stock') {
+                    existente.mensaje = n.mensaje;
+                    existente.fecha = Date.now();
+                    existente.leida = false;
+
+                    guardar(limpiar(lista));
+                    return true;
+                }
+
+                // Las demás notificaciones no se duplican
+                return false;
+            }
+
+            // Notificación nueva
+            lista.unshift({
+                ...n,
+                fecha: Date.now(),
+                leida: false
+            });
+
+            guardar(limpiar(lista));
+            return true;
         },
         leer(id) {
         const lista = cargar();
@@ -429,11 +452,11 @@
 
                         const nuevas = alertasStock.filter(a =>
                             Notificaciones.agregar({
-                                id: `stock:${a.nombre}:${a.stock}`,
+                                id: `stock:${a.nombre}`,
                                 tipo: 'stock',
                                 titulo: a.nombre,
                                 mensaje: `Stock bajo: quedan ${a.stock} unidades`,
-                                url: '{% url "lista_productos" %}'
+                                
                             })
                         );
                         nuevas.forEach((a, i) => setTimeout(() => toastStock(a.nombre, a.stock), i * 400));
@@ -471,7 +494,7 @@
                         tipo: 'vencimiento',
                         titulo: 'Producto por vencer',
                         mensaje: `${p.nombre} (vence ${p.fecha_vencimiento_legible})`,
-                        url: '{% url "lista_productos" %}'
+                       
                     });
 
                 });
