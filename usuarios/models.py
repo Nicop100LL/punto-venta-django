@@ -21,16 +21,17 @@ class Empresa(models.Model):
         help_text="Permite utilizar la nueva modalidad de venta por caja y metros cuadrados."
     )
     
+    usa_balanza = models.BooleanField(
+        default=False,
+        verbose_name="Habilitar sincronización con balanza",
+        help_text="Envía los precios de productos asignados a la balanza Cuora."
+    )
+    
     mostrar_aviso = models.BooleanField(
         default=False,
         help_text="Tildar para mostrar el mensaje de aviso a todos los usuarios."
     )
-    mensaje_aviso = models.CharField(
-        max_length=255,
-        blank=True,
-        default="💳 El pago del sistema está pendiente. Por favor regularizá.",
-        help_text="Texto que se muestra en el banner de aviso."
-    )
+    
     mensaje_aviso = models.CharField(
         max_length=255,
         blank=True,

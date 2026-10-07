@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-5xl mx-auto p-4">
+  <h1 class="text-2xl font-bold">Productos en "{{ balanza.nombre }}"</h1>
+  <p class="text-sm text-gray-600 mb-4">Tildá los productos que van a la balanza. Si dejás el PLU vacío se asigna uno automáticamente. Los productos "por caja" no se muestran.</p>
+  <form method="post">{% csrf_token %}
+    <div class="flex flex-wrap gap-2 mb-3">
+      <input id="buscar" placeholder="Buscar..." class="flex-1 border rounded px-3 py-2 text-sm">
+      <button type="button" onclick="marcar(true)" class="px-3 py-2 bg-gray-200 rounded text-sm">Tildar visibles</button>
+      <button type="button" onclick="marcar(false)" class="px-3 py-2 bg-gray-200 rounded text-sm">Destildar visibles</button>
+    </div>
+    <div class="bg-white border rounded-lg overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-100 text-left"><tr>
+          <th class="p-2 w-10"></th><th class="p-2">Producto</th><th class="p-2">Categoría</th>
+          <th class="p-2">Tipo</th><th class="p-2 text-right">Precio</th><th class="p-2 w-28">PLU</th>
+        </tr></thead>
+        <tbody>
+        {% for f in filas %}
+          <tr class="border-t fila">
+            <td class="p-2"><input type="checkbox" class="chk" name="incluir_{{ f.p.id }}" {% if f.pb %}checked{% endif %}></td>
+            <td class="p-2">{{ f.p.nombre }} <span class="text-gray-400">({{ f.p.codigo }})</span></td>
+            <td class="p-2">{{ f.p.categoria.nombre }}</td>
+            <td class="p-2">{{ f.p.get_tipo_venta_display }}</td>
+            <td class="p-2 text-right">${{ f.p.precio_venta|floatformat:2 }}</td>
+            <td class="p-2"><input name="plu_{{ f.p.id }}" value="{{ f.pb.plu|default_if_none:'' }}" inputmode="numeric" class="w-24 border rounded px-2 py-1" placeholder="auto"></td>
+          </tr>
+        {% empty %}<tr><td colspan="6" class="p-4 text-center text-gray-500">No hay productos.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Guardar</button>
+      <a href="{% url 'balanzas:panel' %}" class="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg">Volver</a>
+    </div>
+  </form>
+</div>
+<script>
+const buscar = document.getElementById('buscar');
+buscar.addEventListener('input', () => {
+  const q = buscar.value.toLowerCase();
+  document.querySelectorAll('.fila').forEach(r => r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none');
+});
+function marcar(v) {
+  document.querySelectorAll('.fila').forEach(r => { if (r.style.display !== 'none') r.querySelector('.chk').checked = v; });
+}
+</script>
+{% endblock %}

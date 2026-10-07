@@ -191,6 +191,11 @@
                   class="block px-4 py-2 rounded hover:bg-blue-100">
                    💼 Cajas
                 </a>
+                {% if request.user.empresa.usa_balanza %}
+                <a href="{% url 'balanzas:panel' %}"
+                class="block px-4 py-2 rounded hover:bg-blue-100 {% if '/balanzas/' in request.path %}bg-blue-100{% endif %}">
+                ⚖️ Balanza</a>
+                {% endif %}
                 {% if request.user.empresa.usa_venta_por_caja %}
                 <a href="{% url 'lista_presupuestos' %}" class="block px-4 py-2 rounded hover:bg-blue-100">📋 Presupuestos</a>
                 {% endif %}

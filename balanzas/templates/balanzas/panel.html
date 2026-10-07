@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load tz %}
+{% block content %}
+{% timezone "America/Argentina/Buenos_Aires" %}
+<div class="max-w-6xl mx-auto p-4 space-y-8">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-2xl font-bold">⚖️ Balanzas</h1>
+    <a href="{% url 'balanzas:balanza_nueva' %}" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm">+ Nueva balanza</a>
+  </div>
+
+  {% if token_nuevo %}
+  <div class="p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+    <p class="font-semibold">Token de "{{ agente_nuevo.nombre }}" (se muestra una sola vez):</p>
+    <code class="block mt-2 p-2 bg-white border rounded break-all select-all">{{ token_nuevo }}</code>
+    <p class="text-sm text-gray-600 mt-2">Copialo ahora en el <b>config.ini</b> del agente. Si lo perdés, generá otro.</p>
+  </div>
+  {% endif %}
+
+  <section>
+    <h2 class="text-lg font-semibold mb-2">Balanzas</h2>
+    <div class="bg-white border rounded-lg overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-100 text-left"><tr>
+          <th class="p-2">Nombre</th><th class="p-2">Conexión</th><th class="p-2">Agente</th>
+          <th class="p-2">Última comunicación</th><th class="p-2">Pend.</th><th class="p-2">Errores</th><th class="p-2"></th>
+        </tr></thead>
+        <tbody>
+        {% for b in balanzas %}
+          <tr class="border-t">
+            <td class="p-2 font-medium">{{ b.nombre }}{% if not b.activa %} <span class="text-gray-400">(inactiva)</span>{% endif %}</td>
+            <td class="p-2">{% if b.tipo_conexion == 'red' %}{{ b.ip }}:{{ b.puerto }}{% else %}{{ b.puerto_com }}{% endif %} · equipo {{ b.direccion_equipo }}</td>
+            <td class="p-2">{% if b.agente %}{% if b.agente.conectado %}🟢{% else %}🔴{% endif %} {{ b.agente.nombre }}{% else %}<span class="text-red-600">sin agente</span>{% endif %}</td>
+            <td class="p-2">{{ b.ultima_comunicacion|date:"d/m H:i"|default:"nunca" }} <span class="text-gray-500">{{ b.ultimo_estado }}</span></td>
+            <td class="p-2">{{ b.pendientes }}</td>
+            <td class="p-2 {% if b.errores %}text-red-600 font-semibold{% endif %}">{{ b.errores }}</td>
+            <td class="p-2 whitespace-nowrap space-x-2">
+              <a class="text-blue-600 hover:underline" href="{% url 'balanzas:productos_balanza' b.id %}">Productos</a>
+              <a class="text-blue-600 hover:underline" href="{% url 'balanzas:balanza_editar' b.id %}">Editar</a>
+              <form method="post" action="{% url 'balanzas:sincronizar_todo' b.id %}" class="inline">{% csrf_token %}
+                <button class="text-purple-600 hover:underline" onclick="return confirm('¿Reenviar TODOS los productos a la balanza?')">Sincronizar todo</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="p-4 text-center text-gray-500">Todavía no cargaste ninguna balanza.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="text-lg font-semibold mb-2">Agentes (programa que corre en el local)</h2>
+    <div class="bg-white border rounded-lg p-4 space-y-3">
+      {% for a in agentes %}
+        <div class="text-sm">{% if a.conectado %}🟢{% else %}🔴{% endif %} <b>{{ a.nombre }}</b>
+          — último contacto: {{ a.ultimo_latido|date:"d/m H:i"|default:"nunca" }}</div>
+      {% empty %}<p class="text-sm text-gray-500">No hay agentes creados.</p>{% endfor %}
+      <form method="post" action="{% url 'balanzas:nuevo_agente' %}" class="flex gap-2">{% csrf_token %}
+        <input name="nombre" placeholder="Nombre (ej: PC del local)" class="flex-1 border rounded px-3 py-2 text-sm">
+        <button class="px-4 py-2 bg-blue-600 text-white rounded text-sm">Generar token</button>
+      </form>
+    </div>
+  </section>
+
+  {% if errores %}
+  <section>
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold text-red-600">Errores</h2>
+      <form method="post" action="{% url 'balanzas:reintentar_errores' %}">{% csrf_token %}
+        <button class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm">Reintentar todos</button></form>
+    </div>
+    <div class="bg-white border border-red-200 rounded-lg divide-y text-sm">
+      {% for c in errores %}<div class="p-2">{{ c.balanza.nombre }} · PLU {{ c.plu }} ({{ c.get_tipo_display }}) — {{ c.error_detalle }}</div>{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section>
+    <h2 class="text-lg font-semibold mb-2">Últimos movimientos</h2>
+    <div class="bg-white border rounded-lg divide-y text-sm">
+      {% for c in recientes %}
+        <div class="p-2 flex justify-between gap-2">
+          <span>{{ c.balanza.nombre }} · PLU {{ c.plu }} · {{ c.nombre }} · ${{ c.precio|floatformat:2 }} · {{ c.get_tipo_display }}</span>
+          <span class="whitespace-nowrap {% if c.estado == 'error' %}text-red-600{% elif c.estado == 'enviado' %}text-green-600{% else %}text-yellow-600{% endif %}">{{ c.get_estado_display }} · {{ c.actualizado|date:"d/m H:i" }}</span>
+        </div>
+      {% empty %}<div class="p-3 text-gray-500">Sin movimientos.</div>{% endfor %}
+    </div>
+  </section>
+</div>
+{% endtimezone %}
+{% endblock %}

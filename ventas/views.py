@@ -179,7 +179,11 @@ def nueva_venta(request):
                 )
 
                 item = next(
-                    (i for i in carrito if i['producto_id'] == producto.id),
+                    (
+                        i for i in carrito
+                        if i['producto_id'] == producto.id
+                        and not i.get('codigo_unico')
+                    ),
                     None
                 )
 
@@ -337,7 +341,8 @@ def nueva_venta(request):
             # Borrar productos normales por producto_id
             producto_id = int(request.POST.get('eliminar_codigo'))
             request.session['carrito'] = [
-                i for i in carrito if i['producto_id'] != producto_id
+                i for i in carrito
+                if i['producto_id'] != producto_id or i.get('codigo_unico')
             ]
             request.session.modified = True
             return redirect('nueva_venta')

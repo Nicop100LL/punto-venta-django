@@ -20,6 +20,7 @@ class EmpresaAdmin(admin.ModelAdmin):
         "nombre",
         "cuit",
         "usa_venta_por_caja",
+        "usa_balanza",
         "usa_arca",
         "arca_modo",
         "arca_punto_venta",
@@ -29,6 +30,7 @@ class EmpresaAdmin(admin.ModelAdmin):
 
     list_editable = (
         "usa_venta_por_caja",
+        "usa_balanza",
         "usa_arca",
         "mostrar_aviso",
         "tipo_aviso",
@@ -46,6 +48,7 @@ class EmpresaAdmin(admin.ModelAdmin):
                 "formato_ticket",
                 "activo",
                 "usa_venta_por_caja",
+                "usa_balanza",
             )
         }),
 

@@ -1,0 +1,40 @@
+{% load balanzas_tags %}
+{% formatos_etiqueta as formatos %}
+{% if formatos %}
+{{ formatos|json_script:"balanza-formatos" }}
+<script>
+/* Lectura de etiquetas/tickets de balanza: se agrega la línea al carrito con el importe ya calculado */
+(function () {
+  const formatos = JSON.parse(document.getElementById('balanza-formatos').textContent);
+  const regexes = formatos.map(f =>
+    new RegExp('^' + f.split('').map(c => /\d/.test(c) ? c : '\\d').join('') + '\\d$'));
+
+  window.esEtiquetaBalanza = codigo => regexes.some(r => r.test(codigo));
+
+  window.procesarEtiquetaBalanza = function (codigo, fallback) {
+    const csrf = document.querySelector('#form-agregar [name=csrfmiddlewaretoken]').value;
+    const fd = new FormData();
+    fd.append('codigo', codigo);
+    fetch("{% url 'balanzas:agregar_etiqueta' %}", {
+      method: 'POST',
+      body: fd,
+      headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          feedbackScanner();
+          sessionStorage.setItem('venta_scrollY', window.scrollY);
+          window.location.reload();
+        } else if (d.no_etiqueta) {
+          fallback();                       // no era etiqueta: flujo normal
+        } else {
+          feedbackErrorScanner();
+          mostrarError(d.message || 'No se pudo leer la etiqueta');
+        }
+      })
+      .catch(() => mostrarError('Error al leer la etiqueta de la balanza'));
+  };
+})();
+</script>
+{% endif %}

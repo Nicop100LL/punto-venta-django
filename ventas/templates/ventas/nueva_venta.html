@@ -1775,7 +1775,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // == PRODUCTO POR CÓDIGO == //
 
-    function buscarProducto(codigo) {
+    function buscarProducto(codigo, omitirBalanza) {
+
+        if (
+            !omitirBalanza &&
+            window.esEtiquetaBalanza &&
+            window.esEtiquetaBalanza(codigo)
+        ) {
+            window.procesarEtiquetaBalanza(
+                codigo,
+                () => buscarProducto(codigo, true)
+            );
+            return;
+        }
+
         // 🔥 PRODUCTO VARIOS
         if (codigo.toUpperCase() === CODIGO_VARIOS) {
             mostrarModalVarios();
@@ -1830,8 +1843,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // == ESCANEO CON F9 == //
 
-    function buscarProductoScan(codigo) {
-    fetch(`/productos/buscar-producto/?codigo=${codigo}`)
+    function buscarProductoScan(codigo, omitirBalanza) {
+
+        if (
+            !omitirBalanza &&
+            window.esEtiquetaBalanza &&
+            window.esEtiquetaBalanza(codigo)
+        ) {
+            window.procesarEtiquetaBalanza(
+                codigo,
+                () => buscarProductoScan(codigo, true)
+            );
+            return;
+        }
+
+        fetch(`/productos/buscar-producto/?codigo=${codigo}`)
         .then(res => res.json())
         .then(data => {
             if (!data.success) {
@@ -2627,6 +2653,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
+{% if request.user.empresa.usa_balanza %}
+  {% include 'balanzas/_etiqueta_balanza.html' %}
+{% endif %}
 
 
 {% endblock %}
