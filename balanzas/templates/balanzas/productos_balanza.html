@@ -44,5 +44,13 @@ buscar.addEventListener('input', () => {
 function marcar(v) {
   document.querySelectorAll('.fila').forEach(r => { if (r.style.display !== 'none') r.querySelector('.chk').checked = v; });
 }
+// Al guardar, no enviar los PLU de las filas sin tildar (reduce la cantidad de campos del POST)
+document.querySelector('form').addEventListener('submit', () => {
+  document.querySelectorAll('.fila').forEach(r => {
+    if (!r.querySelector('.chk').checked) {
+      r.querySelector('input[name^="plu_"]').disabled = true;
+    }
+  });
+});
 </script>
 {% endblock %}
