@@ -181,23 +181,49 @@ def reintentar_errores(request):
 @balanza_habilitada
 @require_POST
 def agregar_etiqueta(request):
-    """Lee el código de barras de una etiqueta de balanza y agrega la línea al carrito
-    (sesión) con el importe ya calculado. Si el código no es una etiqueta, avisa para
-    que la pantalla de ventas siga con el flujo normal."""
+    """Lee una etiqueta de peso y agrega el producto al carrito."""
+
     codigo = (request.POST.get('codigo') or '').strip()
     res = buscar_por_etiqueta(request.user.empresa, codigo)
+
     if res is None:
-        return JsonResponse({'success': False, 'no_etiqueta': True})
-    producto, importe = res
-    precio = producto.precio_venta
+        return JsonResponse({
+            'success': False,
+            'no_etiqueta': True,
+        })
+
+    producto, peso_kg = res
+    precio = Decimal(str(producto.precio_venta))
+
     if precio <= 0:
-        return JsonResponse({'success': False,
-                             'message': f'"{producto.nombre}" tiene precio 0 en el sistema.'})
-    cociente = importe / precio
-    if producto.tipo_venta == 'unidad':
-        cantidad = max(Decimal(1), cociente.quantize(Decimal(1), rounding=ROUND_HALF_UP))
-    else:
-        cantidad = max(Decimal('0.001'), cociente.quantize(Decimal('0.001'), rounding=ROUND_HALF_UP))
+        return JsonResponse({
+            'success': False,
+            'message': f'"{producto.nombre}" tiene precio 0 en el sistema.',
+        })
+
+    if producto.tipo_venta != 'kilo':
+        return JsonResponse({
+            'success': False,
+            'message': (
+                f'"{producto.nombre}" no está configurado para venderse por kilo.'
+            ),
+        })
+
+    cantidad = Decimal(str(peso_kg)).quantize(
+        Decimal('0.001'),
+        rounding=ROUND_HALF_UP,
+    )
+
+    if cantidad <= 0:
+        return JsonResponse({
+            'success': False,
+            'message': 'El peso de la etiqueta no es válido.',
+        })
+
+    importe = (cantidad * precio).quantize(
+        Decimal('0.01'),
+        rounding=ROUND_HALF_UP,
+    )
 
     carrito = request.session.get('carrito', [])
     carrito.append({
@@ -205,15 +231,21 @@ def agregar_etiqueta(request):
         'nombre': producto.nombre,
         'precio_unitario': float(precio),
         'cantidad': float(cantidad),
-        'subtotal': float(importe),           # el importe de la etiqueta manda
+        'subtotal': float(importe),
         'descuento': 0.0,
         'tipo_precio': None,
         'ahorro_unitario': 0,
         'venta_por_caja': False,
-        'codigo_unico': f'_bal{int(time.time() * 1000)}',   # línea propia, "Quitar" funciona
+        'codigo_unico': f'_bal{int(time.time() * 1000)}',
         'detalle': 'Pesado en balanza',
     })
+
     request.session['carrito'] = carrito
     request.session.modified = True
-    return JsonResponse({'success': True, 'nombre': producto.nombre,
-                         'cantidad': float(cantidad), 'importe': float(importe)})
+
+    return JsonResponse({
+        'success': True,
+        'nombre': producto.nombre,
+        'cantidad': float(cantidad),
+        'importe': float(importe),
+    })

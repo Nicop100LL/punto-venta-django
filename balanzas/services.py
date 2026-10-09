@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from .etiqueta import parsear_etiqueta
+from .etiqueta import parsear_peso
 from .models import Balanza, CambioBalanza, ProductoBalanza
 
 
@@ -36,18 +36,38 @@ def registrar_cambio(pb, tipo, producto=None):
 
 
 def buscar_por_etiqueta(empresa, codigo):
-    """Si el código es una etiqueta de balanza válida y el PLU está cargado,
-    devuelve (producto, importe Decimal). Si no, None."""
+    """Devuelve (producto, peso_kg) para una etiqueta de balanza."""
+
     if len(codigo) != 13 or not codigo.isdigit():
         return None
-    for b in Balanza.objects.filter(empresa=empresa, activa=True).exclude(formato_etiqueta=''):
-        r = parsear_etiqueta(b.formato_etiqueta, codigo)
-        if not r:
+
+    for b in Balanza.objects.filter(
+        empresa=empresa,
+        activa=True
+    ).exclude(formato_etiqueta=''):
+
+        resultado = parsear_peso(b.formato_etiqueta, codigo)
+        if not resultado:
             continue
-        plu, imp = r
-        pb = (ProductoBalanza.objects.filter(balanza=b, plu=plu)
-              .select_related('producto').first())
-        p = pb.producto if pb else None
-        if p and p.activo and not p.venta_por_caja and p.empresa_id == empresa.id:
-            return p, Decimal(imp).scaleb(-b.decimales_precio)
+
+        plu, peso_gramos = resultado
+
+        pb = (
+            ProductoBalanza.objects
+            .filter(balanza=b, plu=plu)
+            .select_related('producto')
+            .first()
+        )
+
+        producto = pb.producto if pb else None
+
+        if (
+            producto
+            and producto.activo
+            and not producto.venta_por_caja
+            and producto.empresa_id == empresa.id
+        ):
+            peso_kg = Decimal(peso_gramos) / Decimal('1000')
+            return producto, peso_kg
+
     return None
