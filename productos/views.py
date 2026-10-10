@@ -288,6 +288,18 @@ def editar_producto(request, id):
 
         # ✅ ASIGNAMOS EL CÓDIGO SOLO SI PASÓ LA VALIDACIÓN
         producto.codigo = codigo_post
+        
+        
+        # --- TIPO DE VENTA: UNIDAD O KILO ---
+        if (
+            not producto.venta_por_caja
+            and request.POST.get('venta_por_caja') != 'on'
+        ):
+            tipo_venta = request.POST.get('tipo_venta', producto.tipo_venta)
+
+            if tipo_venta in ('unidad', 'kilo'):
+                producto.tipo_venta = tipo_venta
+
 
         # --- PRECIOS Y STOCK ---
         raw_precio_venta = request.POST.get('precio_venta')
