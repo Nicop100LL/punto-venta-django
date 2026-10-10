@@ -16,4 +16,9 @@ urlpatterns = [
     path('api/pendientes/', api.Pendientes.as_view(), name='api_pendientes'),
     path('api/cambios/<int:pk>/confirmar/', api.Confirmar.as_view(), name='api_confirmar'),
     path('api/latido/', api.Latido.as_view(), name='api_latido'),
+    path(
+        'balanza/<int:balanza_id>/imprimir-productos/',
+        views.imprimir_productos_balanza,
+        name='imprimir_productos_balanza',
+    ),
 ]

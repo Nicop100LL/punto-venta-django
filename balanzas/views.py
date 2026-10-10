@@ -249,3 +249,28 @@ def agregar_etiqueta(request):
         'cantidad': float(cantidad),
         'importe': float(importe),
     })
+    
+@balanza_habilitada
+def imprimir_productos_balanza(request, balanza_id):
+    empresa = request.user.empresa
+
+    balanza = get_object_or_404(
+        Balanza,
+        id=balanza_id,
+        empresa=empresa
+    )
+
+    productos_balanza = (
+        balanza.productos
+        .select_related('producto')
+        .order_by('plu')
+    )
+
+    return render(
+        request,
+        'balanzas/imprimir_productos_balanza.html',
+        {
+            'balanza': balanza,
+            'productos_balanza': productos_balanza,
+        }
+    )    

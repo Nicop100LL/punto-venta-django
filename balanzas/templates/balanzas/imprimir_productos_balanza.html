@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto p-4">
+
+  <div class="flex flex-wrap justify-between items-center gap-3 mb-6 no-print">
+    <a href="{% url 'balanzas:panel' %}"
+       class="px-4 py-2 border rounded">
+      Volver
+    </a>
+
+    <button onclick="window.print()"
+            class="px-4 py-2 bg-blue-600 text-white rounded">
+      Imprimir / Guardar PDF
+    </button>
+  </div>
+
+  <div class="print-area">
+    <h1 class="text-2xl font-bold mb-1">
+      Listado de productos de balanza
+    </h1>
+
+    <h2 class="text-lg mb-1">
+      {{ balanza.nombre }}
+    </h2>
+
+    <p class="text-sm text-gray-600 mb-5">
+      Fecha: {% now "d/m/Y H:i" %}
+    </p>
+
+    <table class="w-full border-collapse text-sm">
+      <thead>
+        <tr class="bg-gray-100">
+          <th class="border p-2 text-left">PLU</th>
+          <th class="border p-2 text-left">Código</th>
+          <th class="border p-2 text-left">Producto</th>
+         
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for pb in productos_balanza %}
+        <tr>
+          <td class="border p-2 font-bold">{{ pb.plu }}</td>
+          <td class="border p-2">{{ pb.producto.codigo }}</td>
+          <td class="border p-2">{{ pb.producto.nombre }}</td>
+          
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="border p-4 text-center">
+            No hay productos asignados a esta balanza.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <p class="mt-4 text-sm">
+      Total de productos: {{ productos_balanza|length }}
+    </p>
+  </div>
+</div>
+
+<style>
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  .print-area {
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+
+  th, td {
+    border: 1px solid #999 !important;
+  }
+}
+</style>
+{% endblock %}

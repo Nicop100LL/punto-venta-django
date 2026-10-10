@@ -33,13 +33,57 @@
             <td class="p-2">{{ b.ultima_comunicacion|date:"d/m H:i"|default:"nunca" }} <span class="text-gray-500">{{ b.ultimo_estado }}</span></td>
             <td class="p-2">{{ b.pendientes }}</td>
             <td class="p-2 {% if b.errores %}text-red-600 font-semibold{% endif %}">{{ b.errores }}</td>
-            <td class="p-2 whitespace-nowrap space-x-2">
-              <a class="text-blue-600 hover:underline" href="{% url 'balanzas:productos_balanza' b.id %}">Productos</a>
-              <a class="text-blue-600 hover:underline" href="{% url 'balanzas:balanza_editar' b.id %}">Editar</a>
-              <form method="post" action="{% url 'balanzas:sincronizar_todo' b.id %}" class="inline">{% csrf_token %}
-                <button class="text-purple-600 hover:underline" onclick="return confirm('¿Reenviar TODOS los productos a la balanza?')">Sincronizar todo</button>
-              </form>
+        
+            <td class="p-2">
+              <div class="grid grid-cols-2 gap-2 min-w-[230px]">
+
+                <!-- Fila 1 -->
+                <a href="{% url 'balanzas:productos_balanza' b.id %}"
+                  class="flex items-center justify-center gap-1 px-2 py-2 rounded-lg
+                          bg-blue-50 text-blue-700 border border-blue-200
+                          hover:bg-blue-100 hover:border-blue-300
+                          transition-all duration-200 text-xs font-semibold">
+                  <span>📦</span>
+                  <span>Productos</span>
+                </a>
+
+                <a href="{% url 'balanzas:balanza_editar' b.id %}"
+                  class="flex items-center justify-center gap-1 px-2 py-2 rounded-lg
+                          bg-gray-50 text-gray-700 border border-gray-200
+                          hover:bg-gray-100 hover:border-gray-300
+                          transition-all duration-200 text-xs font-semibold">
+                  <span>⚙️</span>
+                  <span>Editar</span>
+                </a>
+
+                <!-- Fila 2 -->
+                <form method="post"
+                      action="{% url 'balanzas:sincronizar_todo' b.id %}">
+                  {% csrf_token %}
+                  <button type="submit"
+                          class="w-full flex items-center justify-center gap-1 px-2 py-2 rounded-lg
+                                bg-purple-50 text-purple-700 border border-purple-200
+                                hover:bg-purple-100 hover:border-purple-300
+                                transition-all duration-200 text-xs font-semibold"
+                          onclick="return confirm('¿Reenviar TODOS los productos a la balanza?')">
+                    <span>🔄</span>
+                    <span>Sincronizar todo</span>
+                  </button>
+                </form>
+
+                <a href="{% url 'balanzas:imprimir_productos_balanza' b.id %}"
+                  target="_blank"
+                  class="flex items-center justify-center gap-1 px-2 py-2 rounded-lg
+                          bg-green-50 text-green-700 border border-green-200
+                          hover:bg-green-100 hover:border-green-300
+                          transition-all duration-200 text-xs font-semibold">
+                  <span>🖨️</span>
+                  <span class="px-2">Imprimir listado</span>
+                </a>
+
+              </div>
             </td>
+            
           </tr>
         {% empty %}
           <tr><td colspan="7" class="p-4 text-center text-gray-500">Todavía no cargaste ninguna balanza.</td></tr>
@@ -77,16 +121,42 @@
   {% endif %}
 
   <section>
-    <h2 class="text-lg font-semibold mb-2">Últimos movimientos</h2>
-    <div class="bg-white border rounded-lg divide-y text-sm">
-      {% for c in recientes %}
-        <div class="p-2 flex justify-between gap-2">
-          <span>{{ c.balanza.nombre }} · PLU {{ c.plu }} · {{ c.nombre }} · ${{ c.precio|floatformat:2 }} · {{ c.get_tipo_display }}</span>
-          <span class="whitespace-nowrap {% if c.estado == 'error' %}text-red-600{% elif c.estado == 'enviado' %}text-green-600{% else %}text-yellow-600{% endif %}">{{ c.get_estado_display }} · {{ c.actualizado|date:"d/m H:i" }}</span>
-        </div>
-      {% empty %}<div class="p-3 text-gray-500">Sin movimientos.</div>{% endfor %}
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold">Últimos movimientos</h2>
+      <span class="text-xs text-gray-500">Últimos 30 registros</span>
+    </div>
+
+    <div class="bg-white border rounded-lg overflow-hidden">
+      <div class="max-h-80 overflow-y-auto divide-y text-sm">
+        {% for c in recientes %}
+          <div class="p-2 flex flex-wrap items-center justify-between gap-2">
+            <span class="min-w-0 break-words">
+              {{ c.balanza.nombre }} · PLU {{ c.plu }} ·
+              {{ c.nombre }} · ${{ c.precio|floatformat:2 }} ·
+              {{ c.get_tipo_display }}
+            </span>
+
+            <span class="whitespace-nowrap
+              {% if c.estado == 'error' %}
+                text-red-600
+              {% elif c.estado == 'enviado' %}
+                text-green-600
+              {% else %}
+                text-yellow-600
+              {% endif %}">
+              {{ c.get_estado_display }} ·
+              {{ c.actualizado|date:"d/m H:i" }}
+            </span>
+          </div>
+        {% empty %}
+          <div class="p-3 text-gray-500">
+            Sin movimientos.
+          </div>
+        {% endfor %}
+      </div>
     </div>
   </section>
+
 </div>
 {% endtimezone %}
 {% endblock %}
