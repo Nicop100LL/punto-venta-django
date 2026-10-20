@@ -6,7 +6,7 @@ from usuarios.models import Usuario, Empresa
 
 
 class Presupuesto(models.Model):
-    ESTADOS = [('vigente', 'Vigente'), ('anulado', 'Anulado')]
+    ESTADOS = [('vigente', 'Vigente'), ('anulado', 'Anulado'), ('convertido', 'Convertido en venta')]
 
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
     usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True)
@@ -17,7 +17,9 @@ class Presupuesto(models.Model):
     validez_dias = models.PositiveIntegerField(default=7)
     nota = models.TextField(blank=True, default='')
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    estado = models.CharField(max_length=10, choices=ESTADOS, default='vigente')
+    estado = models.CharField(max_length=12, choices=ESTADOS, default='vigente')
+    venta = models.OneToOneField('ventas.Venta', null=True, blank=True,
+                                 on_delete=models.SET_NULL, related_name='presupuesto_origen')
 
     class Meta:
         ordering = ['-fecha']

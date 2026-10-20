@@ -40,6 +40,11 @@
 
   {% if presupuesto.estado == 'anulado' %}
     <div class="print:hidden mb-3 px-3 py-2 rounded bg-red-100 text-red-700 font-bold text-center">PRESUPUESTO ANULADO</div>
+  {% elif presupuesto.estado == 'convertido' %}
+    <div class="print:hidden mb-3 px-3 py-2 rounded bg-blue-100 text-blue-700 font-bold text-center">
+      CONVERTIDO EN VENTA{% if presupuesto.venta %} –
+      <a href="{% url 'detalle_venta' presupuesto.venta.id %}" class="underline">ver venta</a>{% endif %}
+    </div>
   {% elif presupuesto.vencido %}
     <div class="print:hidden mb-3 px-3 py-2 rounded bg-orange-100 text-orange-700 font-bold text-center">PRESUPUESTO VENCIDO</div>
   {% endif %}
@@ -133,18 +138,121 @@
     <p>Presupuesto válido hasta el {{ presupuesto.fecha_vencimiento|date:"d/m/Y" }}. Precios y stock sujetos a modificación sin previo aviso.</p>
   </div>
 
-  <!-- BOTONES -->
-  <div class="print:hidden mt-6 flex flex-wrap gap-2.5">
-    <button onclick="window.print()" class="bg-green-600 hover:bg-green-700 text-white text-xs px-4 py-2 rounded-md">Imprimir</button>
-    <a href="{% url 'nuevo_presupuesto' %}" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-md">Nuevo presupuesto</a>
-    <a href="{% url 'lista_presupuestos' %}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-4 py-2 rounded-md">Ver listado</a>
+    <!-- BOTONES -->
+  <div class="print:hidden mt-6 flex flex-wrap items-center gap-2">
+
+    <button onclick="window.print()"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-600 text-white text-xs font-semibold shadow-sm hover:bg-green-700 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v7H6z"/></svg>
+      Imprimir
+    </button>
+
+    {% if presupuesto.estado == 'vigente' %}
+    <button type="button" id="btn-pasar-venta"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold shadow-sm hover:bg-indigo-700 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l3-8H5.4M7 13L5.4 5M7 13l-2 4h12"/><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></svg>
+      Pasar a venta
+    </button>
+    {% endif %}
+
+    <a href="{% url 'nuevo_presupuesto' %}"
+       class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition">
+      Nuevo presupuesto
+    </a>
+
+    <a href="{% url 'lista_presupuestos' %}"
+       class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition">
+      Ver listado
+    </a>
+
     {% if presupuesto.estado == 'vigente' %}
     <form method="post" action="{% url 'anular_presupuesto' presupuesto.id %}"
-          onsubmit="return confirm('¿Anular este presupuesto?')">
+          onsubmit="return confirm('¿Anular este presupuesto?')" class="sm:ml-auto">
       {% csrf_token %}
-      <button class="bg-red-600 hover:bg-red-700 text-white text-xs px-4 py-2 rounded-md">Anular</button>
+      <button class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50 transition">
+        Anular
+      </button>
     </form>
     {% endif %}
   </div>
 </div>
+</div>
+
+{% if presupuesto.estado == 'vigente' %}
+<!-- Modal: pasar presupuesto al carrito -->
+<div id="modal-vender" class="print:hidden fixed inset-0 z-50 hidden items-center justify-center px-4">
+  <div id="modal-vender-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
+
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <div class="flex items-start gap-3 mb-4">
+      <div class="shrink-0 w-11 h-11 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl">🛒</div>
+      <div>
+        <h3 class="text-lg font-bold text-gray-800">Pasar presupuesto a venta</h3>
+        <p class="text-sm text-gray-500">Se cargará en el carrito de Nueva Venta.</p>
+      </div>
+    </div>
+
+    <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-3 text-sm">
+      <div class="flex justify-between"><span class="text-gray-500">Presupuesto</span><strong>#{{ presupuesto.numero_empresa|stringformat:"06d" }}</strong></div>
+      <div class="flex justify-between mt-1"><span class="text-gray-500">Cliente</span><strong class="text-right">{{ presupuesto.nombre_cliente }}</strong></div>
+      <div class="flex justify-between mt-1"><span class="text-gray-500">Total</span><strong class="text-green-700">${{ presupuesto.total|floatformat:2|formato_precio }}</strong></div>
+    </div>
+
+    {% if presupuesto.vencido %}
+    <p class="mb-3 text-xs bg-orange-50 border border-orange-200 text-orange-700 rounded-lg px-3 py-2">
+      ⚠️ Este presupuesto está vencido. Revisá los precios antes de finalizar.
+    </p>
+    {% endif %}
+
+    <p class="text-xs text-gray-500 mb-5">
+      Si ya hay productos en el carrito de venta, se van a reemplazar.
+    </p>
+
+    <form id="form-vender" method="post" action="{% url 'convertir_presupuesto' presupuesto.id %}">
+      {% csrf_token %}
+      <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+        <button type="button" id="mv-cancelar"
+                class="px-5 py-2.5 rounded-lg bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition">
+          Cancelar
+        </button>
+        <button type="submit" id="mv-confirmar"
+                class="px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">
+          Sí, pasar al carrito
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('modal-vender');
+  const form = document.getElementById('form-vender');
+  const btnConfirmar = document.getElementById('mv-confirmar');
+
+  function abrir() {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    setTimeout(() => btnConfirmar.focus(), 50);
+  }
+  function cerrar() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  document.getElementById('btn-pasar-venta').addEventListener('click', abrir);
+  document.getElementById('mv-cancelar').addEventListener('click', cerrar);
+  document.getElementById('modal-vender-backdrop').addEventListener('click', cerrar);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) cerrar();
+  });
+
+  // Evita doble envío
+  form.addEventListener('submit', () => {
+    btnConfirmar.disabled = true;
+    btnConfirmar.textContent = 'Cargando...';
+  });
+});
+</script>
+{% endif %}
 {% endblock %}

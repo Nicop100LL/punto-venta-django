@@ -60,7 +60,7 @@ import json
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
-
+from presupuestos.models import Presupuesto
 from ventas.models import Venta, ComprobanteArca
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
@@ -344,6 +344,8 @@ def nueva_venta(request):
                 i for i in carrito
                 if i['producto_id'] != producto_id or i.get('codigo_unico')
             ]
+            if not request.session['carrito']:
+                request.session.pop('presupuesto_origen_id', None)
             request.session.modified = True
             return redirect('nueva_venta')
 
@@ -442,6 +444,12 @@ def nueva_venta(request):
 
                 venta.save()
 
+                presupuesto_id = request.session.pop('presupuesto_origen_id', None)
+                if presupuesto_id:
+                    Presupuesto.objects.filter(
+                        id=presupuesto_id, empresa=request.user.empresa, estado='vigente'
+                    ).update(estado='convertido', venta=venta)
+                    
                 # 🔥 SALDO: UNA SOLA VEZ
                 if cuenta_corriente and cliente:
                     cliente.saldo += venta.total

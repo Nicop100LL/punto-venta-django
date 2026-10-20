@@ -7,4 +7,5 @@ urlpatterns = [
     path('detalle/<int:presupuesto_id>/', views.detalle_presupuesto, name='detalle_presupuesto'),
     path('anular/<int:presupuesto_id>/', views.anular_presupuesto, name='anular_presupuesto'),
     path('cancelar/', views.cancelar_borrador, name='cancelar_presupuesto'),
+    path('convertir/<int:presupuesto_id>/', views.convertir_a_venta, name='convertir_presupuesto'),
 ]

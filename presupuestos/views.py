@@ -1,6 +1,7 @@
 from decimal import Decimal, InvalidOperation, ROUND_CEILING
 from functools import wraps
-
+from datetime import timedelta
+from django.utils import timezone
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -147,13 +148,17 @@ def nuevo_presupuesto(request):
 
 @presupuestos_habilitados
 def lista_presupuestos(request):
-    presupuestos = (Presupuesto.objects
-                    .filter(empresa=request.user.empresa)
-                    .select_related('cliente', 'usuario')[:200])
-    return render(request, 'presupuestos/lista_presupuestos.html',
-                  {'presupuestos': presupuestos})
-
-
+    ver_todos = request.GET.get('ver') == 'todos'
+    qs = (Presupuesto.objects
+          .filter(empresa=request.user.empresa)
+          .select_related('cliente', 'usuario'))
+    if not ver_todos:
+        qs = qs.filter(fecha__gte=timezone.now() - timedelta(days=30))
+    return render(request, 'presupuestos/lista_presupuestos.html', {
+        'presupuestos': qs[:200],
+        'ver_todos': ver_todos,
+    })
+    
 @presupuestos_habilitados
 def detalle_presupuesto(request, presupuesto_id):
     p = get_object_or_404(Presupuesto, id=presupuesto_id, empresa=request.user.empresa)
@@ -183,3 +188,59 @@ def cancelar_borrador(request):
     for k in SESSION_KEYS:
         request.session.pop(k, None)
     return redirect('nuevo_presupuesto')
+
+@presupuestos_habilitados
+@require_POST
+def convertir_a_venta(request, presupuesto_id):
+    p = get_object_or_404(Presupuesto, id=presupuesto_id, empresa=request.user.empresa)
+
+    if p.estado != 'vigente':
+        messages.error(request, 'Solo se pueden convertir presupuestos vigentes.')
+        return redirect('detalle_presupuesto', presupuesto_id=p.id)
+
+    carrito = []
+    omitidos = []
+    for d in p.detalles.select_related('producto'):
+        prod = d.producto
+        if not prod or not prod.activo:
+            omitidos.append(d.descripcion)
+            continue
+
+        es_caja = bool(d.metros_por_caja)
+        item = {
+            'producto_id': prod.id,
+            'nombre': d.descripcion,
+            'cantidad': float(d.cantidad),
+            'precio_unitario': float(d.precio_unitario),
+            'subtotal': float(d.cantidad * d.precio_unitario),
+            'descuento': 0,
+            'tipo_precio': 'caja' if es_caja else None,
+            'ahorro_unitario': 0,
+            'venta_por_caja': es_caja,
+        }
+        if es_caja:
+            item['metros_por_caja'] = float(d.metros_por_caja)
+            item['metros_totales'] = float(d.metros_totales or d.cantidad * d.metros_por_caja)
+            item['precio_m2'] = float(d.precio_m2) if d.precio_m2 else None
+        carrito.append(item)
+
+    if not carrito:
+        messages.error(request, 'Ningún producto del presupuesto está disponible para vender.')
+        return redirect('detalle_presupuesto', presupuesto_id=p.id)
+
+    s = request.session
+    s['carrito'] = carrito
+    s['cliente_id'] = str(p.cliente_id) if p.cliente_id else None
+    s['cuenta_corriente'] = False
+    s['nota'] = (f'Presupuesto #{p.numero_empresa:06d}'
+                 + (f' - {p.nota}' if p.nota else ''))
+    s['presupuesto_origen_id'] = p.id
+    if request.user.empresa.usa_venta_por_caja:
+        s['tipo_comprobante'] = 'a4'
+    s.modified = True
+
+    if omitidos:
+        messages.warning(request, 'No se cargaron (inactivos/eliminados): ' + ', '.join(omitidos))
+    if p.vencido:
+        messages.warning(request, 'Atención: el presupuesto está vencido, revisá los precios.')
+    return redirect('nueva_venta')
