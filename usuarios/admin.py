@@ -21,6 +21,7 @@ class EmpresaAdmin(admin.ModelAdmin):
         "cuit",
         "usa_venta_por_caja",
         "usa_balanza",
+        "usa_agente_impresion",
         "usa_arca",
         "arca_modo",
         "arca_punto_venta",
@@ -31,6 +32,7 @@ class EmpresaAdmin(admin.ModelAdmin):
     list_editable = (
         "usa_venta_por_caja",
         "usa_balanza",
+        "usa_agente_impresion",
         "usa_arca",
         "mostrar_aviso",
         "tipo_aviso",
@@ -49,6 +51,7 @@ class EmpresaAdmin(admin.ModelAdmin):
                 "activo",
                 "usa_venta_por_caja",
                 "usa_balanza",
+                "usa_agente_impresion",
             )
         }),
 

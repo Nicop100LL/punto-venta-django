@@ -11,6 +11,8 @@ class ConfiguracionImpresoraTicketAdmin(admin.ModelAdmin):
         "cortar_papel",
         "abrir_cajon",
         "activo",
+        "agente_puerto",
     )
     list_filter = ("activo", "ancho_mm")
     search_fields = ("empresa__nombre", "nombre_sistema")
+    readonly_fields = ("agente_token",)

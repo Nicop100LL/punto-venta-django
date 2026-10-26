@@ -193,8 +193,13 @@
 
     <!-- Botones solo visibles fuera de impresión -->
     <div class="no-print mt-4 flex justify-between">
-        {% if request.user.empresa.config_impresora_ticket.microservicio_url %}
-    <button onclick="imprimirVenta({{ venta.id }})"
+        {% if request.user.empresa.usa_agente_impresion %}
+            <button id="btn-imprimir-agente" onclick="imprimirAgente({{ venta.id }})"
+                    class="bg-green-700 text-white px-2 py-1 rounded text-xs hover:bg-green-800">
+                Imprimir
+            </button>
+        {% elif request.user.empresa.config_impresora_ticket.microservicio_url %}
+            <button onclick="imprimirVenta({{ venta.id }})"
                     class="bg-green-700 text-white px-2 py-1 rounded text-xs hover:bg-green-800">
                 Imprimir
             </button>
@@ -253,6 +258,46 @@ table {
 
 
 </style>
+
+{% if request.user.empresa.usa_agente_impresion %}
+<script>
+async function imprimirAgente(ventaId) {
+    const btn = document.getElementById('btn-imprimir-agente');
+    if (btn) btn.disabled = true;
+
+    try {
+        // 1. Pedir el ticket armado a Django
+        const r = await fetch(`/ventas/ticket-payload/${ventaId}/`);
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || 'No se pudo armar el ticket');
+
+        // 2. Mandarlo al agente local (timeout 4 s)
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 4000);
+        const res = await fetch(`http://127.0.0.1:${d.agente.puerto}/imprimir`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Agent-Token': d.agente.token
+            },
+            body: JSON.stringify(d.payload),
+            signal: ctrl.signal
+        });
+        clearTimeout(t);
+
+        const out = await res.json();
+        if (!out.ok) throw new Error(out.error || 'Error del agente');
+
+    } catch (e) {
+        // Fallback: impresión normal del navegador
+        console.warn('Agente no disponible, uso window.print():', e);
+        window.print();
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+</script>
+{% endif %}
 
 <!--Imprimir con microservicio-->
 {% if request.user.empresa.config_impresora_ticket.microservicio_url %}

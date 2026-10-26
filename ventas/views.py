@@ -15,6 +15,7 @@ from reportlab.lib.pagesizes import A4
 from django.utils.timezone import now
 from reportlab.lib.units import cm
 import os
+from django.utils import timezone
 from ventas.services.arca import decidir_arca
 from .models import Venta
 from django.contrib.auth.decorators import login_required
@@ -65,7 +66,131 @@ from ventas.models import Venta, ComprobanteArca
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .models import EgresoCaja
+import base64
+from decimal import Decimal
 
+
+def _money(valor):
+    """1234.5 -> '1.234,50'"""
+    s = f"{Decimal(valor or 0):,.2f}"
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _qty(valor):
+    """3.000 -> '3', 1.250 -> '1.25'"""
+    return format(Decimal(valor).normalize(), "f")
+
+def _logo_b64(empresa, config):
+    """Logo de la empresa (o el de la impresora) en base64, o None."""
+    for campo in (empresa.logo, config.logo):
+        if campo:
+            try:
+                with campo.open("rb") as f:
+                    return base64.b64encode(f.read()).decode()
+            except Exception:
+                continue
+    return None
+
+
+@login_required
+def ticket_payload(request, venta_id):
+    empresa = request.user.empresa
+    venta = get_object_or_404(Venta, id=venta_id, empresa=empresa)
+
+    try:
+        config = empresa.config_impresora_ticket
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Sin impresora configurada"}, status=400)
+
+    if not empresa.usa_agente_impresion:
+        return JsonResponse({"ok": False, "error": "La empresa no usa agente"}, status=400)
+
+    detalles = list(venta.detalles.select_related("producto"))
+    c = []
+
+    # --- Encabezado ---
+    logo = _logo_b64(empresa, config)
+    if logo:
+        c.append({"tipo": "image", "b64": logo})
+    c.append({"tipo": "center", "bold": True, "size": "lg", "texto": empresa.nombre})
+    c.append({"tipo": "center", "bold": True, "texto": f"Venta #{venta.numero_empresa}"})
+
+    # --- Datos generales ---
+    if venta.usuario:
+        vendedor = venta.usuario.get_full_name() or venta.usuario.username
+    else:
+        vendedor = "-"
+    c.append({"tipo": "kv", "k": "Fecha:", "v": f"{timezone.localtime(venta.fecha):%d/%m/%Y %H:%M}"})
+    c.append({"tipo": "kv", "k": "Vendedor:", "v": vendedor})
+    c.append({"tipo": "kv", "k": "Cliente:", "v": venta.cliente.nombre if venta.cliente else "Consumidor Final"})
+    c.append({"tipo": "kv", "k": "Pago:", "v": venta.get_tipo_pago_display()})
+    if venta.cuenta_corriente:
+        c.append({"tipo": "kv", "k": "Cuenta Corriente:", "v": "Si"})
+    c.append({"tipo": "line"})
+
+    # --- Productos ---
+    c.append({"tipo": "tabla_header"})
+    for d in detalles:
+        item = {
+            "tipo": "item",
+            "nombre": d.producto.nombre if d.producto else "Producto",
+            "detalle": d.detalle or "",
+            "cant": _qty(d.cantidad),
+            "pu": _money(d.precio_unitario),
+            "sub": _money(d.cantidad * d.precio_unitario),
+        }
+        if d.producto and d.producto.precio_venta and d.producto.precio_venta > d.precio_unitario:
+            pct = (1 - d.precio_unitario / d.producto.precio_venta) * 100
+            item["desc"] = f"  Descuento aplicado: -{pct:.0f}%"
+        c.append(item)
+        if d.metros_totales:
+            c.append({"tipo": "text", "texto": f"  {_qty(d.metros_totales)} m2"})
+    c.append({"tipo": "line"})
+
+    # --- Totales ---
+    subtotal = venta.subtotal if venta.subtotal is not None else venta.total
+    c.append({"tipo": "kv", "k": "Subtotal:", "v": f"${_money(subtotal)}"})
+    if venta.recargo_monto:
+        c.append({"tipo": "kv", "k": f"Recargo {venta.recargo_porcentaje:.0f}%:",
+                  "v": f"${_money(venta.recargo_monto)}"})
+
+    total_bultos = sum((d.cantidad_bultos() or 0) for d in detalles if d.es_bulto)
+    total_unidades = sum(max(1, int(d.cantidad)) for d in detalles
+                         if not d.es_bulto and not d.metros_por_caja)
+    if total_bultos:
+        c.append({"tipo": "kv", "k": "Bultos:", "v": f"{total_bultos:.0f}"})
+    if total_unidades:
+        c.append({"tipo": "kv", "k": "Unidades:", "v": f"{total_unidades:.0f}"})
+
+    c.append({"tipo": "line"})
+    c.append({"tipo": "row", "bold": True, "size": "lg", "izq": "Total:", "der": f"${_money(venta.total)}"})
+
+    if venta.tipo_pago == "EF" and venta.importe_entregado:
+        c.append({"tipo": "line"})
+        c.append({"tipo": "kv", "k": "Entregado:", "v": f"${_money(venta.importe_entregado)}"})
+        c.append({"tipo": "kv", "k": "Vuelto:", "v": f"${_money(venta.vuelto)}"})
+
+    if venta.nota:
+        c.append({"tipo": "line"})
+        c.append({"tipo": "kv", "k": "Nota:", "v": venta.nota})
+
+    if config.datos_empresa:
+        c.append({"tipo": "line"})
+        c.append({"tipo": "center", "texto": config.datos_empresa})
+    if config.saludo_final:
+        c.append({"tipo": "center", "bold": True, "texto": config.saludo_final})
+
+    return JsonResponse({
+        "ok": True,
+        "agente": {"puerto": config.agente_puerto, "token": config.agente_token},
+        "payload": {
+            "ancho_mm": 58 if venta.tipo_comprobante == "58mm" else 80,
+            "cortar_papel": config.cortar_papel,
+            "abrir_cajon": config.abrir_cajon,
+            "contenido": c,
+        },
+    })
+    
 RECARGOS_PAGO_CAJA = {
     'EF':  Decimal('0.00'),
     'TR':  Decimal('0.05'),
@@ -83,10 +208,9 @@ def calcular_total_con_recargo(subtotal: Decimal, tipo_pago: str, usa_venta_por_
 
 def recargos_para_template(usa_venta_por_caja: bool) -> str:
     """Un solo lugar que alimenta tanto el <select> como el preview JS."""
+    data = {'EF': 0, 'MP': 0, 'DN': 0, 'TJ': 0, 'TR': 0}
     if usa_venta_por_caja:
-        data = {k: float(v * 100) for k, v in RECARGOS_PAGO_CAJA.items()}
-    else:
-        data = {'EF': 0, 'MP': 0, 'DN': 0, 'TJ': 0, 'TR': 0}
+        data.update({k: float(v * 100) for k, v in RECARGOS_PAGO_CAJA.items()})
     return json.dumps(data)
 
 @login_required
@@ -380,7 +504,7 @@ def nueva_venta(request):
                     'tipo_comprobante': tipo_comprobante,
                     'cliente_id': cliente_id_int,
                     'cuenta_corriente': cuenta_corriente,
-                    'saldo_cliente': None if cliente_id_int is None else Cliente.objects.filter(id=cliente_id_int).first().saldo,
+                    'saldo_cliente': saldo_cliente_bloqueo,
                     'tipo_pago': tipo_pago,
                     'abrir_modal_caja': abrir_modal_caja,
                     'caja_abierta': caja_abierta,
@@ -430,7 +554,8 @@ def nueva_venta(request):
                 if request.session.get('cliente_id'):
                     try:
                         cliente = Cliente.objects.get(
-                            id=int(request.session['cliente_id'])
+                            id=int(request.session['cliente_id']),
+                            empresa=request.user.empresa
                         )
                         venta.cliente = cliente
                     except Cliente.DoesNotExist:
@@ -524,7 +649,7 @@ def nueva_venta(request):
 
     if cliente_id_int:
         try:
-            cliente = Cliente.objects.get(id=cliente_id_int)
+            cliente = Cliente.objects.get(id=cliente_id_int, empresa=request.user.empresa)
             saldo_cliente = cliente.saldo
         except Cliente.DoesNotExist:
             pass
@@ -811,7 +936,7 @@ def editar_cliente(request):
             if not cliente_id:
                 return JsonResponse({'success': False, 'error': 'ID de cliente no proporcionado'}, status=400)
 
-            cliente = Cliente.objects.get(id=cliente_id)
+            cliente = Cliente.objects.get(id=cliente_id, empresa=request.user.empresa)
 
             cliente.nombre = request.POST.get('nombre', '')
             cliente.cuit = request.POST.get('cuit', '')
@@ -859,7 +984,7 @@ def modificar_saldo_cliente(request):
         tipo_pago = request.POST.get('tipo_pago')
 
         try:
-            cliente = Cliente.objects.get(pk=cliente_id)
+            cliente = Cliente.objects.get(pk=cliente_id, empresa=request.user.empresa)
 
             monto_pago_realizado = None
 
@@ -912,7 +1037,9 @@ def modificar_saldo_cliente(request):
 
 @login_required
 def historial_pagos_cliente(request, cliente_id):
-    pagos = PagoCliente.objects.filter(cliente_id=cliente_id).order_by('-fecha')
+    pagos = PagoCliente.objects.filter(
+        cliente_id=cliente_id, cliente__empresa=request.user.empresa
+    ).order_by('-fecha')
 
     data = [
         {
@@ -926,10 +1053,11 @@ def historial_pagos_cliente(request, cliente_id):
     return JsonResponse({'success': True, 'pagos': data})
 
 @login_required
+@require_POST
 def eliminar_cliente(request):
     cliente_id = request.POST.get('cliente_id')
     try:
-        cliente = Cliente.objects.get(id=cliente_id)
+        cliente = Cliente.objects.get(id=cliente_id, empresa=request.user.empresa)
         cliente.delete()
         return JsonResponse({'success': True})
     except Cliente.DoesNotExist:
@@ -1106,7 +1234,7 @@ from .models import Venta
 from impresoras.models import ConfiguracionImpresoraTicket
 
 def enviar_ticket(request, venta_id):
-    venta = get_object_or_404(Venta, id=venta_id)
+    venta = get_object_or_404(Venta, id=venta_id, empresa=request.user.empresa)
 
     try:
         config = venta.empresa.config_impresora_ticket
@@ -1295,7 +1423,7 @@ from ventas.services.arca import decidir_arca
 @require_POST
 @login_required
 def arca_enviar(request, venta_id):
-    venta = get_object_or_404(Venta, id=venta_id)
+    venta = get_object_or_404(Venta, id=venta_id, empresa=request.user.empresa)
 
     decision = decidir_arca(venta)
 
@@ -1331,7 +1459,7 @@ def arca_enviar(request, venta_id):
 @require_POST
 def reintentar_arca(request, venta_id):
 
-    venta = get_object_or_404(Venta, id=venta_id)
+    venta = get_object_or_404(Venta, id=venta_id, empresa=request.user.empresa)
 
     if not hasattr(venta, "comprobante_arca"):
         messages.error(request, "La venta no tiene comprobante ARCA.")

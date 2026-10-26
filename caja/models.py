@@ -26,26 +26,26 @@ class CierreCaja(models.Model):
     fecha_cierre = models.DateTimeField(null=True, blank=True)
 
     monto_inicial = models.DecimalField(
-        max_digits=10,
+        max_digits=14,
         decimal_places=2,
         default=0
     )
 
     efectivo_sistema = models.DecimalField(
-        max_digits=10,
+        max_digits=14,
         decimal_places=2,
         default=0
     )
 
     efectivo_real = models.DecimalField(
-        max_digits=10,
+        max_digits=14,
         decimal_places=2,
         null=True,
         blank=True
     )
 
     diferencia = models.DecimalField(
-        max_digits=10,
+        max_digits=14,
         decimal_places=2,
         default=0
     )
@@ -56,7 +56,7 @@ class CierreCaja(models.Model):
         default='abierta'
     )
     saldo_final = models.DecimalField(
-        max_digits=10,
+        max_digits=14,
         decimal_places=2,
         null=True,
         blank=True

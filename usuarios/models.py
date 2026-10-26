@@ -15,6 +15,12 @@ class Empresa(models.Model):
     logo = models.ImageField(upload_to='logos/', blank=True, null=True)  # logo opcional
     activo = models.BooleanField(default=True)  # empresa activa o no
     
+    usa_agente_impresion = models.BooleanField(
+        default=False,
+        verbose_name="Usa agente de impresión",
+        help_text="Imprime tickets directo en la impresora térmica, sin diálogo del navegador."
+    )
+        
     usa_venta_por_caja = models.BooleanField(
         default=False,
         verbose_name="Habilitar venta por caja / m²",

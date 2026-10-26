@@ -1,5 +1,6 @@
 from django.db import models
 from usuarios.models import Empresa
+import secrets
 
 class ConfiguracionImpresoraTicket(models.Model):
     """
@@ -18,6 +19,14 @@ class ConfiguracionImpresoraTicket(models.Model):
         default="Impresora de Tickets",
         help_text="Nombre descriptivo de la impresora"
     )
+    
+    agente_puerto = models.PositiveIntegerField(default=8765)
+    agente_token = models.CharField(max_length=64, blank=True, default="")
+
+    def save(self, *args, **kwargs):
+        if not self.agente_token:
+            self.agente_token = secrets.token_urlsafe(32)
+        super().save(*args, **kwargs)
 
     # ===== IMPRESORA =====
     nombre_sistema = models.CharField(
