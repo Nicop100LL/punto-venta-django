@@ -116,7 +116,8 @@ def ticket_payload(request, venta_id):
         c.append({"tipo": "image", "b64": logo})
     c.append({"tipo": "center", "bold": True, "size": "lg", "texto": empresa.nombre})
     if empresa.telefono:
-        c.append({"tipo": "center", "texto": f"Tel: {empresa.telefono}"})
+        c.append({"tipo": "text", "texto": ""}) 
+        c.append({"tipo": "center", "texto": f"Cel: {empresa.telefono}"})
     c.append({"tipo": "center", "bold": True, "texto": f"Venta #{venta.numero_empresa}"})
 
     # --- Datos generales ---
