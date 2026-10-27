@@ -45,6 +45,7 @@ class EmpresaAdmin(admin.ModelAdmin):
                 "nombre",
                 "cuit",
                 "direccion",
+                "telefono",
                 "condicion_iva",
                 "logo",
                 "formato_ticket",
