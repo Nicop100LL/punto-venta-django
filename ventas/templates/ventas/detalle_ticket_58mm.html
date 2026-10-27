@@ -13,6 +13,9 @@
             <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}" class="mx-auto w-12 h-12 mb-1">
         {% endif %}
         <h1 class="text-center font-bold text-sm">{{ empresa.nombre }}</h1>
+        {% if empresa.telefono %}
+            <p class="text-[8px]">Tel: {{ empresa.telefono }}</p>
+        {% endif %}
         
         {# 🔥 DATOS FISCALES COMPLETOS SI HAY ARCA APROBADO #}
         {% if venta.comprobante_arca and venta.comprobante_arca.estado == "aprobado" %}

@@ -14,6 +14,12 @@ class Empresa(models.Model):
     condicion_iva = models.CharField(max_length=100, blank=True, null=True)
     logo = models.ImageField(upload_to='logos/', blank=True, null=True)  # logo opcional
     activo = models.BooleanField(default=True)  # empresa activa o no
+    telefono = models.CharField(
+        max_length=30,
+        blank=True,
+        null=True,
+        verbose_name="Teléfono / Celular",
+    )
     
     usa_agente_impresion = models.BooleanField(
         default=False,

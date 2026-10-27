@@ -67,14 +67,16 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .models import EgresoCaja
 import base64
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 
-def _money(valor):
-    """1234.5 -> '1.234,50'"""
-    s = f"{Decimal(valor or 0):,.2f}"
+def _money(valor, decimales=2):
+    """1234.5 -> '1.234,50'  |  con decimales=0: 1234.5 -> '1.235'"""
+    d = Decimal(valor or 0)
+    if decimales == 0:
+        d = d.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    s = f"{d:,.{decimales}f}"
     return s.replace(",", "X").replace(".", ",").replace("X", ".")
-
 
 def _qty(valor):
     """3.000 -> '3', 1.250 -> '1.25'"""
@@ -113,6 +115,8 @@ def ticket_payload(request, venta_id):
     if logo:
         c.append({"tipo": "image", "b64": logo})
     c.append({"tipo": "center", "bold": True, "size": "lg", "texto": empresa.nombre})
+    if empresa.telefono:
+        c.append({"tipo": "center", "texto": f"Tel: {empresa.telefono}"})
     c.append({"tipo": "center", "bold": True, "texto": f"Venta #{venta.numero_empresa}"})
 
     # --- Datos generales ---
@@ -163,12 +167,12 @@ def ticket_payload(request, venta_id):
         c.append({"tipo": "kv", "k": "Unidades:", "v": f"{total_unidades:.0f}"})
 
     c.append({"tipo": "line"})
-    c.append({"tipo": "row", "bold": True, "size": "lg", "izq": "Total:", "der": f"${_money(venta.total)}"})
+    c.append({"tipo": "row", "bold": True, "size": "lg", "izq": "Total:", "der": f"${_money(venta.total, 0)}"})
 
     if venta.tipo_pago == "EF" and venta.importe_entregado:
         c.append({"tipo": "line"})
-        c.append({"tipo": "kv", "k": "Entregado:", "v": f"${_money(venta.importe_entregado)}"})
-        c.append({"tipo": "kv", "k": "Vuelto:", "v": f"${_money(venta.vuelto)}"})
+        c.append({"tipo": "kv", "k": "Entregado:", "v": f"${_money(venta.importe_entregado, 0)}"})
+        c.append({"tipo": "kv", "k": "Vuelto:", "v": f"${_money(venta.vuelto, 0)}"})
 
     if venta.nota:
         c.append({"tipo": "line"})

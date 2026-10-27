@@ -20,6 +20,9 @@
                 {% if empresa.direccion %}
                     <p class="empresa-dato">{{ empresa.direccion }}</p>
                 {% endif %}
+                {% if empresa.telefono %}
+                    <p class="empresa-dato">Tel: {{ empresa.telefono }}</p>
+                {% endif %}
                 {% if empresa.condicion_iva %}
                     <p class="empresa-dato">{{ empresa.condicion_iva }}</p>
                 {% endif %}
